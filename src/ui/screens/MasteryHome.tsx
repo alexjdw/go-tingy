@@ -1,10 +1,19 @@
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import type { Problem } from '../../data/samples';
-import { type Category, type MasteryState, inCategory, localDay } from '../../progress/mastery';
+import {
+  type Category,
+  type MasteryState,
+  inCategory,
+  localDay,
+  masteryProgress,
+  puzzleMasteryLevel,
+} from '../../progress/mastery';
 import { type RunKind, masteryAction } from '../../progress/practice';
-import { LEVEL_COLORS, type ProgressMap, computeSkill } from '../../progress/skill';
 import { cachedLearnerDepth } from '../../study/lines';
+import type { ProgressMap } from '../../progress/skill';
+import { tileStats } from '../../progress/stats';
+import { MasteryBadge } from '../components/MasteryBadge';
 import { PlusMenu } from '../components/PlusMenu';
 import { PuzzleGrid } from '../components/PuzzleGrid';
 import { PuzzleTile } from '../components/PuzzleTile';
@@ -15,6 +24,9 @@ interface Props {
   problems: Problem[];
   progress: ProgressMap;
   mastery: MasteryState;
+  /** ids of the puzzles in joseki mode */
+  joseki: string[];
+  onJosekiChange: (id: string, on: boolean) => void;
   onBack: () => void;
   onAddPuzzles: () => void;
   onPlay: (p: Problem, kind: RunKind) => void;
@@ -25,7 +37,17 @@ interface Props {
  * The puzzles in mastery, as tiles like Browse. Play does the puzzle's next training step (a guided run until the
  * guided stage is cleared, then a mastery run); "Add puzzles" is at the top.
  */
-export function MasteryHome({ problems, progress, mastery, onBack, onAddPuzzles, onPlay, onToggleCategory }: Props) {
+export function MasteryHome({
+  problems,
+  progress,
+  mastery,
+  joseki,
+  onJosekiChange,
+  onBack,
+  onAddPuzzles,
+  onPlay,
+  onToggleCategory,
+}: Props) {
   const [menu, setMenu] = useState<Problem | null>(null);
   const day = localDay(new Date());
   const members = useMemo(() => problems.filter((p) => inCategory(mastery, 'mastery', p.id)), [problems, mastery]);
@@ -55,13 +77,24 @@ export function MasteryHome({ problems, progress, mastery, onBack, onAddPuzzles,
         empty="No puzzles in mastery yet. Tap Add puzzles to choose some."
         renderTile={(p, width) => {
           const a = actions.get(p.id)!;
-          const skill = computeSkill(progress[p.id]);
           return (
             <PuzzleTile
               problem={p}
               width={width}
-              dot={skill.level === 'new' ? undefined : LEVEL_COLORS[skill.level]}
+              bar={masteryProgress(mastery, p.id, cachedLearnerDepth(p.sgf))}
+              badge={<MasteryBadge level={puzzleMasteryLevel(mastery, p.id)} />}
               caption={a.caption}
+              tags={joseki.includes(p.id) ? ['Joseki'] : []}
+              stats={() =>
+                tileStats({
+                  id: p.id,
+                  history: progress[p.id],
+                  mastery,
+                  learnerMoves: cachedLearnerDepth(p.sgf),
+                  joseki: joseki.includes(p.id),
+                  day,
+                })
+              }
               actions={[
                 { label: a.label, disabled: !a.enabled, onPress: () => a.kind && onPlay(p, a.kind) },
                 {
@@ -80,6 +113,8 @@ export function MasteryHome({ problems, progress, mastery, onBack, onAddPuzzles,
         title={menu?.title ?? null}
         spaced={menu ? inCategory(mastery, 'spaced', menu.id) : false}
         mastery={menu ? inCategory(mastery, 'mastery', menu.id) : false}
+        joseki={menu ? joseki.includes(menu.id) : false}
+        onJosekiChange={(on) => menu && onJosekiChange(menu.id, on)}
         onToggle={(category, on) => {
           if (!menu) return;
           onToggleCategory(menu.id, category, on);

@@ -12,15 +12,16 @@ import {
   inCategory,
   isDueNow,
   localDay,
+  masteryProgress,
   recordAttemptStart,
   recordGuidedResult,
   recordMasteryResult,
   setCategory,
 } from './progress/mastery';
 import { type RunKind, masteryAction } from './progress/practice';
-import { type Attempt, type Level, type ProgressMap, computeSkill, recordAttempt } from './progress/skill';
+import { type Attempt, type ProgressMap, recordAttempt } from './progress/skill';
 import { canGoBack, current, pop, push, replace, reset, type Stack } from './nav/stack';
-import { loadLibrary, loadProgress, saveLibrary, saveProgress } from './storage/persistence';
+import { loadJoseki, loadLibrary, loadProgress, saveJoseki, saveLibrary, saveProgress } from './storage/persistence';
 import { asyncKv } from './storage/asyncKv';
 import { createMasteryStore } from './storage/mastery';
 import { DEFAULT_SETTINGS, type Settings, loadSettings, saveSettings } from './storage/settings';
@@ -29,6 +30,7 @@ import type { Mode } from './study/engine';
 import { theme } from './ui/components/theme';
 import { Browse } from './ui/screens/Browse';
 import { Editor } from './ui/screens/Editor';
+import { FromGame } from './ui/screens/FromGame';
 import { Home } from './ui/screens/Home';
 import { ImportScreen } from './ui/screens/ImportScreen';
 import { MasteryHome } from './ui/screens/MasteryHome';
@@ -48,6 +50,7 @@ type Screen =
   | { name: 'prune' }
   | { name: 'settings' }
   | { name: 'import' }
+  | { name: 'fromGame' }
   | { name: 'editor'; problem?: Problem }
   | { name: 'study'; problem: Problem; mode: Mode; run?: { freeMoves: number; learnerMoves: number } }
   | { name: 'masteryRun'; problem: Problem };
@@ -66,6 +69,7 @@ export default function App() {
   const [progress, setProgress] = useState<ProgressMap>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [mastery, setMastery] = useState<MasteryState>(emptyMasteryState());
+  const [joseki, setJoseki] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
   // the latest mastery state, so several updates in one event see each other
   const masteryRef = useRef(mastery);
@@ -89,6 +93,7 @@ export default function App() {
     void loadLibrary().then(setCustom);
     void loadProgress().then(setProgress);
     void loadSettings().then(setSettings);
+    void loadJoseki().then(setJoseki);
     // the saved state, or the newest backup if it is missing or damaged
     void masteryStore.load().then(({ state }) => {
       masteryRef.current = state;
@@ -110,11 +115,10 @@ export default function App() {
   const backupMastery = useCallback(() => void masteryStore.backup(masteryRef.current), []);
 
   const record = useCallback(
-    async (id: string, a: Attempt): Promise<Level> => {
+    async (id: string, a: Attempt): Promise<void> => {
       const next = recordAttempt(progress, id, a);
       setProgress(next);
       await saveProgress(next);
-      return computeSkill(next[id]).level;
     },
     [progress],
   );
@@ -140,6 +144,13 @@ export default function App() {
     const next = custom.filter((c) => !drop.has(c.id));
     setCustom(next);
     await saveLibrary(next);
+  };
+
+  /** Mark or unmark a puzzle as joseki; the app remembers it. */
+  const setJosekiMode = (id: string, on: boolean) => {
+    const next = on ? (joseki.includes(id) ? joseki : [...joseki, id]) : joseki.filter((x) => x !== id);
+    setJoseki(next);
+    void saveJoseki(next);
   };
 
   const toggleCategory = (id: string, cat: Category, on: boolean) => updateMastery((s) => setCategory(s, cat, id, on));
@@ -198,11 +209,14 @@ export default function App() {
           problems={problems}
           progress={progress}
           mastery={mastery}
+          joseki={joseki}
+          onJosekiChange={setJosekiMode}
           onBack={back}
           onPlay={(problem) => go({ name: 'study', problem, mode: 'unguided' })}
           onToggleCategory={toggleCategory}
           onNew={() => go({ name: 'editor' })}
           onImport={() => go({ name: 'import' })}
+          onFromGame={() => go({ name: 'fromGame' })}
           onEdit={(problem) => go({ name: 'editor', problem })}
           onDelete={(p) => void removeMany([p.id])}
           onDeleteMany={(ids) => void removeMany(ids)}
@@ -214,6 +228,8 @@ export default function App() {
           problems={problems}
           progress={progress}
           mastery={mastery}
+          joseki={joseki}
+          onJosekiChange={setJosekiMode}
           onBack={back}
           onAddPuzzles={() => go({ name: 'picker', category: 'mastery' })}
           onPlay={startRun}
@@ -228,6 +244,8 @@ export default function App() {
           progress={progress}
           settings={settings}
           record={record}
+          joseki={joseki}
+          onJosekiChange={setJosekiMode}
           // from the end screen, Add/Prune replace the session so that Back returns home, not to a new session
           onAddPuzzles={() => swap({ name: 'picker', category: 'spaced' })}
           onPrune={() => swap({ name: 'prune' })}
@@ -239,7 +257,6 @@ export default function App() {
         <Picker
           category={screen.category}
           problems={problems}
-          progress={progress}
           mastery={mastery}
           onToggle={(id, on) => toggleCategory(id, screen.category, on)}
           onBack={back}
@@ -263,8 +280,10 @@ export default function App() {
           settings={settings}
           run={screen.run ? { freeMoves: screen.run.freeMoves } : undefined}
           onModeChange={screen.run ? undefined : (mode) => swap({ ...screen, mode })}
+          joseki={joseki.includes(screen.problem.id)}
+          onJosekiChange={screen.run ? undefined : (on) => setJosekiMode(screen.problem.id, on)}
+          runBar={screen.run ? masteryProgress(mastery, screen.problem.id, screen.run.learnerMoves) : undefined}
           onExit={screen.run ? leaveRun : back}
-          onResult={(a) => record(screen.problem.id, a)}
           onRunStart={() => updateMastery((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
           onRunResult={({ correct }) => {
             const id = screen.problem.id;
@@ -279,6 +298,8 @@ export default function App() {
         <MasteryScreen
           key={screen.problem.id}
           problem={screen.problem}
+          joseki={joseki.includes(screen.problem.id)}
+          bar={masteryProgress(mastery, screen.problem.id, cachedLearnerDepth(screen.problem.sgf))}
           best={mastery.scores[screen.problem.id]?.best}
           onExit={leaveRun}
           onFirstMove={() => updateMastery((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
@@ -298,6 +319,8 @@ export default function App() {
       )}
 
       {screen.name === 'editor' && <Editor initial={screen.problem} onCancel={back} onSave={saveProblem} />}
+
+      {screen.name === 'fromGame' && <FromGame onCancel={back} onSave={saveProblem} />}
 
       {screen.name === 'import' && (
         <ImportScreen existing={problems.map((p) => p.sgf)} onCancel={back} onImport={addMany} />

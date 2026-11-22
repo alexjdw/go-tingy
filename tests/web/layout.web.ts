@@ -98,6 +98,8 @@ const STEPS: [string, string | null][] = [
   ['back to browse from editor', '‹ Cancel'],
   ['browse: import', '+ SGF'],
   ['back to browse from import', 'Cancel'],
+  ['browse: new from game', 'New from game'],
+  ['back to browse from new from game', '‹ Cancel'],
   ['back to home', '‹ Back'],
   ['mastery', 'Mastery'],
   ['mastery: add puzzles', 'Add puzzles'],

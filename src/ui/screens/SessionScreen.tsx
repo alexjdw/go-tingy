@@ -2,7 +2,7 @@ import { useMemo, useReducer, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Problem } from '../../data/samples';
 import { type MasteryState, inCategory, isDueNow } from '../../progress/mastery';
-import type { Attempt, Level, ProgressMap } from '../../progress/skill';
+import type { Attempt, ProgressMap } from '../../progress/skill';
 import { SessionQueue, pickSessionIds } from '../../study/session';
 import type { Settings } from '../../storage/settings';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -15,7 +15,10 @@ interface Props {
   progress: ProgressMap;
   settings: Settings;
   /** save an attempt (this is what schedules the puzzle's next review) */
-  record: (id: string, attempt: Attempt) => Promise<Level>;
+  record: (id: string, attempt: Attempt) => Promise<void>;
+  /** ids of the puzzles in joseki mode, and a way to change that */
+  joseki: string[];
+  onJosekiChange: (id: string, on: boolean) => void;
   onAddPuzzles: () => void;
   onPrune: () => void;
   onDone: () => void;
@@ -25,7 +28,18 @@ interface Props {
  * A spaced-repetition session. It starts as soon as the screen opens: the due puzzles one after another, a missed
  * one coming back once at the end. When it's over, the end screen offers Add puzzles and Prune puzzles.
  */
-export function SessionScreen({ problems, mastery, progress, settings, record, onAddPuzzles, onPrune, onDone }: Props) {
+export function SessionScreen({
+  problems,
+  mastery,
+  progress,
+  settings,
+  record,
+  joseki,
+  onJosekiChange,
+  onAddPuzzles,
+  onPrune,
+  onDone,
+}: Props) {
   const byId = useMemo(() => new Map(problems.map((p) => [p.id, p])), [problems]);
   const dueIds = () => problems.filter((p) => isDueNow(mastery, p.id, progress[p.id])).map((p) => p.id);
   const [queue, setQueue] = useState(() => new SessionQueue(pickSessionIds(dueIds())));
@@ -42,6 +56,8 @@ export function SessionScreen({ problems, mastery, progress, settings, record, o
         problem={problem}
         mode="unguided"
         settings={settings}
+        joseki={joseki.includes(problem.id)}
+        onJosekiChange={(on) => onJosekiChange(problem.id, on)}
         session={{ position: queue.position, total: queue.total, isLast: queue.position === queue.total }}
         onResult={(a) => {
           queue.complete(a.correct);

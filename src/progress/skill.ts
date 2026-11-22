@@ -102,3 +102,36 @@ export const LEVEL_COLORS: Record<Level, string> = {
   silver: '#c0c7d1',
   gold: '#e5a50a',
 };
+
+// ---------- the bar ----------
+
+export interface SkillBar {
+  /** 0..1: how full the bar is */
+  fill: number;
+  /** a color along red, yellow, green, gold: warmer when low, gold when full */
+  color: string;
+}
+
+const STOPS: [number, string][] = [
+  [0, LEVEL_COLORS.red],
+  [0.3, LEVEL_COLORS.yellow],
+  [0.6, LEVEL_COLORS.green],
+  [1, LEVEL_COLORS.gold],
+];
+
+const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+
+/** The color of a bar that is `fill` full: a gradient through red, yellow and green to gold. */
+export function barColor(fill: number): string {
+  const f = Math.min(1, Math.max(0, fill));
+  const hi = STOPS.findIndex(([at]) => f <= at);
+  if (hi <= 0) return STOPS[0][1];
+  const [a, ca] = STOPS[hi - 1];
+  const [b, cb] = STOPS[hi];
+  const t = (f - a) / (b - a);
+  const mix = (i: number) =>
+    Math.round(channel(ca, i) + (channel(cb, i) - channel(ca, i)) * t)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${mix(0)}${mix(1)}${mix(2)}`;
+}

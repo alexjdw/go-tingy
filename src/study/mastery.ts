@@ -12,7 +12,7 @@
  */
 import { type MasteryResult, masteryLevel, masteryScore } from '../progress/mastery';
 import { type Point, type SgfNode, boardDims, firstMoveColor, parseSgf } from '../sgf/parser';
-import { StudyEngine } from './engine';
+import { StudyEngine, hasSecondSide } from './engine';
 import { enumerateLines, isUnder, nodeKey } from './lines';
 
 export type RunPhase = 'ready' | 'playing' | 'between' | 'done';
@@ -22,6 +22,8 @@ export interface MasteryRunOptions {
   rng?: () => number;
   /** clock, in ms; injectable for tests */
   now?: () => number;
+  /** joseki mode: every line must be solved from both sides */
+  joseki?: boolean;
 }
 
 export class MasteryRun {
@@ -29,6 +31,8 @@ export class MasteryRun {
   readonly totalLines: number;
   /** the puzzle had more lines than are tracked */
   readonly truncated: boolean;
+  /** every line is played from both sides */
+  readonly bothSides: boolean;
   moves = 0;
   mistakes = 0;
   /** rounds started so far, including failed ones */
@@ -38,9 +42,11 @@ export class MasteryRun {
   lastOutcome: RoundOutcome | null = null;
   engine!: StudyEngine;
 
+  /** what must be solved: `first|<line>` and, for a joseki, `second|<line>` */
   private readonly leaves: string[];
   private readonly solved = new Set<string>();
   private target = '';
+  private side: 'first' | 'second' = 'first';
   private startedAt = 0;
   private finishedAt = 0;
   private readonly rng: () => number;
@@ -54,9 +60,15 @@ export class MasteryRun {
     this.now = opts.now ?? Date.now;
     const root = parseSgf(sgf);
     const set = enumerateLines(root, boardDims(root), firstMoveColor(root));
-    this.leaves = set.leaves;
+    const two = !!opts.joseki && hasSecondSide(sgf);
+    // a line of one move has nothing to play from the second side
+    this.bothSides = two;
+    this.leaves = [
+      ...set.leaves.map((l) => `first|${l}`),
+      ...(two ? set.leaves.filter((l) => l.includes(';')).map((l) => `second|${l}`) : []),
+    ];
     this.truncated = set.truncated;
-    this.totalLines = set.leaves.length;
+    this.totalLines = this.leaves.length;
     this.engine = this.makeEngine();
   }
 
@@ -83,7 +95,8 @@ export class MasteryRun {
     } else if (r === 'solved') {
       this.lastOutcome = 'success';
       const leaf = this.engine.snap.node ? nodeKey(this.engine.snap.node) : '';
-      if (this.leaves.includes(leaf)) this.solved.add(leaf);
+      const key = `${this.side}|${leaf}`;
+      if (this.leaves.includes(key)) this.solved.add(key);
       if (this.solved.size >= this.totalLines) {
         this.finishedAt = this.now();
         this.phase = 'done';
@@ -122,8 +135,12 @@ export class MasteryRun {
 
   // ---------- rounds ----------
 
+  /** unsolved lines under a node, for the side being played */
   private unsolvedUnder(key: string): number {
-    return this.leaves.filter((l) => !this.solved.has(l) && isUnder(l, key)).length;
+    const prefix = `${this.side}|`;
+    return this.leaves.filter(
+      (l) => l.startsWith(prefix) && !this.solved.has(l) && isUnder(l.slice(prefix.length), key),
+    ).length;
   }
 
   private pick<T>(xs: T[]): T {
@@ -133,6 +150,7 @@ export class MasteryRun {
   private makeEngine() {
     return new StudyEngine(this.sgf, 'unguided', {
       rng: this.rng,
+      side: this.side,
       // steer the opponent toward the target line, else toward any unsolved line
       chooseReply: (_node: SgfNode, cands: SgfNode[]) => {
         const onTarget = cands.filter((c) => isUnder(this.target, nodeKey(c)));
@@ -147,8 +165,9 @@ export class MasteryRun {
 
   private newRound() {
     this.rounds++;
-    const unsolved = this.leaves.filter((l) => !this.solved.has(l));
-    this.target = this.pick(unsolved);
+    const [side, line] = this.pick(this.leaves.filter((l) => !this.solved.has(l))).split('|');
+    this.side = side as 'first' | 'second';
+    this.target = line;
     this.engine = this.makeEngine();
     this.phase = 'playing';
   }

@@ -41,6 +41,13 @@ export interface EngineOptions {
   chooseReply?: (node: SgfNode, candidates: SgfNode[]) => SgfNode | null;
   /** Mastery runs: refuse a correct move that leads only to lines already solved. */
   acceptMove?: (child: SgfNode) => boolean;
+  /**
+   * Joseki mode: which side the player takes. 'first' (the default) plays the puzzle's first color. 'second' plays
+   * the other color: the first move is played for you, then you answer it.
+   */
+  side?: 'first' | 'second';
+  /** Use this color flipping instead of choosing one (so a joseki's second side matches its first). */
+  flipped?: boolean;
 }
 
 export interface Markup {
@@ -68,6 +75,8 @@ export class StudyEngine {
   /** Sides drawn without a border (display only). */
   open!: OpenEdges;
   playerColor!: Color;
+  /** the color that plays first in the puzzle (the player, unless they have the second side) */
+  firstColor!: Color;
   snap!: Snapshot;
   flipped = false;
   phase: Phase = 'play';
@@ -102,11 +111,12 @@ export class StudyEngine {
 
   private setup() {
     this.root = parseSgf(this.sgf);
-    this.flipped = this.mode !== 'explore' && this.resolve(this.opts.flipColors);
+    this.flipped = this.mode !== 'explore' && (this.opts.flipped ?? this.resolve(this.opts.flipColors));
     if (this.flipped) flipColors(this.root);
     this.dims = boardDims(this.root);
     this.open = openEdges(this.root);
-    this.playerColor = firstMoveColor(this.root);
+    this.firstColor = firstMoveColor(this.root);
+    this.playerColor = this.opts.side === 'second' ? other(this.firstColor) : this.firstColor;
     this.anyExplicit = containsCorrect(this.root);
     this.history = [];
     this.mistakes = 0;
@@ -120,7 +130,15 @@ export class StudyEngine {
     this.afterReplay = 'mark';
     this.snap = this.initial();
     const free = this.opts.freeMoves ?? 0;
-    if (this.mode === 'unguided' && free > 0) {
+    const second = this.opts.side === 'second' && this.mode !== 'explore';
+    // the other side of a joseki starts with the first move played for you (and any free moves after it)
+    const lead = second ? (this.mode === 'unguided' && free > 0 ? this.freePlan(free) : []) : [];
+    const opening = second && !lead.length ? this.openingMove() : null;
+    if (second && (lead.length || opening)) {
+      this.plan = lead.length ? lead : [opening!];
+      this.phase = 'replay';
+      this.afterReplay = 'play';
+    } else if (this.mode === 'unguided' && free > 0) {
       const plan = this.freePlan(free);
       if (plan.length) {
         this.plan = plan;
@@ -140,7 +158,14 @@ export class StudyEngine {
 
   private initial(): Snapshot {
     const board = initialBoard(this.root, this.dims);
-    return { board, node: this.root, toPlay: this.playerColor, last: null, status: 'playing', message: '' };
+    return { board, node: this.root, toPlay: this.firstColor, last: null, status: 'playing', message: '' };
+  }
+
+  /** The first move of a correct line, for the player who takes the second side; null if there is no reply to play. */
+  private openingMove(): SgfNode | null {
+    const kids = solutionKids(this.root, this.dims, this.firstColor).filter((k) => k.children.length > 0);
+    if (!kids.length) return null;
+    return this.opts.chooseReply?.(this.root, kids) ?? kids[Math.floor(this.rng() * kids.length)];
   }
 
   reset() {
@@ -457,5 +482,15 @@ export class StudyEngine {
    */
   attempt(elapsedMs: number): Attempt {
     return { correct: this.mistakes === 0, ms: elapsedMs, parMs: this.parMs(), at: Date.now() };
+  }
+}
+
+/** Can a puzzle be played from the second side too (joseki mode)? It needs a first move that has a reply. */
+export function hasSecondSide(sgf: string): boolean {
+  try {
+    const root = parseSgf(sgf);
+    return solutionKids(root, boardDims(root), firstMoveColor(root)).some((k) => k.children.length > 0);
+  } catch {
+    return false;
   }
 }

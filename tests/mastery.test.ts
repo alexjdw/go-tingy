@@ -462,3 +462,11 @@ describe('the mastery store (save, back up on exit, load on app start)', () => {
     assert.deepEqual(await store.load(), { state: emptyMasteryState(), source: 'empty' });
   });
 });
+
+describe('mastery badge fill', () => {
+  it('rises with the level, from empty to full', async () => {
+    const { levelFill } = await import('../src/progress/mastery');
+    const fills = (['none', 'green', 'gold', 'diamond'] as const).map(levelFill);
+    assert.deepEqual(fills, [0, 1 / 3, 2 / 3, 1]);
+  });
+});

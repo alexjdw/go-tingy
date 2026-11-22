@@ -7,6 +7,9 @@ interface Props {
   title: string | null;
   spaced: boolean;
   mastery: boolean;
+  /** joseki mode: the puzzle is played from both sides, wherever it is studied */
+  joseki?: boolean;
+  onJosekiChange?: (on: boolean) => void;
   onToggle: (category: Category, on: boolean) => void;
   /** only for puzzles you made or imported */
   onEdit?: () => void;
@@ -15,7 +18,17 @@ interface Props {
 }
 
 /** The "+" menu: add the puzzle to (or remove it from) spaced repetition and mastery. */
-export function PlusMenu({ title, spaced, mastery, onToggle, onEdit, onDelete, onClose }: Props) {
+export function PlusMenu({
+  title,
+  spaced,
+  mastery,
+  joseki,
+  onJosekiChange,
+  onToggle,
+  onEdit,
+  onDelete,
+  onClose,
+}: Props) {
   return (
     <Modal transparent visible={title !== null} animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close menu">
@@ -34,6 +47,13 @@ export function PlusMenu({ title, spaced, mastery, onToggle, onEdit, onDelete, o
             kind={mastery ? 'solid' : 'ghost'}
             onPress={() => onToggle('mastery', !mastery)}
           />
+          {onJosekiChange ? (
+            <Btn
+              label={joseki ? '✓ Joseki mode (tap to turn off)' : 'Joseki mode: play both sides'}
+              kind={joseki ? 'solid' : 'ghost'}
+              onPress={() => onJosekiChange(!joseki)}
+            />
+          ) : null}
           {onEdit || onDelete ? (
             <View style={styles.more}>
               {onEdit ? <Btn label="Edit puzzle" kind="ghost" onPress={onEdit} /> : null}

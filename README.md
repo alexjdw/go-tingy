@@ -14,8 +14,8 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
     too easy).
   - **Mastery** lists your mastery puzzles as tiles, with **Add puzzles** at the top. Play does each puzzle's next
     training step (see below).
-- Solving a puzzle on your own feeds a per-puzzle skill level (red, yellow, green, silver, gold) based on accuracy and
-  speed, which also decides when it comes due in spaced repetition.
+- **Spaced repetition** records how each review went (accuracy and speed) to decide when a puzzle comes due again.
+  Playing a puzzle from Browse never changes that.
 - **Multiple choice** puzzles (lettered `A`/`B`/`C` points) and an optional **mark-the-choices** step that replays to a
   branching point and asks you to mark every good move first.
 - **Two study categories** per puzzle: **spaced repetition** (the only puzzles that ever come due) and **guided
@@ -23,8 +23,14 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 - **Guided mastery:** a _guided run_ plays some moves for you along a correct line and you solve the rest. Each clean
   run gives fewer free moves, down to zero. Clearing that unlocks the _mastery run_: solve every line of the puzzle in
   random order; your score is correct moves per minute, halved for each mistake (green above 5, gold above 10, diamond
-  above 15). Each puzzle allows two guided/mastery attempts a day. Scores are backed up when you leave a run (the 15
+  above 15). A **GM** badge on the tile fills with the level, and a progress bar shows how far along the puzzle is.
+  Each puzzle allows two guided/mastery attempts a day. Scores are backed up when you leave a run (the 15
   most recent backups are kept) and restored at startup if the saved state is lost.
+- **Joseki mode** (per puzzle, set from Study or the **+** menu): the puzzle is played from the first side and then
+  again from the second, with the first move played for you. It works in every mode.
+- **Tile stats:** hover over a tile, or long-press it, to see its stats for spaced repetition, mastery and joseki.
+- **New from game:** load a real game's SGF, scrub to pick the first and last move, then cut the board down to the
+  part you want, and save it as a puzzle.
 - **Automatic color flipping**, one-shot click-to-zoom for large boards, stone animation and sound.
 - **SGF import** from files (`.sgf`, `.sgf.gz`, `.zip`) or pasted text, including whole collections; every puzzle is
   validated, encodings (UTF-8, GBK, Shift_JIS, ...) are detected, and old FF[3] files are normalized.
@@ -33,11 +39,18 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 
 ## Run
 
+You need [Node.js](https://nodejs.org) (a current LTS) and npm.
+
 ```bash
 npm install
-npm run web          # browser
-npx expo start       # scan the QR code with Expo Go (iOS / Android)
+npm run web          # opens the app in your browser (the quickest way to try it)
+npm start            # starts the Expo dev server: press w for web, or scan the QR code with Expo Go
+npm run android      # Android emulator or device (needs Android Studio / a connected device)
+npm run ios          # iOS simulator (macOS with Xcode only)
 ```
+
+Your puzzles and progress are saved on the device (in the browser's local storage on the web). To try it with real
+puzzles, open **Browse** and use **+ SGF** to import a file, or **New puzzle** / **New from game** to make your own.
 
 ## Develop
 

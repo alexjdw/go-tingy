@@ -1,8 +1,12 @@
-import { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { memo, useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { StatSection } from '../../progress/stats';
 import type { Problem } from '../../data/samples';
 import { cachedPreview } from '../../go/thumbnail';
+import type { SkillBar as SkillBarData } from '../../progress/skill';
 import { BoardView } from './Board';
+import { SkillBar } from './SkillBar';
+import { StatsHover, StatsSheet } from './TileStats';
 import { Btn, theme } from './theme';
 
 export interface TileAction {
@@ -19,11 +23,15 @@ interface Props {
   problem: Problem;
   /** the tile's width in points */
   width: number;
-  /** a colored dot, for the puzzle's skill level */
-  dot?: string;
+  /** a mastery puzzle's progress, drawn as a bar under the picture */
+  bar?: SkillBarData;
+  /** a small badge in the picture's top-left corner (the mastery level) */
+  badge?: ReactNode;
   /** a short line under the title */
   caption?: string;
   tags?: string[];
+  /** The puzzle's stats in every mode, built only when they are shown (on hover or long press). */
+  stats?: () => StatSection[];
   actions: TileAction[];
 }
 
@@ -49,13 +57,23 @@ const Thumb = memo(function Thumb({ sgf, width }: { sgf: string; width: number }
 });
 
 /** A puzzle as a tile: a picture of its starting position, its name, and the buttons for what you can do with it. */
-export function PuzzleTile({ problem, width, dot, caption, tags, actions }: Props) {
+export function PuzzleTile({ problem, width, bar, badge, caption, tags, stats, actions }: Props) {
+  const [hover, setHover] = useState(false);
+  const [sheet, setSheet] = useState(false);
   return (
-    <View style={[styles.tile, { width }]}>
+    <Pressable
+      accessible={false}
+      style={[styles.tile, { width }]}
+      onLongPress={stats ? () => setSheet(true) : undefined}
+      delayLongPress={350}
+      onHoverIn={stats ? () => setHover(true) : undefined}
+      onHoverOut={stats ? () => setHover(false) : undefined}
+    >
       <View style={styles.thumb}>
         <Thumb sgf={problem.sgf} width={width - PAD * 2} />
-        {dot ? <View style={[styles.dot, { backgroundColor: dot }]} /> : null}
+        {badge ? <View style={styles.badge}>{badge}</View> : null}
       </View>
+      {bar ? <SkillBar bar={bar} /> : null}
       <Text style={styles.title} numberOfLines={1}>
         {problem.title}
       </Text>
@@ -82,23 +100,16 @@ export function PuzzleTile({ problem, width, dot, caption, tags, actions }: Prop
           </View>
         ))}
       </View>
-    </View>
+      {hover && stats ? <StatsHover sections={stats()} /> : null}
+      {sheet && stats ? <StatsSheet title={problem.title} sections={stats()} onClose={() => setSheet(false)} /> : null}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   tile: { backgroundColor: theme.card, borderRadius: 12, padding: PAD, gap: 6 },
   thumb: { borderRadius: 6, overflow: 'hidden' },
-  dot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: '#14161a',
-  },
+  badge: { position: 'absolute', top: 6, left: 6 },
   title: { color: theme.text, fontSize: 14, fontWeight: '700' },
   caption: { color: theme.muted, fontSize: 12 },
   tags: { color: theme.muted, fontSize: 11 },

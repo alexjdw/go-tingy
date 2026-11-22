@@ -1,8 +1,18 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import type { Problem } from '../../data/samples';
-import { type Category, type MasteryState, inCategory } from '../../progress/mastery';
-import { LEVEL_COLORS, type ProgressMap, computeSkill } from '../../progress/skill';
+import {
+  type Category,
+  type MasteryState,
+  inCategory,
+  localDay,
+  masteryProgress,
+  puzzleMasteryLevel,
+} from '../../progress/mastery';
+import type { ProgressMap } from '../../progress/skill';
+import { tileStats } from '../../progress/stats';
+import { MasteryBadge } from '../components/MasteryBadge';
+import { cachedLearnerDepth } from '../../study/lines';
 import { CollectionBar, useCollectionFilter } from '../components/CollectionBar';
 import { PlusMenu } from '../components/PlusMenu';
 import { PuzzleGrid } from '../components/PuzzleGrid';
@@ -14,11 +24,15 @@ interface Props {
   problems: Problem[];
   progress: ProgressMap;
   mastery: MasteryState;
+  /** ids of the puzzles in joseki mode */
+  joseki: string[];
+  onJosekiChange: (id: string, on: boolean) => void;
   onBack: () => void;
   onPlay: (p: Problem) => void;
   onToggleCategory: (id: string, category: Category, on: boolean) => void;
   onNew: () => void;
   onImport: () => void;
+  onFromGame: () => void;
   onEdit: (p: Problem) => void;
   onDelete: (p: Problem) => void;
   onDeleteMany: (ids: string[]) => void;
@@ -29,11 +43,14 @@ export function Browse({
   problems,
   progress,
   mastery,
+  joseki,
+  onJosekiChange,
   onBack,
   onPlay,
   onToggleCategory,
   onNew,
   onImport,
+  onFromGame,
   onEdit,
   onDelete,
   onDeleteMany,
@@ -46,6 +63,7 @@ export function Browse({
       <ScreenHeader title="Browse" subtitle={`${problems.length} puzzles`} onBack={onBack} />
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         <Btn label="New puzzle" onPress={onNew} />
+        <Btn label="New from game" kind="ghost" onPress={onFromGame} />
         <Btn label="+ SGF" kind="ghost" accessibilityLabel="Import SGF files" onPress={onImport} />
       </View>
       <CollectionBar
@@ -69,14 +87,24 @@ export function Browse({
         renderTile={(p, width) => {
           const spaced = inCategory(mastery, 'spaced', p.id);
           const inMastery = inCategory(mastery, 'mastery', p.id);
-          const skill = computeSkill(progress[p.id]);
           return (
             <PuzzleTile
               problem={p}
               width={width}
-              dot={skill.level === 'new' ? undefined : LEVEL_COLORS[skill.level]}
+              bar={inMastery ? masteryProgress(mastery, p.id, cachedLearnerDepth(p.sgf)) : undefined}
               caption={p.collection}
-              tags={[spaced ? 'Spaced repetition' : '', inMastery ? 'Mastery' : ''].filter(Boolean)}
+              badge={inMastery ? <MasteryBadge level={puzzleMasteryLevel(mastery, p.id)} /> : undefined}
+              stats={() =>
+                tileStats({
+                  id: p.id,
+                  history: progress[p.id],
+                  mastery,
+                  learnerMoves: cachedLearnerDepth(p.sgf),
+                  joseki: joseki.includes(p.id),
+                  day: localDay(new Date()),
+                })
+              }
+              tags={[spaced ? 'Spaced repetition' : '', joseki.includes(p.id) ? 'Joseki' : ''].filter(Boolean)}
               actions={[
                 { label: 'Play', onPress: () => onPlay(p) },
                 {
@@ -95,6 +123,8 @@ export function Browse({
         title={menu?.title ?? null}
         spaced={menu ? inCategory(mastery, 'spaced', menu.id) : false}
         mastery={menu ? inCategory(mastery, 'mastery', menu.id) : false}
+        joseki={menu ? joseki.includes(menu.id) : false}
+        onJosekiChange={(on) => menu && onJosekiChange(menu.id, on)}
         onToggle={(category, on) => menu && onToggleCategory(menu.id, category, on)}
         onEdit={
           menu && !menu.builtin

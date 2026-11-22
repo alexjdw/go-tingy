@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import type { Problem } from '../../data/samples';
 import { easiestFirst, isEasy } from '../../progress/practice';
-import { LEVEL_COLORS, type ProgressMap, computeSkill } from '../../progress/skill';
+import { type ProgressMap, computeSkill } from '../../progress/skill';
 import { PuzzleGrid } from '../components/PuzzleGrid';
 import { PuzzleTile } from '../components/PuzzleTile';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -55,7 +55,6 @@ export function Prune({ problems, progress, onRemove, onBack }: Props) {
           <PuzzleTile
             problem={p}
             width={width}
-            dot={skill.level === 'new' ? undefined : LEVEL_COLORS[skill.level]}
             caption={
               skill.attempts
                 ? `${skill.level} · ${Math.round(skill.accuracy * 100)}% accurate (${skill.attempts})`

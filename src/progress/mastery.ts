@@ -9,7 +9,7 @@
  *      mastery run  unlocked once guided is cleared: solve every line, scored in moves per minute.
  *    Both modes are limited to DAILY_LIMIT attempts per puzzle per day.
  */
-import { type Attempt, isDue } from './skill';
+import { type Attempt, type SkillBar, barColor, isDue } from './skill';
 
 export type Category = 'spaced' | 'mastery';
 export type MasteryLevel = 'none' | 'green' | 'gold' | 'diamond';
@@ -163,6 +163,22 @@ export function recordMasteryResult(s: MasteryState, id: string, r: MasteryResul
   const cur = s.scores[id];
   const best = cur?.best && cur.best.score >= r.score ? cur.best : r;
   return { ...s, scores: { ...s.scores, [id]: { ...cur, best, last: r, runs: (cur?.runs ?? 0) + 1 } } };
+}
+
+/** How full a level's badge is, 0 to 1: empty until a level is earned, full at diamond. */
+export const levelFill = (l: MasteryLevel): number => ({ none: 0, green: 1 / 3, gold: 2 / 3, diamond: 1 })[l];
+
+/**
+ * A mastery puzzle's progress as a bar: the first half fills as clean guided runs step the free moves down to zero,
+ * the second half as the best mastery score climbs to diamond. No numbers are shown.
+ */
+export function masteryProgress(s: MasteryState, id: string, learnerMoves: number): SkillBar {
+  const g = guidedStatus(s, id, learnerMoves);
+  const stages = guidedStages(learnerMoves);
+  const done = g.cleared ? stages.length : Math.max(0, stages.indexOf(g.free));
+  const best = s.scores[id]?.best?.score ?? 0;
+  const fill = g.cleared ? 0.5 + 0.5 * Math.min(1, Math.max(0, best) / DIAMOND_ABOVE) : 0.5 * (done / stages.length);
+  return { fill, color: barColor(fill) };
 }
 
 /** The level a puzzle has earned (its best run). */

@@ -1,6 +1,5 @@
 import type { Problem } from '../../data/samples';
 import { type Category, type MasteryState, inCategory } from '../../progress/mastery';
-import { LEVEL_COLORS, type ProgressMap, computeSkill } from '../../progress/skill';
 import { CollectionBar, useCollectionFilter } from '../components/CollectionBar';
 import { PuzzleGrid } from '../components/PuzzleGrid';
 import { PuzzleTile } from '../components/PuzzleTile';
@@ -12,14 +11,13 @@ const NAMES: Record<Category, string> = { mastery: 'Mastery', spaced: 'Spaced re
 interface Props {
   category: Category;
   problems: Problem[];
-  progress: ProgressMap;
   mastery: MasteryState;
   onToggle: (id: string, on: boolean) => void;
   onBack: () => void;
 }
 
 /** "Add puzzles": the library as tiles, each with one button that adds it to (or takes it out of) a study mode. */
-export function Picker({ category, problems, progress, mastery, onToggle, onBack }: Props) {
+export function Picker({ category, problems, mastery, onToggle, onBack }: Props) {
   const { collections, active, setSelected, shown } = useCollectionFilter(problems);
   const added = problems.filter((p) => inCategory(mastery, category, p.id)).length;
 
@@ -39,12 +37,10 @@ export function Picker({ category, problems, progress, mastery, onToggle, onBack
       empty="No puzzles in the library yet. Create or import some from Browse."
       renderTile={(p, width) => {
         const on = inCategory(mastery, category, p.id);
-        const skill = computeSkill(progress[p.id]);
         return (
           <PuzzleTile
             problem={p}
             width={width}
-            dot={skill.level === 'new' ? undefined : LEVEL_COLORS[skill.level]}
             caption={p.collection}
             actions={[
               {

@@ -10,6 +10,8 @@ import {
   type MasteryResult,
   masteryLevel,
 } from '../../progress/mastery';
+import type { SkillBar as SkillBarData } from '../../progress/skill';
+import { SkillBar } from '../components/SkillBar';
 import { allPoints, type Point } from '../../sgf/parser';
 import { MasteryRun } from '../../study/mastery';
 import { BoardView } from '../components/Board';
@@ -21,6 +23,10 @@ interface Props {
   problem: Problem;
   /** best result so far, to compare against */
   best?: MasteryResult;
+  /** joseki mode for this puzzle: every line is solved from both sides */
+  joseki?: boolean;
+  /** the puzzle's mastery progress */
+  bar?: SkillBarData;
   onExit: () => void;
   /** Called once, on the first move: uses up one of today's attempts. */
   onFirstMove: () => void;
@@ -40,10 +46,10 @@ const LEVEL_NAME: Record<MasteryLevel, string> = {
   diamond: 'Diamond',
 };
 
-export function MasteryScreen({ problem, best, onExit, onFirstMove, onFinish }: Props) {
+export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove, onFinish }: Props) {
   const { width } = useWindowDimensions();
   const boardW = Math.min(width - 24, 560);
-  const run = useMemo(() => new MasteryRun(problem.sgf), [problem.sgf]);
+  const run = useMemo(() => new MasteryRun(problem.sgf, { joseki }), [problem.sgf, joseki]);
   const [, force] = useReducer((n: number) => n + 1, 0);
   const [flash, setFlash] = useState<'wrong' | 'right' | null>(null);
   const started = useRef(false);
@@ -132,6 +138,11 @@ export function MasteryScreen({ problem, best, onExit, onFirstMove, onFinish }: 
             Solve every line of this puzzle, in random order. The puzzle resets after each line, whether you got it
             right or made a mistake, and a line you miss comes back later.
           </Text>
+          {run.bothSides ? (
+            <Text style={styles.text}>
+              Joseki mode: every line is played from both sides. From the second side, the first move is played for you.
+            </Text>
+          ) : null}
           <Text style={styles.text}>
             Score: correct moves per minute, halved for every mistake. Green above {GREEN_ABOVE}, gold above{' '}
             {GOLD_ABOVE}, diamond above {DIAMOND_ABOVE}.
@@ -144,6 +155,7 @@ export function MasteryScreen({ problem, best, onExit, onFirstMove, onFinish }: 
               Your best: {best.score.toFixed(1)} ({LEVEL_NAME[best.level]})
             </Text>
           ) : null}
+          {bar ? <SkillBar bar={bar} height={10} label="Mastery progress" /> : null}
           <Text style={styles.text}>The clock starts when you press Start.</Text>
           <Btn
             label="Start"
@@ -216,6 +228,7 @@ export function MasteryScreen({ problem, best, onExit, onFirstMove, onFinish }: 
           ) : (
             <Text style={styles.text}>New best!</Text>
           )}
+          {bar ? <SkillBar bar={bar} height={10} label="Mastery progress" /> : null}
           <Btn label="Done" onPress={onExit} />
         </View>
       ) : null}
