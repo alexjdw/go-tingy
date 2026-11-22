@@ -8,6 +8,7 @@ import { BoardView } from '../components/Board';
 import { initialViewport } from '../../go/viewport';
 import { type Attempt, type SkillBar as SkillBarData, LEVEL_COLORS } from '../../progress/skill';
 import { RunTutorial } from '../components/RunTutorial';
+import { SolvedStamp } from '../components/SolvedStamp';
 import { SkillBar } from '../components/SkillBar';
 import { Btn, theme } from '../components/theme';
 import { playStone } from '../sound';
@@ -310,6 +311,7 @@ export function Study({
           animKey={engine.placed}
           disabled={phase === 'replay' || (s.status === 'solved' && mode !== 'explore')}
         />
+        {s.status === 'solved' && mode !== 'explore' ? <SolvedStamp /> : null}
       </View>
 
       {tutorial && onTutorialDone ? <RunTutorial onDone={onTutorialDone} /> : null}

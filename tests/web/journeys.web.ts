@@ -261,6 +261,11 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
     await expectText(page, 'Guided stage cleared! Mastery runs are unlocked.');
     assert.equal(
+      await count(page, `document.querySelectorAll('[aria-label="Solved"]').length`),
+      1,
+      'a checkmark stamp on the board says it is solved',
+    );
+    assert.equal(
       await count(page, `document.querySelectorAll('[aria-label="Mastery progress"]').length`),
       1,
       'the run shows how far along the puzzle is',

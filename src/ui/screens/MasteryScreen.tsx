@@ -11,6 +11,7 @@ import {
   masteryLevel,
 } from '../../progress/mastery';
 import type { SkillBar as SkillBarData } from '../../progress/skill';
+import { SolvedStamp } from '../components/SolvedStamp';
 import { SkillBar } from '../components/SkillBar';
 import { allPoints, type Point } from '../../sgf/parser';
 import { MasteryRun } from '../../study/mastery';
@@ -188,6 +189,9 @@ export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove,
               animKey={run.engine.placed}
               disabled={run.phase !== 'playing'}
             />
+            {(run.phase === 'between' && run.lastOutcome === 'success') || run.phase === 'done' ? (
+              <SolvedStamp />
+            ) : null}
           </View>
 
           <View style={styles.hud}>
