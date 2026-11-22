@@ -42,12 +42,16 @@ const MASTERY = {
   attempts: {},
 };
 
-const SHOTS: [string, string | null][] = [
-  ['01-library', null],
-  ['02-puzzle-options', 'Capture two stones'],
-  ['03-guided', 'Guided'],
-  ['04-mastery-run', 'Mastery run'],
-  ['05-editor', 'New puzzle'],
+// [file name, the buttons to press from the home screen, in order]
+const SHOTS: [string, string[]][] = [
+  ['01-home', []],
+  ['02-browse', ['Browse']],
+  ['03-add-to-modes', ['Browse', '+']],
+  ['04-mastery', ['Mastery']],
+  ['05-add-puzzles', ['Mastery', 'Add puzzles']],
+  ['06-review-session', ['Spaced repetition']],
+  ['07-prune', ['Spaced repetition', '‹ End', 'Prune puzzles']],
+  ['08-play', ['Browse', 'Play']],
 ];
 
 async function main() {
@@ -73,19 +77,13 @@ async function main() {
         PROGRESS,
         MASTERY,
       );
-      await page.goto(site.url, { waitUntil: 'networkidle0' });
-      await sleep(800);
-      for (const [name, click] of SHOTS) {
-        if (name === '03-guided' || name === '05-editor') {
-          // these start from the library, not from the previous screen
-          await clickText(page, '‹ Back');
-          await clickText(page, '‹ Cancel');
+      for (const [name, clicks] of SHOTS) {
+        // every shot starts from the home screen
+        await page.goto(site.url, { waitUntil: 'networkidle0' });
+        await sleep(700);
+        for (const text of clicks) {
+          if (!(await clickText(page, text))) throw new Error(`${folder}/${name}: could not find "${text}"`);
         }
-        if (name === '04-mastery-run') {
-          await clickText(page, '‹ Back');
-          await clickText(page, 'Capture two stones');
-        }
-        if (click && !(await clickText(page, click))) throw new Error(`${folder}/${name}: could not find "${click}"`);
         await page.screenshot({ path: path.join(dir, `${name}.png`) });
         console.log(`wrote ${dir}/${name}.png`);
       }

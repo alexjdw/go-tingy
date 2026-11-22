@@ -13,16 +13,22 @@ export function Btn({
   onPress,
   kind = 'solid',
   disabled,
+  accessibilityLabel,
 }: {
   label: string;
   onPress: () => void;
   kind?: 'solid' | 'ghost';
   disabled?: boolean;
+  /** what a screen reader says, when the visible label (like "+") isn't enough */
+  accessibilityLabel?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => [
         styles.btn,
         kind === 'ghost' && styles.ghost,
@@ -36,7 +42,15 @@ export function Btn({
 }
 
 const styles = StyleSheet.create({
-  btn: { backgroundColor: theme.accent, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
+  btn: {
+    backgroundColor: theme.accent,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minHeight: 44, // a comfortable touch target
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.muted },
   btnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

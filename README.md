@@ -5,8 +5,17 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 
 ## Features
 
-- **Guided**, **unguided** and **free exploration** play of any SGF; unguided results feed a per-puzzle skill level
-  (red, yellow, green, silver, gold) based on accuracy and speed, with simple spaced-repetition due dates.
+- **Pick how to study** on the home screen: **Mastery**, **Spaced repetition** or **Browse**.
+  - **Browse** shows every puzzle as a tile (a 7x7 window of its starting position) with **Play** and **+** under it.
+    Play opens the puzzle, where you can switch between hints, solving it yourself and free exploration; **+** adds it
+    to spaced repetition and/or mastery. Creating and importing puzzles are here too.
+  - **Spaced repetition** starts a review session at once: the puzzles that are due, one after another, a missed one
+    coming back once at the end. The end screen offers **Add puzzles** and **Prune puzzles** (remove the ones that got
+    too easy).
+  - **Mastery** lists your mastery puzzles as tiles, with **Add puzzles** at the top. Play does each puzzle's next
+    training step (see below).
+- Solving a puzzle on your own feeds a per-puzzle skill level (red, yellow, green, silver, gold) based on accuracy and
+  speed, which also decides when it comes due in spaced repetition.
 - **Multiple choice** puzzles (lettered `A`/`B`/`C` points) and an optional **mark-the-choices** step that replays to a
   branching point and asks you to mark every good move first.
 - **Two study categories** per puzzle: **spaced repetition** (the only puzzles that ever come due) and **guided

@@ -26,6 +26,15 @@ interface Props {
   onRunStart?: () => void;
   /** Called when the run is solved. May return a message to show, like what the next stage will be. */
   onRunResult?: (r: { correct: boolean }) => string | void;
+  /**
+   * Part of a spaced-repetition session: shows where you are, offers Skip, and Next once the puzzle is solved.
+   * Restart is hidden (it would wipe the mistakes that the session records).
+   */
+  session?: { position: number; total: number; isLast: boolean };
+  onNext?: () => void;
+  onSkip?: () => void;
+  /** Browse: lets the player switch between hints, solving and free exploration. */
+  onModeChange?: (mode: Mode) => void;
 }
 
 const MODE_LABEL: Record<Mode, string> = {
@@ -34,7 +43,20 @@ const MODE_LABEL: Record<Mode, string> = {
   explore: 'Free exploration',
 };
 
-export function Study({ problem, mode, settings, onExit, onResult, run, onRunStart, onRunResult }: Props) {
+export function Study({
+  problem,
+  mode,
+  settings,
+  onExit,
+  onResult,
+  run,
+  onRunStart,
+  onRunResult,
+  session,
+  onNext,
+  onSkip,
+  onModeChange,
+}: Props) {
   const { width } = useWindowDimensions();
   const boardW = Math.min(width - 24, 560);
   const engine = useMemo(
@@ -154,7 +176,7 @@ export function Study({ problem, mode, settings, onExit, onResult, run, onRunSta
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <View style={styles.header}>
-        <Btn label="‹ Back" onPress={onExit} kind="ghost" />
+        <Btn label={session ? '‹ End' : '‹ Back'} onPress={onExit} kind="ghost" />
         <View style={{ flex: 1, marginLeft: 8 }}>
           <Text style={styles.title} numberOfLines={1}>
             {problem.title}
@@ -162,7 +184,9 @@ export function Study({ problem, mode, settings, onExit, onResult, run, onRunSta
           <Text style={styles.sub}>
             {run
               ? `Guided mastery · ${engine.freeMovesPlayed} free move${engine.freeMovesPlayed === 1 ? '' : 's'}`
-              : MODE_LABEL[mode]}
+              : session
+                ? `Review ${session.position} of ${session.total}`
+                : MODE_LABEL[mode]}
             {mode !== 'explore' ? ` · ${(elapsed / 1000).toFixed(0)}s` : ''}
             {engine.flipped ? ' · colors flipped' : ''}
           </Text>
@@ -175,6 +199,20 @@ export function Study({ problem, mode, settings, onExit, onResult, run, onRunSta
           />
         ) : null}
       </View>
+
+      {onModeChange && !run && !session ? (
+        <View style={styles.row}>
+          {(
+            [
+              ['guided', 'Hints'],
+              ['unguided', 'Solve'],
+              ['explore', 'Explore'],
+            ] as [Mode, string][]
+          ).map(([m, label]) => (
+            <Btn key={m} label={label} kind={mode === m ? 'solid' : 'ghost'} onPress={() => onModeChange(m)} />
+          ))}
+        </View>
+      ) : null}
 
       <View style={[styles.boardBox, flash === 'wrong' && styles.wrong, zoom.mode === 'armed' && styles.armed]}>
         <BoardView
@@ -215,7 +253,7 @@ export function Study({ problem, mode, settings, onExit, onResult, run, onRunSta
               }}
               disabled={!engine.canUndo}
             />
-            <Btn label="Restart" onPress={restart} />
+            {session ? null : <Btn label="Restart" onPress={restart} />}
           </>
         )}
         {mode === 'explore' ? (
@@ -229,6 +267,13 @@ export function Study({ problem, mode, settings, onExit, onResult, run, onRunSta
             />
             <Btn label={showBook ? 'Hide book' : 'Show book'} onPress={() => setShowBook((v) => !v)} />
           </>
+        ) : null}
+        {session ? (
+          s.status === 'solved' ? (
+            <Btn label={session.isLast ? 'Finish' : 'Next ›'} onPress={() => onNext?.()} />
+          ) : (
+            <Btn label="Skip" kind="ghost" onPress={() => onSkip?.()} />
+          )
         ) : null}
       </View>
     </ScrollView>

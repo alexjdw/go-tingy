@@ -1,0 +1,258 @@
+/**
+ * Journey test: drives the real app in headless Chrome through the study modes and checks what happens. The
+ * layout test proves buttons are reachable; this proves the flows work. Run with `npm run test:web`.
+ *
+ * It uses the app's built-in puzzles (all one-move captures) on a fresh profile, in one long story, so each step
+ * relies on the one before it.
+ */
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { after, before, describe, it } from 'node:test';
+import { launch, type Browser, type Page } from 'puppeteer-core';
+import { SAMPLES } from '../../src/data/samples';
+import { initialViewport } from '../../src/go/viewport';
+import { allPoints, boardDims, openEdges, parseSgf, type Point } from '../../src/sgf/parser';
+import { findChrome } from '../../scripts/lib/chrome';
+import { buildWeb, clickText, serveDir, sleep } from '../../scripts/lib/web';
+
+const chromePath = findChrome();
+
+const [CORNER, EDGE, OPEN] = SAMPLES; // Corner capture, Edge pair in atari, Capture in the open
+const ANSWER: Record<string, Point> = {
+  [CORNER.id]: { x: 0, y: 2 },
+  [EDGE.id]: { x: 0, y: 3 },
+  [OPEN.id]: { x: 3, y: 4 },
+};
+const WRONG: Point = { x: 3, y: 3 }; // empty and inside every built-in puzzle's window, and never the answer
+
+const bodyText = (page: Page) => page.evaluate('document.body.innerText') as Promise<string>;
+
+/** Wait until the page text contains `needle`; on timeout fail with what the page does say. */
+async function expectText(page: Page, needle: string | RegExp, ms = 6000) {
+  const has = (t: string) => (typeof needle === 'string' ? t.includes(needle) : needle.test(t));
+  const end = Date.now() + ms;
+  let t = '';
+  while (Date.now() < end) {
+    t = await bodyText(page);
+    if (has(t)) return t;
+    await sleep(150);
+  }
+  assert.fail(`expected the page to show ${needle}, but it shows:\n${t.slice(0, 700)}`);
+}
+
+async function expectNoText(page: Page, needle: string | RegExp) {
+  await sleep(250);
+  const t = await bodyText(page);
+  const has = typeof needle === 'string' ? t.includes(needle) : needle.test(t);
+  assert.ok(!has, `expected the page NOT to show ${needle}, but it shows:\n${t.slice(0, 700)}`);
+}
+
+async function click(page: Page, text: string) {
+  assert.ok(
+    await clickText(page, text, 450),
+    `no button "${text}" on screen:\n${(await bodyText(page)).slice(0, 500)}`,
+  );
+}
+
+async function clickAria(page: Page, label: string) {
+  const ok = await page.evaluate(
+    `(() => { const e = document.querySelector('[aria-label=${JSON.stringify(label)}]'); if (!e) return false; e.click(); return true; })()`,
+  );
+  assert.ok(ok, `no control labelled "${label}" on screen`);
+  await sleep(450);
+}
+
+const count = (page: Page, js: string) => page.evaluate(js) as Promise<number>;
+
+/** Tap a board point. The tap targets are the page's transparent rects, in row order over the visible window. */
+async function tapBoard(page: Page, sgf: string, p: Point) {
+  const root = parseSgf(sgf);
+  const v = initialViewport(allPoints(root), boardDims(root), openEdges(root));
+  assert.ok(p.x >= v.x0 && p.x <= v.x1 && p.y >= v.y0 && p.y <= v.y1, 'the point is inside the window');
+  const idx = (p.y - v.y0) * (v.x1 - v.x0 + 1) + (p.x - v.x0);
+  const box = (await page.evaluate(
+    `(() => { const r = [...document.querySelectorAll('svg rect')].filter((e) => e.getAttribute('fill') === 'transparent')[${idx}];
+      if (!r) return null; const b = r.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`,
+  )) as { x: number; y: number } | null;
+  assert.ok(box, 'the board has tap targets');
+  await page.mouse.click(box.x, box.y);
+  await sleep(450);
+}
+
+describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
+  let outDir = '';
+  let site: { url: string; close: () => void };
+  let browser: Browser;
+  let page: Page;
+  const errors: string[] = [];
+
+  before(async () => {
+    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-journey-'));
+    buildWeb(outDir);
+    site = await serveDir(outDir);
+    browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
+    page = await browser.newPage();
+    await page.setViewport({ width: 390, height: 844 });
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.goto(site.url, { waitUntil: 'networkidle0' });
+    await sleep(800);
+  });
+
+  after(async () => {
+    await browser?.close();
+    site?.close();
+    if (outDir) fs.rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  });
+
+  it('Home offers the three modes', async () => {
+    const t = await expectText(page, 'How do you want to study?');
+    for (const mode of ['Mastery', 'Spaced repetition', 'Browse']) assert.ok(t.includes(mode), mode);
+    assert.equal(
+      (t.match(/No puzzles yet/g) ?? []).length,
+      2,
+      'a fresh install has nothing in mastery or spaced repetition',
+    );
+    assert.ok(!t.includes('New puzzle'), 'New puzzle is under Browse, not on Home');
+  });
+
+  it('Browse shows puzzles as tiles with Play and + under each; New and Import live here', async () => {
+    await click(page, 'Browse');
+    const t = await expectText(page, 'New puzzle');
+    for (const s of SAMPLES) assert.ok(t.includes(s.title), s.title);
+    assert.ok(t.includes('+ SGF'));
+    assert.equal(
+      await count(
+        page,
+        `[...document.querySelectorAll('div, span')].filter((e) => !e.children.length && e.innerText === 'Play').length`,
+      ),
+      4,
+    );
+    assert.equal(
+      await count(page, `document.querySelectorAll('[aria-label$=" to a study mode"]').length`),
+      4,
+      'a + for each',
+    );
+    assert.ok((await count(page, `document.querySelectorAll('svg').length`)) >= 4, 'each tile draws its position');
+  });
+
+  it('+ pops up the choice to add to mastery and spaced repetition', async () => {
+    await clickAria(page, `Add ${CORNER.title} to a study mode`);
+    await expectText(page, 'Add to spaced repetition');
+    await expectText(page, 'Add to mastery');
+    await click(page, 'Add to spaced repetition');
+    await expectText(page, '✓ Spaced repetition (tap to remove)');
+    await click(page, 'Add to mastery');
+    await expectText(page, '✓ Mastery (tap to remove)');
+    await click(page, 'Close');
+    await expectText(page, 'Spaced repetition · Mastery');
+  });
+
+  it('Home shows what is due and what is ready', async () => {
+    await click(page, '‹ Back');
+    await expectText(page, '1 due now');
+    await expectText(page, '1 puzzle · 1 ready today');
+  });
+
+  it('choosing spaced repetition starts a session immediately', async () => {
+    await click(page, 'Spaced repetition');
+    await expectText(page, 'Review 1 of 1');
+    await expectText(page, CORNER.title);
+    await expectNoText(page, 'Browse');
+  });
+
+  it('a puzzle missed in the session comes back once, then the session ends with a summary', async () => {
+    await tapBoard(page, CORNER.sgf, WRONG);
+    await expectNoText(page, 'Solved');
+    await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
+    await expectText(page, 'Solved with 1 mistake');
+    await click(page, 'Next ›');
+    await expectText(page, 'Review 2 of 2');
+    await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
+    await expectText(page, 'Solved — no mistakes!');
+    await click(page, 'Finish');
+    await expectText(page, 'Session complete');
+    await expectText(page, '1 reviewed · 0 right first time');
+    await expectText(page, '1 to practise again, 1 fixed on the second try.');
+  });
+
+  it('the end of the session offers Add puzzles and Prune puzzles', async () => {
+    const t = await bodyText(page);
+    for (const b of ['Add puzzles', 'Prune puzzles', 'Done']) assert.ok(t.includes(b), b);
+    assert.doesNotMatch(t, /Review \d+ more/, 'nothing else is due yet');
+  });
+
+  it('Add puzzles opens a picker like Browse; adding works; Back returns home', async () => {
+    await click(page, 'Add puzzles');
+    await expectText(page, 'to Spaced repetition · 1 added so far');
+    await clickAria(page, `Add ${OPEN.title} to Spaced repetition`);
+    await expectText(page, '✓ Added');
+    await expectText(page, '2 added so far');
+    await click(page, '‹ Back');
+    await expectText(page, 'How do you want to study?');
+    await expectText(page, '1 due now');
+  });
+
+  it('ending a session early keeps what is still due; Prune lists the easiest first and removes', async () => {
+    await click(page, 'Spaced repetition');
+    await expectText(page, 'Review 1 of 1');
+    await expectText(page, OPEN.title);
+    await click(page, '‹ End');
+    await expectText(page, 'Session ended');
+    await expectText(page, '1 still due.');
+    await click(page, 'Prune puzzles');
+    const t = await expectText(page, 'Prune puzzles');
+    assert.ok(t.indexOf(CORNER.title) < t.indexOf(OPEN.title), 'the puzzle you know goes first; the new one last');
+    await clickAria(page, `Remove ${CORNER.title} from spaced repetition`);
+    await expectNoText(page, CORNER.title);
+    await expectText(page, OPEN.title);
+    await click(page, '‹ Back');
+    await expectText(page, '1 due now');
+  });
+
+  it('Mastery lists its puzzles as tiles with Add puzzles near the top', async () => {
+    await click(page, 'Mastery');
+    await expectText(page, '1 puzzle · 1 ready today');
+    await expectText(page, 'Guided: stage 1 of 1 · 0 free moves');
+    const t = await bodyText(page);
+    assert.ok(t.indexOf('Add puzzles') < t.indexOf(CORNER.title), 'the button comes before the tiles');
+    await click(page, 'Add puzzles');
+    await expectText(page, 'to Mastery · 1 added so far');
+    await clickAria(page, `Add ${EDGE.title} to Mastery`);
+    await expectText(page, '2 added so far');
+    await click(page, '‹ Back');
+    await expectText(page, '2 puzzles · 2 ready today');
+    await expectText(page, EDGE.title);
+  });
+
+  it('Play does the next step: a guided run, then a mastery run, two attempts a day', async () => {
+    await click(page, 'Play'); // Corner capture's tile is first
+    await expectText(page, 'Guided mastery · 0 free moves');
+    await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
+    await expectText(page, 'Guided stage cleared! Mastery runs are unlocked.');
+    await click(page, '‹ Back');
+    await expectText(page, 'Guided cleared · ready for mastery');
+    await click(page, 'Play');
+    await expectText(page, '1 line to solve');
+    await click(page, 'Start');
+    await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
+    await expectText(page, 'All 1 line solved');
+    await click(page, 'Done');
+    await expectText(page, /Mastery: \w+ · \d/);
+    await expectText(page, 'Tomorrow');
+    await expectText(page, 'no attempts left today');
+  });
+
+  it('keeps everything after a reload', async () => {
+    await page.reload({ waitUntil: 'networkidle0' });
+    await sleep(800);
+    await expectText(page, 'How do you want to study?');
+    await expectText(page, '2 puzzles · 1 ready today');
+    await expectText(page, '1 due now');
+  });
+
+  it('threw no errors along the way', () => {
+    assert.deepEqual(errors, []);
+  });
+});

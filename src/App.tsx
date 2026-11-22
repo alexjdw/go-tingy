@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { SafeAreaView, StyleSheet, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { BackHandler, Platform, SafeAreaView, StatusBar as RNStatusBar, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SAMPLES, type Problem } from './data/samples';
 import {
@@ -9,39 +9,59 @@ import {
   attemptsLeft,
   emptyMasteryState,
   guidedStatus,
+  inCategory,
+  isDueNow,
   localDay,
   recordAttemptStart,
   recordGuidedResult,
   recordMasteryResult,
   setCategory,
 } from './progress/mastery';
+import { type RunKind, masteryAction } from './progress/practice';
 import { type Attempt, type Level, type ProgressMap, computeSkill, recordAttempt } from './progress/skill';
+import { canGoBack, current, pop, push, replace, reset, type Stack } from './nav/stack';
 import { loadLibrary, loadProgress, saveLibrary, saveProgress } from './storage/persistence';
 import { asyncKv } from './storage/asyncKv';
 import { createMasteryStore } from './storage/mastery';
-import { Library, type RunKind } from './ui/screens/Library';
-import { Study } from './ui/screens/Study';
-import { MasteryScreen } from './ui/screens/MasteryScreen';
-import { Editor } from './ui/screens/Editor';
-import { SettingsScreen } from './ui/screens/SettingsScreen';
 import { DEFAULT_SETTINGS, type Settings, loadSettings, saveSettings } from './storage/settings';
-import { ImportScreen } from './ui/screens/ImportScreen';
-import { theme } from './ui/components/theme';
+import { cachedLearnerDepth } from './study/lines';
 import type { Mode } from './study/engine';
-import { learnerDepth } from './study/lines';
+import { theme } from './ui/components/theme';
+import { Browse } from './ui/screens/Browse';
+import { Editor } from './ui/screens/Editor';
+import { Home } from './ui/screens/Home';
+import { ImportScreen } from './ui/screens/ImportScreen';
+import { MasteryHome } from './ui/screens/MasteryHome';
+import { MasteryScreen } from './ui/screens/MasteryScreen';
+import { Picker } from './ui/screens/Picker';
+import { Prune } from './ui/screens/Prune';
+import { SessionScreen } from './ui/screens/SessionScreen';
+import { SettingsScreen } from './ui/screens/SettingsScreen';
+import { Study } from './ui/screens/Study';
 
 type Screen =
-  | { name: 'library' }
-  | { name: 'import' }
+  | { name: 'home' }
+  | { name: 'browse' }
+  | { name: 'mastery' }
+  | { name: 'session' }
+  | { name: 'picker'; category: Category }
+  | { name: 'prune' }
   | { name: 'settings' }
+  | { name: 'import' }
   | { name: 'editor'; problem?: Problem }
   | { name: 'study'; problem: Problem; mode: Mode; run?: { freeMoves: number; learnerMoves: number } }
-  | { name: 'mastery'; problem: Problem };
+  | { name: 'masteryRun'; problem: Problem };
 
 const masteryStore = createMasteryStore(asyncKv);
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>({ name: 'library' });
+  const [stack, setStack] = useState<Stack<Screen>>(() => reset<Screen>({ name: 'home' }));
+  const stackRef = useRef(stack);
+  useEffect(() => {
+    stackRef.current = stack;
+  }, [stack]);
+  const screen = current(stack);
+
   const [custom, setCustom] = useState<Problem[]>([]);
   const [progress, setProgress] = useState<ProgressMap>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -49,6 +69,21 @@ export default function App() {
   const [ready, setReady] = useState(false);
   // the latest mastery state, so several updates in one event see each other
   const masteryRef = useRef(mastery);
+
+  const go = useCallback((s: Screen) => setStack((st) => push(st, s)), []);
+  const back = useCallback(() => setStack((st) => pop(st)), []);
+  /** Swap the current screen for another (used by the session end screen, so Back then returns home). */
+  const swap = useCallback((s: Screen) => setStack((st) => replace(st, s)), []);
+
+  // The Android back button goes back one screen; from the first screen it leaves the app.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!canGoBack(stackRef.current)) return false;
+      setStack((st) => pop(st));
+      return true;
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     void loadLibrary().then(setCustom);
@@ -84,18 +119,20 @@ export default function App() {
     [progress],
   );
 
-  const addProblem = async (p: Problem) => {
+  const problems = [...SAMPLES, ...custom];
+
+  const saveProblem = async (p: Problem) => {
     const next = custom.some((c) => c.id === p.id) ? custom.map((c) => (c.id === p.id ? p : c)) : [...custom, p];
     setCustom(next);
     await saveLibrary(next);
-    setScreen({ name: 'library' });
+    back();
   };
 
   const addMany = async (items: Problem[]) => {
     const next = [...custom, ...items];
     setCustom(next);
     await saveLibrary(next);
-    setScreen({ name: 'library' });
+    back();
   };
 
   const removeMany = async (ids: string[]) => {
@@ -105,24 +142,21 @@ export default function App() {
     await saveLibrary(next);
   };
 
-  const removeProblem = async (p: Problem) => {
-    const next = custom.filter((c) => c.id !== p.id);
-    setCustom(next);
-    await saveLibrary(next);
-  };
+  const toggleCategory = (id: string, cat: Category, on: boolean) => updateMastery((s) => setCategory(s, cat, id, on));
 
+  /** Start the next training step of a mastery puzzle: a guided run, or a mastery run. */
   const startRun = (problem: Problem, kind: RunKind) => {
     const s = masteryRef.current;
     if (attemptsLeft(s, problem.id, localDay(new Date())) <= 0) return; // two a day
-    if (kind === 'mastery') return setScreen({ name: 'mastery', problem });
-    const learnerMoves = learnerDepth(problem.sgf);
+    if (kind === 'mastery') return go({ name: 'masteryRun', problem });
+    const learnerMoves = cachedLearnerDepth(problem.sgf);
     const { free } = guidedStatus(s, problem.id, learnerMoves);
-    setScreen({ name: 'study', problem, mode: 'unguided', run: { freeMoves: free, learnerMoves } });
+    go({ name: 'study', problem, mode: 'unguided', run: { freeMoves: free, learnerMoves } });
   };
 
   const leaveRun = () => {
     backupMastery();
-    setScreen({ name: 'library' });
+    back();
   };
 
   /** What to tell the player after a guided run. */
@@ -135,27 +169,92 @@ export default function App() {
 
   if (!ready) return <SafeAreaView style={styles.root} />;
 
+  const day = localDay(new Date());
+  const masteryMembers = problems.filter((p) => inCategory(mastery, 'mastery', p.id));
+  const spacedMembers = problems.filter((p) => inCategory(mastery, 'spaced', p.id));
+
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
-      {screen.name === 'library' && (
-        <Library
-          problems={[...SAMPLES, ...custom]}
-          progress={progress}
-          mastery={mastery}
-          onStart={(problem, mode) => setScreen({ name: 'study', problem, mode })}
-          onStartRun={startRun}
-          onToggleCategory={(id: string, cat: Category, on: boolean) =>
-            updateMastery((s) => setCategory(s, cat, id, on))
+
+      {screen.name === 'home' && (
+        <Home
+          dueCount={problems.filter((p) => isDueNow(mastery, p.id, progress[p.id])).length}
+          spacedCount={spacedMembers.length}
+          masteryCount={masteryMembers.length}
+          masteryReady={
+            masteryMembers.filter((p) => masteryAction(mastery, p.id, cachedLearnerDepth(p.sgf), day).enabled).length
           }
-          onImport={() => setScreen({ name: 'import' })}
-          onDelete={removeProblem}
-          onDeleteMany={removeMany}
-          onNew={() => setScreen({ name: 'editor' })}
-          onEdit={(problem) => setScreen({ name: 'editor', problem })}
-          onSettings={() => setScreen({ name: 'settings' })}
+          puzzleCount={problems.length}
+          onMastery={() => go({ name: 'mastery' })}
+          onSpaced={() => go({ name: 'session' })}
+          onBrowse={() => go({ name: 'browse' })}
+          onSettings={() => go({ name: 'settings' })}
         />
       )}
+
+      {screen.name === 'browse' && (
+        <Browse
+          problems={problems}
+          progress={progress}
+          mastery={mastery}
+          onBack={back}
+          onPlay={(problem) => go({ name: 'study', problem, mode: 'unguided' })}
+          onToggleCategory={toggleCategory}
+          onNew={() => go({ name: 'editor' })}
+          onImport={() => go({ name: 'import' })}
+          onEdit={(problem) => go({ name: 'editor', problem })}
+          onDelete={(p) => void removeMany([p.id])}
+          onDeleteMany={(ids) => void removeMany(ids)}
+        />
+      )}
+
+      {screen.name === 'mastery' && (
+        <MasteryHome
+          problems={problems}
+          progress={progress}
+          mastery={mastery}
+          onBack={back}
+          onAddPuzzles={() => go({ name: 'picker', category: 'mastery' })}
+          onPlay={startRun}
+          onToggleCategory={toggleCategory}
+        />
+      )}
+
+      {screen.name === 'session' && (
+        <SessionScreen
+          problems={problems}
+          mastery={mastery}
+          progress={progress}
+          settings={settings}
+          record={record}
+          // from the end screen, Add/Prune replace the session so that Back returns home, not to a new session
+          onAddPuzzles={() => swap({ name: 'picker', category: 'spaced' })}
+          onPrune={() => swap({ name: 'prune' })}
+          onDone={back}
+        />
+      )}
+
+      {screen.name === 'picker' && (
+        <Picker
+          category={screen.category}
+          problems={problems}
+          progress={progress}
+          mastery={mastery}
+          onToggle={(id, on) => toggleCategory(id, screen.category, on)}
+          onBack={back}
+        />
+      )}
+
+      {screen.name === 'prune' && (
+        <Prune
+          problems={spacedMembers}
+          progress={progress}
+          onRemove={(p) => toggleCategory(p.id, 'spaced', false)}
+          onBack={back}
+        />
+      )}
+
       {screen.name === 'study' && (
         <Study
           key={`${screen.problem.id}-${screen.mode}-${screen.run ? 'run' : 'plain'}`}
@@ -163,7 +262,8 @@ export default function App() {
           mode={screen.mode}
           settings={settings}
           run={screen.run ? { freeMoves: screen.run.freeMoves } : undefined}
-          onExit={screen.run ? leaveRun : () => setScreen({ name: 'library' })}
+          onModeChange={screen.run ? undefined : (mode) => swap({ ...screen, mode })}
+          onExit={screen.run ? leaveRun : back}
           onResult={(a) => record(screen.problem.id, a)}
           onRunStart={() => updateMastery((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
           onRunResult={({ correct }) => {
@@ -174,7 +274,8 @@ export default function App() {
           }}
         />
       )}
-      {screen.name === 'mastery' && (
+
+      {screen.name === 'masteryRun' && (
         <MasteryScreen
           key={screen.problem.id}
           problem={screen.problem}
@@ -184,6 +285,7 @@ export default function App() {
           onFinish={(r: MasteryResult) => updateMastery((s) => recordMasteryResult(s, screen.problem.id, r))}
         />
       )}
+
       {screen.name === 'settings' && (
         <SettingsScreen
           settings={settings}
@@ -191,18 +293,14 @@ export default function App() {
             setSettings(s);
             void saveSettings(s);
           }}
-          onBack={() => setScreen({ name: 'library' })}
+          onBack={back}
         />
       )}
-      {screen.name === 'editor' && (
-        <Editor initial={screen.problem} onCancel={() => setScreen({ name: 'library' })} onSave={addProblem} />
-      )}
+
+      {screen.name === 'editor' && <Editor initial={screen.problem} onCancel={back} onSave={saveProblem} />}
+
       {screen.name === 'import' && (
-        <ImportScreen
-          existing={[...SAMPLES, ...custom].map((p) => p.sgf)}
-          onCancel={() => setScreen({ name: 'library' })}
-          onImport={addMany}
-        />
+        <ImportScreen existing={problems.map((p) => p.sgf)} onCancel={back} onImport={addMany} />
       )}
     </SafeAreaView>
   );

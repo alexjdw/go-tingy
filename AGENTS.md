@@ -26,8 +26,13 @@ Run `npm run check` (typecheck + lint + format check + tests) before declaring a
 
 ## Navigation
 
-This app does **not** use Expo Router. `src/App.tsx` switches between screens with a small `Screen` state union
-(library, study, editor, import, settings); there is no `src/app/` routes folder. Don't add one without discussing it.
+This app does **not** use Expo Router. `src/App.tsx` keeps a small navigation stack (`src/nav/stack.ts`) of `Screen` values and
+shows the last one; Back pops it, and the Android back button does the same (from Home it leaves the app). There is no
+`src/app/` routes folder. Don't add one without discussing it.
+
+The app opens on **Home**, where the player picks one of three modes: **Mastery** (a list of tiles with Add puzzles
+at the top), **Spaced repetition** (a review session that starts at once; Add puzzles and Prune puzzles are on its
+end screen) or **Browse** (every puzzle as tiles with Play and +; New puzzle and Import SGF live here).
 
 ## Project layout
 
@@ -37,22 +42,28 @@ src/App.tsx               screen switching, persistence wiring
 src/sgf/                  parser, validator, normalizer, editing helpers, encoding, archives, importer (pure TS)
 src/go/board.ts           board rules (cols x rows): captures, suicide, simple ko                (pure TS)
 src/go/viewport.ts        what part of the board is shown, and where the grid lines go           (pure TS)
+src/go/thumbnail.ts       the 7x7 window a puzzle tile draws                                     (pure TS)
+src/go/setup.ts           a puzzle's starting position from its SGF                              (pure TS)
 src/study/engine.ts       guided / unguided / explore engine, choice modes, color flipping       (pure TS)
 src/study/lines.ts        a puzzle's solution lines (root-to-leaf paths) and their length        (pure TS)
 src/study/mastery.ts      MasteryRun: all lines in random order, clock, score                    (pure TS)
+src/study/session.ts      SessionQueue: a spaced-repetition session, missed puzzles retried once (pure TS)
+src/nav/stack.ts          the navigation stack                                                   (pure TS)
 src/progress/skill.ts     attempt history -> skill level, spaced-repetition due dates            (pure TS)
 src/progress/mastery.ts   categories, guided stages, mastery score/levels, daily limit, backups  (pure TS)
+src/progress/practice.ts  what Play does in mastery mode; which puzzles look easy (pruning)      (pure TS)
 src/storage/              AsyncStorage persistence for library, progress, settings, mastery (+15 backups)
 src/data/samples.ts       built-in demo problems and the Problem type
-src/ui/screens/           Library, Study, Editor, ImportScreen, SettingsScreen
-src/ui/components/        Board (SVG), theme + Btn
+src/ui/screens/           Home, Browse, MasteryHome, SessionScreen, Picker, Prune, Study, MasteryScreen (a mastery
+                          run), Editor, ImportScreen, SettingsScreen
+src/ui/components/        Board (SVG), PuzzleTile/PuzzleGrid/PlusMenu/CollectionBar, ChipRow, ScreenHeader, theme + Btn
 src/ui/zoom.ts, sound.ts  zoom hook, stone sound
 tests/                    node:test suites + tests/fixtures (real SGF collections)
 store/                    store listing text, privacy policy/answers, graphics, publishing checklist
 scripts/                  asset generation (icons, screenshots) and the store-readiness checks
 ```
 
-Keep everything under `src/sgf`, `src/go`, `src/study` and `src/progress` free of React and React Native imports so it
+Keep everything under `src/sgf`, `src/go`, `src/study`, `src/progress` and `src/nav` free of React and React Native imports so it
 stays testable in plain Node.
 
 ## Testing

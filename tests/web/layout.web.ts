@@ -41,11 +41,17 @@ const MASTERY_STATE = {
 // Scripts that run inside the page (kept as strings: this project's TypeScript has no DOM types).
 const FIND_COVERED = `(() => {
   const out = [];
-  const cands = [...document.querySelectorAll('[role="button"], button, a, input, textarea, [tabindex="0"]')];
+  // while a modal is open the page behind it is meant to be covered: check only the modal's own controls
+  const root = document.querySelector('[aria-modal="true"]') || document;
+  const cands = [...root.querySelectorAll('[role="button"], button, a, input, textarea, [tabindex="0"]')];
   for (const el of cands) {
     const r = el.getBoundingClientRect();
     const label = (el.innerText || el.getAttribute('aria-label') || el.placeholder || '').trim().slice(0, 40);
-    if (!r.width || !r.height) { out.push(label + ': collapsed to ' + r.width + 'x' + r.height); continue; }
+    if (!r.width || !r.height) {
+      // unlabeled zero-size elements are focus-trap helpers, not buttons
+      if (label) out.push(label + ': collapsed to ' + r.width + 'x' + r.height);
+      continue;
+    }
     if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue; // scrolled away
     const x = Math.min(Math.max(r.left + r.width / 2, 0), innerWidth - 1);
     const y = Math.min(Math.max(r.top + r.height / 2, 0), innerHeight - 1);
@@ -79,22 +85,36 @@ const FIND_CLIPPED = `(() => {
 
 // [label, text to click first]. Each screen is reached the way a person would.
 const STEPS: [string, string | null][] = [
-  ['library', null],
-  ['library, card expanded', 'Corner capture'],
-  ['study (unguided)', 'Unguided'],
-  ['back to library', '‹ Back'],
-  ['library, card expanded again', 'Corner capture'],
-  ['mastery run, ready', 'Mastery run'],
-  ['mastery run, playing', 'Start'],
-  ['back to library from mastery', '‹ Back'],
-  ['editor: size', 'New puzzle'],
+  ['home', null],
+  ['browse', 'Browse'],
+  ['browse: plus menu', '+'],
+  ['browse: plus menu closed', 'Close'],
+  ['browse: study (solve)', 'Play'],
+  ['browse: back from study', '‹ Back'],
+  ['browse: new puzzle (editor size)', 'New puzzle'],
   ['editor: black stones', 'Next ›'],
   ['editor: white stones', 'Next ›'],
   ['editor: move tree', 'Next ›'],
-  ['back to library from editor', '‹ Cancel'],
+  ['back to browse from editor', '‹ Cancel'],
+  ['browse: import', '+ SGF'],
+  ['back to browse from import', 'Cancel'],
+  ['back to home', '‹ Back'],
+  ['mastery', 'Mastery'],
+  ['mastery: add puzzles', 'Add puzzles'],
+  ['mastery: back from add puzzles', '‹ Back'],
+  ['mastery: play (run)', 'Play'],
+  ['mastery run: playing', 'Start'],
+  ['mastery: back from run', '‹ Back'],
+  ['back to home from mastery', '‹ Back'],
   ['settings', 'Settings'],
-  ['back to library from settings', '‹ Back'],
-  ['import', '+ SGF'],
+  ['back to home from settings', '‹ Back'],
+  ['spaced repetition: session starts', 'Spaced repetition'],
+  ['spaced repetition: end session', '‹ End'],
+  ['spaced repetition: prune', 'Prune puzzles'],
+  ['back to home from prune', '‹ Back'],
+  ['spaced repetition again', 'Spaced repetition'],
+  ['spaced repetition: end', '‹ End'],
+  ['spaced repetition: add puzzles', 'Add puzzles'],
 ];
 
 const VIEWPORTS: [string, number, number][] = [
