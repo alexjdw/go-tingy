@@ -174,11 +174,16 @@ export function checkStoreReadiness(i: Inputs): Finding[] {
 
   // --- legal ---
   const license = i.readFile('LICENSE');
-  if (license && new TextDecoder().decode(license).includes('650 Industries'))
+  const licenseText = license ? new TextDecoder().decode(license) : '';
+  if (licenseText.includes('650 Industries'))
     err(
       'license',
       "LICENSE is still Expo's template (copyright 650 Industries). Replace it with your own license or copyright notice.",
     );
+  else if (/\bTODO\b/.test(licenseText))
+    err('license', 'LICENSE still has a TODO: put the copyright holder\'s name in the "Copyright (c) 2026 ..." line.');
+  if (license && !i.readFile('THIRD_PARTY_NOTICES.md'))
+    warn('notices', 'THIRD_PARTY_NOTICES.md is missing. Generate it with: npm run licenses');
 
   // --- build config ---
   if (!i.easJson) err('eas-json', 'eas.json is missing.');

@@ -29,8 +29,13 @@ This list is what is left, in order. Store policies change often: where a step d
 3. **Two public web pages**: a **support** page (an email address or contact form is enough) and the **privacy
    policy** (`store/privacy-policy.md`, after you fill in its `TODO`s). A free GitHub Pages site works. Put the
    URLs in `store.config.json` and, later, in the Play Console.
-4. **LICENSE.** The file is Expo's template (copyright 650 Industries). Replace it with your own license or
-   copyright notice.
+4. **LICENSE.** Now the Go Flashcards Personal Use License (free for personal use, not open source). **Put your
+   name in its "Copyright (c) 2026 ..." line** (`npm run check:store` fails while it says TODO). It is a draft
+   written without legal review: have a lawyer read it if the details matter to you, for example to add a
+   governing-law clause.
+   Third-party notices: `npm run licenses` audits the 29 packages that ship in the app (all MIT, ISC or
+   Unlicense/Apache-2.0, no copyleft) and writes `THIRD_PARTY_NOTICES.md`. Those licenses ask that their notices
+   travel with copies of the app, so consider showing that file in an About screen (not built yet).
 5. **Test fixtures.** `tests/fixtures/` holds problem collections from u-go.net whose license is unclear. They are
    not in the app, but do not publish the repository publicly with them included unless you have checked.
 

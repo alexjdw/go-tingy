@@ -1,0 +1,42 @@
+/**
+ * `npm run licenses`: audit the licenses of the code that actually ships in the app, and write
+ * THIRD_PARTY_NOTICES.md. It exports the iOS JavaScript bundle, reads which packages are in it, and fails if any
+ * of them has a license that is not clearly fine for a closed-source app (for example GPL or MPL).
+ *
+ * This covers the JavaScript bundle. React Native and the Expo modules also ship native code under their own
+ * (MIT) licenses, which the notices for those packages cover.
+ */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import { packagesInSources, depsForNames } from './store/bundle';
+import { isAcceptable, renderNotices } from './store/licenses';
+
+const out = fs.mkdtempSync(path.join(os.tmpdir(), 'go-licenses-'));
+try {
+  console.log('exporting the iOS bundle…');
+  execSync(`npx expo export --platform ios --dump-sourcemap --output-dir "${out}"`, { stdio: 'pipe' });
+  const dir = path.join(out, '_expo', 'static', 'js', 'ios');
+  const mapFile = fs.readdirSync(dir).find((f) => f.endsWith('.map'));
+  if (!mapFile) throw new Error('no source map was produced');
+  const map = JSON.parse(fs.readFileSync(path.join(dir, mapFile), 'utf8')) as { sources: string[] };
+
+  const deps = depsForNames(packagesInSources(map.sources));
+  const counts = new Map<string, number>();
+  for (const d of deps) counts.set(d.license, (counts.get(d.license) ?? 0) + 1);
+  console.log(`${deps.length} packages ship in the app:`);
+  for (const [l, n] of [...counts.entries()].sort((a, b) => b[1] - a[1]))
+    console.log(`  ${String(n).padStart(3)}  ${l}`);
+
+  const bad = deps.filter((d) => !isAcceptable(d.license));
+  fs.writeFileSync('THIRD_PARTY_NOTICES.md', renderNotices(deps) + '\n');
+  console.log('wrote THIRD_PARTY_NOTICES.md');
+  if (bad.length) {
+    console.log('\nNot clearly acceptable for a closed-source app:');
+    for (const d of bad) console.log(`  ${d.name}@${d.version}: ${d.license}`);
+    process.exitCode = 1;
+  }
+} finally {
+  fs.rmSync(out, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+}

@@ -24,6 +24,7 @@ const FILES: Record<string, Uint8Array> = {
   'assets/android-icon-background.png': png(1024, 1024, false),
   'assets/android-icon-monochrome.png': png(1024, 1024, true),
   'assets/splash-icon.png': png(1024, 1024, true),
+  'THIRD_PARTY_NOTICES.md': new TextEncoder().encode('# Third-party notices'),
   'store/assets/play-icon-512.png': png(512, 512, false),
   'store/assets/feature-graphic-1024x500.png': png(1024, 500, false),
 };

@@ -67,3 +67,12 @@ Standard SGF, plus a few markers that say which moves are right or wrong:
 
 A leaf not marked wrong counts as a success. On import, a triangle on a move's own point (`;B[br]TR[br]`) is treated
 as a wrong branch, which is how the u-go.net uliGo problem files mark refutations.
+
+## License
+
+Go Flashcards is **not open source**. It is free for personal, non-commercial use under the
+[Go Flashcards Personal Use License](LICENSE): you may use it and modify it for yourself, but not use it
+commercially or redistribute it or anything derived from it. Third-party components keep their own licenses,
+listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (regenerate with `npm run licenses`, which also fails
+if a package that ships in the app has a license that is not clearly fine for a closed-source app). The puzzle
+collections in `tests/fixtures/` are third-party and are not covered by this license.

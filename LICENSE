@@ -1,21 +1,101 @@
-The MIT License (MIT)
+Go Flashcards Personal Use License
 
-Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+Copyright (c) 2026 TODO: Your Name. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This is NOT an open-source license. The Software is made available free of charge for personal use only, on the
+terms below. All other rights are reserved by the copyright holder.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. DEFINITIONS
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+   "Software" means the source code, assets, documentation and other files in this repository, and any app built
+   from them.
+
+   "Personal Use" means use by one individual for their own learning, practice, study and enjoyment that is not
+   for commercial advantage or monetary compensation, and not on behalf of a business, school, club or
+   other organization.
+
+   "Licensor" means the copyright holder named above.
+
+2. GRANT
+
+   Subject to these terms, the Licensor grants you a free, non-exclusive, non-transferable, non-sublicensable,
+   revocable license to download, install and run the Software, to make copies of it for your own devices, and to
+   read and modify its source code, in each case for Personal Use only.
+
+3. RESTRICTIONS
+
+   Without the Licensor's prior written permission, you may NOT:
+
+   a. use the Software for any commercial purpose, including: in a business or organization; in teaching or
+      coaching for which you or anyone is paid; as part of a product or service that is sold or that generates
+      revenue (including through advertising, subscriptions or data collection); or to produce anything that you
+      sell;
+
+   b. copy, publish, distribute, sell, rent, lease, lend, sublicense or otherwise make the Software, or any
+      modified version or derivative work of it, available to anyone else, in source or compiled form, by any
+      means, including by uploading it to an app store, a website, a file-sharing service or a public or shared
+      code repository;
+
+   c. offer the Software, or its functionality, to others as a hosted or online service;
+
+   d. remove, hide or alter any copyright, license or attribution notice in the Software;
+
+   e. use the names "Go Flashcards" or the app's icon, logos or other branding for any other product or service,
+      or in any way that suggests the Licensor endorses you or your work.
+
+4. YOUR CONTENT
+
+   Puzzles, SGF files and study data that you import or create belong to you (or to whoever owns them). This
+   license applies to the Software, not to your content.
+
+5. OWNERSHIP
+
+   The Software is licensed, not sold. The Licensor retains all right, title and interest in it. No right is granted
+   except as stated in section 2. Modifications you make for Personal Use remain subject to this license, and the
+   Licensor owns no part of your private changes unless you send them to the Licensor.
+
+   If you voluntarily send the Licensor suggestions, fixes or other contributions, you grant the Licensor a
+   perpetual, worldwide, royalty-free, irrevocable license to use, modify and distribute them in any way, without
+   obligation to you.
+
+6. THIRD-PARTY MATERIAL
+
+   The Software includes or depends on third-party software that is licensed by its own authors under its own
+   terms, listed in THIRD_PARTY_NOTICES.md. Those terms apply to that software, not to the rest of the Software,
+   and nothing in this license limits your rights under them.
+
+   Files under tests/fixtures/ are puzzle collections made by third parties. They are not part of the Software
+   for the purposes of this license, the Licensor does not license them, and they are not covered by section 2.
+   Check their source before doing anything other than running the Software's tests with them.
+
+7. APP STORES
+
+   This license governs the source code and files in this repository. A copy of the app that the Licensor
+   distributes through an app store is provided to end users under the store's applicable end-user license terms.
+
+8. TERMINATION
+
+   This license ends automatically, without notice, if you breach any of its terms. When it ends you must stop
+   using the Software and delete all copies of it and of any derivative work. Sections 3, 5, 9, 10 and 11 survive
+   termination.
+
+9. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+   THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. The Licensor does
+   not warrant that the Software will be error-free, that puzzles or their solutions are correct, or that it will
+   improve your play.
+
+10. LIMITATION OF LIABILITY
+
+   TO THE FULLEST EXTENT PERMITTED BY LAW, IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+   SOFTWARE OR ITS USE, INCLUDING LOSS OF DATA OR PROGRESS.
+
+11. GENERAL
+
+   If a provision of this license is found unenforceable, the rest remains in effect. This license is the entire
+   agreement about the Software between you and the Licensor, and replaces any earlier terms. The Licensor may
+   grant additional permissions, such as commercial use, in a separate written agreement.
+
+   For permission to do anything this license does not allow, contact the Licensor.
