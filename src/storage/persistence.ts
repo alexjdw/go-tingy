@@ -38,3 +38,17 @@ export async function loadJoseki(): Promise<string[]> {
 }
 
 export const saveJoseki = (ids: string[]) => AsyncStorage.setItem(JOSEKI, JSON.stringify(ids));
+
+const SEEN = 'seen.v1';
+
+/** Names of the one-time tutorials the player has finished or dismissed. */
+export async function loadSeen(): Promise<string[]> {
+  try {
+    const v = JSON.parse((await AsyncStorage.getItem(SEEN)) ?? '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export const saveSeen = (names: string[]) => AsyncStorage.setItem(SEEN, JSON.stringify(names));

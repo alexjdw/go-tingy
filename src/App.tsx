@@ -21,7 +21,16 @@ import {
 import { type RunKind, masteryAction } from './progress/practice';
 import { type Attempt, type ProgressMap, recordAttempt } from './progress/skill';
 import { canGoBack, current, pop, push, replace, reset, type Stack } from './nav/stack';
-import { loadJoseki, loadLibrary, loadProgress, saveJoseki, saveLibrary, saveProgress } from './storage/persistence';
+import {
+  loadJoseki,
+  loadLibrary,
+  loadProgress,
+  loadSeen,
+  saveJoseki,
+  saveLibrary,
+  saveProgress,
+  saveSeen,
+} from './storage/persistence';
 import { asyncKv } from './storage/asyncKv';
 import { createMasteryStore } from './storage/mastery';
 import { DEFAULT_SETTINGS, type Settings, loadSettings, saveSettings } from './storage/settings';
@@ -70,6 +79,7 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [mastery, setMastery] = useState<MasteryState>(emptyMasteryState());
   const [joseki, setJoseki] = useState<string[]>([]);
+  const [seen, setSeen] = useState<string[] | null>(null);
   const [ready, setReady] = useState(false);
   // the latest mastery state, so several updates in one event see each other
   const masteryRef = useRef(mastery);
@@ -94,6 +104,7 @@ export default function App() {
     void loadProgress().then(setProgress);
     void loadSettings().then(setSettings);
     void loadJoseki().then(setJoseki);
+    void loadSeen().then(setSeen);
     // the saved state, or the newest backup if it is missing or damaged
     void masteryStore.load().then(({ state }) => {
       masteryRef.current = state;
@@ -144,6 +155,13 @@ export default function App() {
     const next = custom.filter((c) => !drop.has(c.id));
     setCustom(next);
     await saveLibrary(next);
+  };
+
+  /** A one-time tutorial was finished or dismissed; it is not shown again. */
+  const markSeen = (name: string) => {
+    const next = [...(seen ?? []), name];
+    setSeen(next);
+    void saveSeen(next);
   };
 
   /** Mark or unmark a puzzle as joseki; the app remembers it. */
@@ -282,6 +300,8 @@ export default function App() {
           onModeChange={screen.run ? undefined : (mode) => swap({ ...screen, mode })}
           joseki={joseki.includes(screen.problem.id)}
           onJosekiChange={screen.run ? undefined : (on) => setJosekiMode(screen.problem.id, on)}
+          tutorial={screen.run && seen && !seen.includes('guided-run') ? 'guided-run' : undefined}
+          onTutorialDone={() => markSeen('guided-run')}
           runBar={screen.run ? masteryProgress(mastery, screen.problem.id, screen.run.learnerMoves) : undefined}
           onExit={screen.run ? leaveRun : back}
           onRunStart={() => updateMastery((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}

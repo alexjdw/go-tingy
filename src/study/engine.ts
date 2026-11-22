@@ -24,8 +24,11 @@ import {
 
 export type Mode = 'guided' | 'unguided' | 'explore';
 export type Status = 'playing' | 'solved';
-/** replay: auto-playing up to the branching point; mark: user marks good moves; play: normal solving */
-export type Phase = 'replay' | 'mark' | 'play';
+/**
+ * replay: auto-playing up to the branching point; follow: the player clicks through the given moves (both colors)
+ * on the green dot; mark: user marks good moves; play: normal solving
+ */
+export type Phase = 'replay' | 'follow' | 'mark' | 'play';
 
 export interface EngineOptions {
   markChoices?: Tri;
@@ -37,6 +40,8 @@ export interface EngineOptions {
    * ordinary unguided attempt.
    */
   freeMoves?: number;
+  /** With `freeMoves`: the player clicks through the given moves, for both sides, instead of watching them. */
+  follow?: boolean;
   /** Mastery runs: choose the opponent's reply from the candidates (instead of at random). */
   chooseReply?: (node: SgfNode, candidates: SgfNode[]) => SgfNode | null;
   /** Mastery runs: refuse a correct move that leads only to lines already solved. */
@@ -134,15 +139,16 @@ export class StudyEngine {
     // the other side of a joseki starts with the first move played for you (and any free moves after it)
     const lead = second ? (this.mode === 'unguided' && free > 0 ? this.freePlan(free) : []) : [];
     const opening = second && !lead.length ? this.openingMove() : null;
+    const given = this.opts.follow ? 'follow' : 'replay';
     if (second && (lead.length || opening)) {
       this.plan = lead.length ? lead : [opening!];
-      this.phase = 'replay';
+      this.phase = lead.length ? given : 'replay';
       this.afterReplay = 'play';
     } else if (this.mode === 'unguided' && free > 0) {
       const plan = this.freePlan(free);
       if (plan.length) {
         this.plan = plan;
-        this.phase = 'replay';
+        this.phase = given;
         this.afterReplay = 'play';
       }
     } else if (this.mode === 'unguided' && this.resolve(this.opts.markChoices)) {
@@ -213,9 +219,28 @@ export class StudyEngine {
 
   // ---------- replay + mark phases ----------
 
+  /** The point the player should click next while following the given moves (the green dot). */
+  followHint(): Point | null {
+    if (this.phase !== 'follow') return null;
+    const node = this.plan[this.planIdx];
+    return (node && nodeMove(node, this.dims)?.point) || null;
+  }
+
+  /** Follow phase: clicking the green dot plays the next given move, whoever's it is; anything else is ignored. */
+  follow(p: Point): 'ok' | 'wrong' {
+    const want = this.followHint();
+    if (!want || !same(want, p)) return 'wrong';
+    this.step();
+    return 'ok';
+  }
+
   /** Advance the replay by one move. Returns true if a move was played. */
   replayStep(): boolean {
     if (this.phase !== 'replay') return false;
+    return this.step();
+  }
+
+  private step(): boolean {
     const node = this.plan[this.planIdx++];
     const m = node && nodeMove(node, this.dims);
     const s = this.snap;

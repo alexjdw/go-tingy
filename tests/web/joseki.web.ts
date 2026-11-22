@@ -155,16 +155,24 @@ describe('joseki mode in the browser', { skip: chromePath ? false : 'Chrome not 
     await expectText(page, 'Joseki');
     await click(page, 'Play');
     await expectText(page, 'Guided mastery');
+    await click(page, 'Skip'); // the first-time tutorial
     await expectText(page, 'side 1 of 2');
+    // the given moves are clicked through (the green dot), for both colors
+    await expectText(page, 'Follow the green dot');
+    await tapBoard(page, pt('pd'));
+    await tapBoard(page, pt('qf'));
     const first = /You play (Black|White)/.exec(await expectText(page, /You play (Black|White)/, 6000))![1];
     const second = first === 'Black' ? 'White' : 'Black';
-    await tapBoard(page, pt('pd'));
     await tapBoard(page, pt('qc'));
     await expectText(page, 'First side solved');
     await click(page, 'Other side ›');
     await expectText(page, 'side 2 of 2');
-    await expectText(page, `You play ${second}`, 6000);
+    // the other side also starts from move 1: click through the given moves, then play on
+    await expectText(page, 'Follow the green dot');
+    await tapBoard(page, pt('pd'));
     await tapBoard(page, pt('qf'));
+    await tapBoard(page, pt('qc'));
+    await expectText(page, `You play ${second}`, 6000);
     await tapBoard(page, pt('rc'));
     await expectText(page, /Clean run|cleared/);
   });

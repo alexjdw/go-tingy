@@ -83,6 +83,12 @@ every mode (Browse, sessions, guided and mastery runs, not free exploration): th
 then from the second (`StudyEngine` option `side: 'second'` plays move 1 for you, with the same colors). A session or
 guided run counts both sides as one attempt; a mastery run needs every line from both sides.
 
+## Guided runs
+
+In a guided mastery run the given (free) moves are not replayed: the player clicks through them, for both colors, on the
+green dot (engine phase `follow`, option `follow`; wrong clicks are ignored), then solves the rest alone. The first time,
+`RunTutorial` explains this; `seen.v1` remembers which tutorials were shown.
+
 ## Responsiveness
 
 The app must feel super responsive. Scrolling, taps and screen changes must never stall or visibly lag, whatever the size
@@ -92,7 +98,7 @@ the rest, and show a cheap placeholder instead of making the player wait. Check 
 ## Testing
 
 `npm run check` runs the typecheck, ESLint, the Prettier check and the tests (`node:test` via `tsx`, no device needed). `npm run test:native` is another opt-in test: it runs `expo prebuild` into `.native-test/` (git-ignored, excluded from Metro) and checks the generated iOS and Android projects. It cannot compile or run the app (no Xcode here). On Windows the iOS step reports the platform as Linux, because Expo's CLI otherwise refuses to generate the iOS project. After adding a native dependency, run `npm run privacy:sync` and `npm run test:native`. Never put a symlink or junction to `node_modules` in a scratch project: Expo's Android generation hangs on it.
-`npm run test:web` is a separate, slower browser test (needs Chrome, builds the web app): it walks every screen at several sizes with a large library and fails on covered, clipped or collapsed buttons. Run it after layout changes; unit tests can't see layout bugs. It also runs `tests/web/journeys.web.ts` (the Home, Browse, Mastery and spaced-repetition session flows, end to end) and `tests/web/batching.web.ts` (tiles load 10 at a time) `tests/web/from-game.web.ts` (New from game, end to end) and `tests/web/joseki.web.ts` (joseki mode) and `tests/web/stats.web.ts` (tile stats). Change a flow or a button label and these tell you what broke.
+`npm run test:web` is a separate, slower browser test (needs Chrome, builds the web app): it walks every screen at several sizes with a large library and fails on covered, clipped or collapsed buttons. Run it after layout changes; unit tests can't see layout bugs. It also runs `tests/web/journeys.web.ts` (the Home, Browse, Mastery and spaced-repetition session flows, end to end) and `tests/web/batching.web.ts` (tiles load 10 at a time) `tests/web/from-game.web.ts` (New from game, end to end) and `tests/web/joseki.web.ts` (joseki mode) and `tests/web/stats.web.ts` (tile stats) and `tests/web/follow.web.ts` (guided runs and their tutorial). Change a flow or a button label and these tell you what broke.
 
 Puzzle tiles (`PuzzleGrid`) are drawn in batches of `BATCH_SIZE` (10): more load on scroll or from a "Show N more" button. A screen whose list changes (a filter) must give the grid a new `key` so it restarts at the first batch. FlatList unmounts tiles far off screen, so tests must not expect every loaded tile to be in the DOM. In React Native Web a bare horizontal `ScrollView` shrinks when a long list is below it, so use `ChipRow` for rows of buttons.
 `tests/fixtures/` holds real

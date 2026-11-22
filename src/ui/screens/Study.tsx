@@ -7,6 +7,7 @@ import type { Settings } from '../../storage/settings';
 import { BoardView } from '../components/Board';
 import { initialViewport } from '../../go/viewport';
 import { type Attempt, type SkillBar as SkillBarData, LEVEL_COLORS } from '../../progress/skill';
+import { RunTutorial } from '../components/RunTutorial';
 import { SkillBar } from '../components/SkillBar';
 import { Btn, theme } from '../components/theme';
 import { playStone } from '../sound';
@@ -45,6 +46,9 @@ interface Props {
   onJosekiChange?: (on: boolean) => void;
   /** A guided mastery run: the puzzle's mastery progress, shown once the run is solved. */
   runBar?: SkillBarData;
+  /** Show the first-time introduction to guided runs, until onTutorialDone. */
+  tutorial?: string;
+  onTutorialDone?: () => void;
 }
 
 const MODE_LABEL: Record<Mode, string> = {
@@ -69,6 +73,8 @@ export function Study({
   joseki = false,
   onJosekiChange,
   runBar,
+  tutorial,
+  onTutorialDone,
 }: Props) {
   const { width } = useWindowDimensions();
   const boardW = Math.min(width - 24, 560);
@@ -87,6 +93,7 @@ export function Study({
         markChoices: run || activeSide === 'second' ? 'off' : settings.markChoices,
         flipColors: settings.flipColors,
         freeMoves: run?.freeMoves,
+        follow: !!run,
         side: activeSide,
         flipped: activeSide === 'second' ? flipLock : undefined,
       }),
@@ -129,7 +136,12 @@ export function Study({
   }, [engine, phase]);
 
   const s = engine.snap;
-  const hints = phase === 'play' && (mode === 'guided' || showBook) ? engine.bookMoves() : [];
+  const followHint = engine.followHint();
+  const hints = followHint
+    ? [followHint]
+    : phase === 'play' && (mode === 'guided' || showBook)
+      ? engine.bookMoves()
+      : [];
 
   const shake = () => {
     setFlash('wrong');
@@ -138,6 +150,14 @@ export function Study({
 
   const handle = (p: { x: number; y: number }) => {
     if (phase === 'replay') return;
+    if (phase === 'follow') {
+      if (engine.follow(p) === 'ok') {
+        playStone();
+        if (engine.phase !== 'follow') startRef.current = Date.now();
+      }
+      force();
+      return;
+    }
     if (phase === 'mark') {
       engine.toggleMark(p);
       force();
@@ -220,6 +240,7 @@ export function Study({
   const me = engine.playerColor === 'B' ? 'Black' : 'White';
   let status: string;
   if (phase === 'replay') status = 'Watch the moves…';
+  else if (phase === 'follow') status = 'Follow the green dot';
   else if (phase === 'mark') status = `Mark every move that could be correct (${engine.marks.length} marked)`;
   else if (sidePending) status = 'First side solved! Now play it again from the other side.';
   else if (s.status === 'solved')
@@ -291,6 +312,7 @@ export function Study({
         />
       </View>
 
+      {tutorial && onTutorialDone ? <RunTutorial onDone={onTutorialDone} /> : null}
       <Text style={[styles.status, s.status === 'solved' && phase === 'play' && { color: LEVEL_COLORS.green }]}>
         {status}
       </Text>

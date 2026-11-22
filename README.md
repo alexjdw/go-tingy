@@ -20,7 +20,7 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
   branching point and asks you to mark every good move first.
 - **Two study categories** per puzzle: **spaced repetition** (the only puzzles that ever come due) and **guided
   mastery**.
-- **Guided mastery:** a _guided run_ plays some moves for you along a correct line and you solve the rest. Each clean
+- **Guided mastery:** a _guided run_ gives you some moves along a correct line (you click through them, for both sides, on the green dot; a short tutorial explains it the first time) and you solve the rest. Each clean
   run gives fewer free moves, down to zero. Clearing that unlocks the _mastery run_: solve every line of the puzzle in
   random order; your score is correct moves per minute, halved for each mistake (green above 5, gold above 10, diamond
   above 15). A **GM** badge on the tile fills with the level, and a progress bar shows how far along the puzzle is.

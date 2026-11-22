@@ -250,6 +250,14 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     assert.ok(barBefore, 'a mastery tile has a progress bar');
     await click(page, 'Play'); // Corner capture's tile is first
     await expectText(page, 'Guided mastery · 0 free moves');
+    // the first time, a short tutorial explains the mode
+    await expectText(page, 'Follow the green dot');
+    await click(page, 'Next');
+    await expectText(page, 'Then finish it yourself');
+    await click(page, 'Next');
+    await expectText(page, 'Fewer given moves each time');
+    await click(page, 'Got it');
+    assert.ok(!(await bodyText(page)).includes('Then finish it yourself'), 'the tutorial closed');
     await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
     await expectText(page, 'Guided stage cleared! Mastery runs are unlocked.');
     assert.equal(
