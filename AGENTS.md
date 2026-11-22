@@ -55,7 +55,8 @@ stays testable in plain Node.
 
 ## Testing
 
-`npm run check` runs the typecheck, ESLint, the Prettier check and the tests (`node:test` via `tsx`, no device needed). `tests/fixtures/` holds real
+`npm run check` runs the typecheck, ESLint, the Prettier check and the tests (`node:test` via `tsx`, no device needed). `npm run test:web` is a separate, slower browser test (needs Chrome, builds the web app): it walks every screen at several sizes with a large library and fails on covered, clipped or collapsed buttons. Run it after layout changes; unit tests can't see layout bugs. In React Native Web a bare horizontal `ScrollView` shrinks when a long list is below it, so use `ChipRow` for rows of buttons.
+`tests/fixtures/` holds real
 puzzle collections; see its README for provenance and licensing. Behavior changes need a test; wrong-answer and
 failed-attempt behavior in particular is covered in `tests/solve.test.ts`.
 

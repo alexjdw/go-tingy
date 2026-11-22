@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Problem } from '../../data/samples';
 import {
   DAILY_LIMIT,
@@ -18,6 +18,7 @@ import {
 import { type Attempt, LEVEL_COLORS, computeSkill } from '../../progress/skill';
 import type { Mode } from '../../study/engine';
 import { learnerDepth } from '../../study/lines';
+import { ChipRow } from '../components/ChipRow';
 import { Btn, MASTERY_COLORS, theme } from '../components/theme';
 
 export type RunKind = 'guided' | 'mastery';
@@ -119,12 +120,7 @@ export function Library({
         <Btn label="New puzzle" onPress={onNew} />
         <Btn label="+ SGF" kind="ghost" onPress={onImport} />
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 8 }}
-        style={{ flexGrow: 0, marginBottom: 12 }}
-      >
+      <ChipRow style={{ marginBottom: 12 }}>
         {FILTERS.map((f) => (
           <Btn
             key={f.key}
@@ -133,10 +129,10 @@ export function Library({
             onPress={() => setFilter(f.key)}
           />
         ))}
-      </ScrollView>
+      </ChipRow>
       {collections.length ? (
         <View style={{ marginBottom: 12, gap: 8 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          <ChipRow>
             <Btn
               label="All files"
               kind={activeColl ? 'ghost' : 'solid'}
@@ -156,7 +152,7 @@ export function Library({
                 }}
               />
             ))}
-          </ScrollView>
+          </ChipRow>
           {activeColl ? (
             <View style={{ flexDirection: 'row' }}>
               <Btn

@@ -37,6 +37,7 @@ npm run check        # typecheck + lint + format check + tests (run this before 
 npm run lint         # ESLint            (npm run lint:fix applies safe fixes)
 npm run format       # Prettier          (npm run format:check just reports)
 npm test             # tests only (node:test, no device needed)
+npm run test:web     # builds the web app and checks every screen for covered/clipped buttons in headless Chrome
 ```
 
 Linting is ESLint's recommended rules + typescript-eslint's recommended rules + `eslint-config-expo` (React, hooks,

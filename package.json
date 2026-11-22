@@ -26,6 +26,7 @@
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
     "prettier": "^3.10.1",
+    "puppeteer-core": "^25.18.1",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.73.0"
@@ -41,7 +42,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:web": "node --import tsx --test --test-timeout=300000 \"tests/web/*.web.ts\""
   },
   "private": true,
   "description": "Go (baduk/weiqi) flashcards: tsumego and joseki training from SGF, for iOS, Android and web."

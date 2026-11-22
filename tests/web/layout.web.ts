@@ -1,0 +1,204 @@
+/**
+ * Browser layout test: builds the web app, drives it in headless Chrome through every screen (with a large,
+ * realistic library), and fails if any button is covered, clipped or collapsed.
+ *
+ * This is the kind of bug unit tests can't see: on the web a horizontal ScrollView shrinks when a long list
+ * below it claims the height, squashing its buttons to a sliver. Run with `npm run test:web`. It needs Chrome
+ * (set CHROME_PATH if it isn't in a standard place) and takes about a minute because it builds the app.
+ */
+import assert from 'node:assert/strict';
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
+import { after, before, describe, it } from 'node:test';
+import { launch, type Browser } from 'puppeteer-core';
+
+const CHROME_CANDIDATES = [
+  process.env.CHROME_PATH,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+];
+const chromePath = CHROME_CANDIDATES.find((p) => p && fs.existsSync(p));
+
+const TYPES: Record<string, string> = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.wav': 'audio/wav',
+  '.json': 'application/json',
+};
+
+/** A big library, as after importing two collections, with some puzzles in each study category. */
+const LIBRARY = Array.from({ length: 300 }, (_, i) => ({
+  id: `c-${i + 1}`,
+  title: `${i < 150 ? 'xxqj' : 'gzp1'} #${i + 1}`,
+  collection: i < 150 ? 'xxqj' : 'gzp1',
+  sgf: '(;GM[1]SZ[19]PL[B]AB[aa][ba]AW[ab];B[ac](;W[bb];B[ad]TE[1])(;W[bc];B[bd]TE[1]))',
+}));
+const MASTERY_STATE = {
+  version: 1,
+  spaced: { 'c-1': true, 'c-2': true, 'sample-capture-1': true },
+  mastery: { 'c-1': true, 'sample-capture-1': true, 'c-3': true },
+  scores: {
+    'sample-capture-1': { guided: { free: 0, cleared: true } },
+    'c-1': {
+      guided: { free: 0, cleared: true },
+      best: { score: 12, level: 'gold', moves: 12, mistakes: 0, ms: 60000, lines: 2, at: 1 },
+    },
+  },
+  attempts: {},
+};
+
+// Scripts that run inside the page (kept as strings: this project's TypeScript has no DOM types).
+const FIND_COVERED = `(() => {
+  const out = [];
+  const cands = [...document.querySelectorAll('[role="button"], button, a, input, textarea, [tabindex="0"]')];
+  for (const el of cands) {
+    const r = el.getBoundingClientRect();
+    const label = (el.innerText || el.getAttribute('aria-label') || el.placeholder || '').trim().slice(0, 40);
+    if (!r.width || !r.height) { out.push(label + ': collapsed to ' + r.width + 'x' + r.height); continue; }
+    if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue; // scrolled away
+    const x = Math.min(Math.max(r.left + r.width / 2, 0), innerWidth - 1);
+    const y = Math.min(Math.max(r.top + r.height / 2, 0), innerHeight - 1);
+    const top = document.elementFromPoint(x, y);
+    if (top && !(el === top || el.contains(top) || top.contains(el)))
+      out.push(label + ': covered by <' + top.tagName.toLowerCase() + '> ' + JSON.stringify((top.innerText || '').trim().slice(0, 30)));
+  }
+  return out;
+})()`;
+
+/** Text whose container has been squashed to (almost) nothing. */
+const FIND_CLIPPED = `(() => {
+  const out = [];
+  for (const el of document.querySelectorAll('div, span')) {
+    if (el.children.length || !(el.innerText || '').trim()) continue;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) continue;
+    for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+      const pr = n.getBoundingClientRect();
+      const cs = getComputedStyle(n);
+      const clips = cs.overflow !== 'visible' || cs.overflowY !== 'visible';
+      const scrolls = cs.overflowY === 'auto' || cs.overflowY === 'scroll';
+      if (clips && !scrolls && (pr.height < 1 || r.top >= pr.bottom - 1 || r.bottom <= pr.top + 1)) {
+        out.push(JSON.stringify(el.innerText.trim().slice(0, 30)) + ' is clipped by a ' + Math.round(pr.height) + 'px-high container');
+        break;
+      }
+    }
+  }
+  return out.slice(0, 8);
+})()`;
+
+const CLICK_TEXT = `((t) => {
+  const els = [...document.querySelectorAll('div, span')].filter((e) => e.children.length === 0 && e.innerText && e.innerText.trim() === t);
+  for (const e of els) {
+    let n = e;
+    while (n && n.getAttribute && n.getAttribute('role') !== 'button' && n.tabIndex !== 0) n = n.parentElement;
+    (n || e).click();
+    return true;
+  }
+  return false;
+})`;
+
+// [label, text to click first]. Each screen is reached the way a person would.
+const STEPS: [string, string | null][] = [
+  ['library', null],
+  ['library, card expanded', 'Corner capture'],
+  ['study (unguided)', 'Unguided'],
+  ['back to library', '‹ Back'],
+  ['library, card expanded again', 'Corner capture'],
+  ['mastery run, ready', 'Mastery run'],
+  ['mastery run, playing', 'Start'],
+  ['back to library from mastery', '‹ Back'],
+  ['editor: size', 'New puzzle'],
+  ['editor: black stones', 'Next ›'],
+  ['editor: white stones', 'Next ›'],
+  ['editor: move tree', 'Next ›'],
+  ['back to library from editor', '‹ Cancel'],
+  ['settings', 'Settings'],
+  ['back to library from settings', '‹ Back'],
+  ['import', '+ SGF'],
+];
+
+const VIEWPORTS: [string, number, number][] = [
+  ['small phone', 320, 568],
+  ['phone', 390, 844],
+  ['desktop', 1280, 800],
+  ['short desktop', 1000, 500],
+];
+
+describe('web layout', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
+  let outDir = '';
+  let server: http.Server;
+  let url = '';
+  let browser: Browser;
+
+  before(async () => {
+    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-web-'));
+    execSync(`npx expo export --platform web --output-dir "${outDir}"`, { cwd: process.cwd(), stdio: 'pipe' });
+    server = http.createServer((req, res) => {
+      let p = decodeURIComponent((req.url ?? '/').split('?')[0]);
+      if (p === '/') p = '/index.html';
+      const f = path.join(outDir, p);
+      const ok = f.startsWith(outDir) && fs.existsSync(f) && !fs.statSync(f).isDirectory();
+      const file = ok ? f : path.join(outDir, 'index.html');
+      res.writeHead(200, { 'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream' });
+      res.end(fs.readFileSync(file));
+    });
+    await new Promise<void>((r) => server.listen(0, r));
+    url = `http://localhost:${(server.address() as { port: number }).port}/`;
+    browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
+  });
+
+  after(async () => {
+    await browser?.close();
+    server?.close();
+    if (outDir) fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  for (const [name, width, height] of VIEWPORTS) {
+    it(`no covered, clipped or collapsed buttons on any screen (${name}, ${width}x${height})`, async () => {
+      const page = await browser.newPage();
+      const errors: string[] = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+      await page.setViewport({ width, height });
+      await page.evaluateOnNewDocument(
+        (lib, mastery) => {
+          localStorage.setItem('library.v1', JSON.stringify(lib));
+          localStorage.setItem('mastery.v1', JSON.stringify(mastery));
+        },
+        LIBRARY,
+        MASTERY_STATE,
+      );
+      await page.goto(url, { waitUntil: 'networkidle0' });
+      await new Promise((r) => setTimeout(r, 800));
+
+      const problems: string[] = [];
+      for (const [label, click] of STEPS) {
+        if (click) {
+          const ok = await page.evaluate(`${CLICK_TEXT}(${JSON.stringify(click)})`);
+          await new Promise((r) => setTimeout(r, 500));
+          if (!ok) {
+            problems.push(`${label}: could not find "${click}" to click`);
+            continue;
+          }
+        }
+        const covered = (await page.evaluate(FIND_COVERED)) as string[];
+        const clipped = (await page.evaluate(FIND_CLIPPED)) as string[];
+        for (const c of [...covered, ...clipped]) problems.push(`${label}: ${c}`);
+      }
+      await page.close();
+
+      assert.deepEqual(errors, [], 'the page threw errors');
+      assert.deepEqual(problems, [], `layout problems at ${width}x${height}:\n  ${problems.join('\n  ')}`);
+    });
+  }
+});
