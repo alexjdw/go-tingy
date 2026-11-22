@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { Problem } from '../../data/samples';
-import { StudyEngine, Mode } from '../../study/engine';
-import { allPoints } from '../../sgf/parser';
+import { StudyEngine, type Mode } from '../../study/engine';
+import { allPoints, type Point } from '../../sgf/parser';
 import type { Settings } from '../../storage/settings';
 import { BoardView, computeViewport } from '../components/Board';
-import { Attempt, Level, LEVEL_COLORS } from '../../progress/skill';
+import { type Attempt, type Level, LEVEL_COLORS } from '../../progress/skill';
 import { Btn, theme } from '../components/theme';
 import { playStone } from '../sound';
 import { useZoom, zoomedTap } from '../zoom';
@@ -87,14 +87,14 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
       const ms = Date.now() - startRef.current;
       setElapsed(ms);
       if (engine.tracksSkill) {
-        Promise.resolve(onResult(engine.attempt(ms))).then((lvl) => {
+        void Promise.resolve(onResult(engine.attempt(ms))).then((lvl) => {
           if (lvl) setEarned(lvl);
         });
       }
     }
     force();
   };
-  const onTap = zoomedTap(zoom, handle);
+  const onTap = (p: Point) => zoomedTap(zoom, p, handle);
 
   const submit = () => {
     if (engine.submitMarks() === 'wrong') shake();

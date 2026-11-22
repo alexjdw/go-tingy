@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Problem } from '../../data/samples';
 import type { Mode } from '../../study/engine';
-import { Attempt, LEVEL_COLORS, computeSkill, isDue } from '../../progress/skill';
+import { type Attempt, LEVEL_COLORS, computeSkill, isDue } from '../../progress/skill';
 import { Btn, theme } from '../components/theme';
 
 interface Props {

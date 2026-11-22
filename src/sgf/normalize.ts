@@ -1,4 +1,4 @@
-import { SgfNode, boardSize, nodeMove, parseSgf, pointList, toSgf } from './parser';
+import { type SgfNode, boardSize, nodeMove, parseSgf, pointList, toSgf } from './parser';
 
 export interface Prepared {
   sgf: string;

@@ -2,9 +2,9 @@ import { Board } from '../go/board';
 import type { Attempt } from '../progress/skill';
 import type { Tri } from '../storage/settings';
 import {
-  Color,
-  Point,
-  SgfNode,
+  type Color,
+  type Point,
+  type SgfNode,
   boardSize,
   comment,
   containsCorrect,

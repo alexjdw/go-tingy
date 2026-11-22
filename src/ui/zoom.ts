@@ -42,9 +42,9 @@ export function useZoom(base: Viewport) {
 
   useEffect(() => {
     if (Platform.OS !== 'web' || !canZoom) return;
-    const doc = (globalThis as any).document;
+    const doc = (globalThis as unknown as { document?: KeyTarget }).document;
     if (!doc) return;
-    const onKey = (e: any) => {
+    const onKey = (e: KeyEvt) => {
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (e.key === 'z' || e.key === 'Z') toggle();
@@ -59,18 +59,26 @@ export function useZoom(base: Viewport) {
 
 export type Zoom = ReturnType<typeof useZoom>;
 
+// The slice of the DOM used for the "z" shortcut (this file also loads on native, where there is no DOM).
+interface KeyEvt {
+  key: string;
+  target?: { tagName?: string } | null;
+}
+interface KeyTarget {
+  addEventListener(type: 'keydown', fn: (e: KeyEvt) => void): void;
+  removeEventListener(type: 'keydown', fn: (e: KeyEvt) => void): void;
+}
+
 /**
- * Wrap a board tap: while armed, the tap chooses the zoom area (and does nothing else); while zoomed,
- * the tap goes through and the view returns to normal.
+ * Handle a board tap: while armed, the tap chooses the zoom area (and does nothing else); while zoomed,
+ * the tap goes through to `onPlay` and the view returns to normal. Call this from the tap handler.
  */
-export function zoomedTap(zoom: Zoom, onPlay: (p: Point) => void) {
-  return (p: Point) => {
-    if (zoom.mode === 'armed') {
-      zoom.zoomTo(p);
-      return;
-    }
-    const wasZoomed = zoom.mode === 'zoomed';
-    onPlay(p);
-    if (wasZoomed) zoom.reset();
-  };
+export function zoomedTap(zoom: Zoom, p: Point, onPlay: (p: Point) => void) {
+  if (zoom.mode === 'armed') {
+    zoom.zoomTo(p);
+    return;
+  }
+  const wasZoomed = zoom.mode === 'zoomed';
+  onPlay(p);
+  if (wasZoomed) zoom.reset();
 }

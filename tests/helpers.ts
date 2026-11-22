@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { StudyEngine } from '../src/study/engine';
+import { type StudyEngine } from '../src/study/engine';
 import { readPickedFile } from '../src/sgf/importer';
 import { splitCollection } from '../src/sgf/parser';
 import { prepareSgf } from '../src/sgf/normalize';

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { StudyEngine } from '../src/study/engine';
-import { computeSkill, recordAttempt, Attempt, ProgressMap } from '../src/progress/skill';
+import { computeSkill, recordAttempt, type Attempt, type ProgressMap } from '../src/progress/skill';
 import { leadsOnlyToFailure, nodeMove } from '../src/sgf/parser';
 import { fixtureProblem, pt, solveByBook, validProblems } from './helpers';
 
@@ -191,7 +191,7 @@ describe('every valid problem in the fixtures', () => {
           }
         assert.ok(probe, 'a legal off-book point exists');
         const before = e.snap.board;
-        assert.equal(e.play(probe!), 'wrong');
+        assert.equal(e.play(probe), 'wrong');
         assert.equal(e.snap.board, before);
         assert.equal(e.mistakes, 1);
       }

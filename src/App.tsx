@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaView, StyleSheet, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SAMPLES, Problem } from './data/samples';
-import { Attempt, Level, ProgressMap, computeSkill, recordAttempt } from './progress/skill';
+import { SAMPLES, type Problem } from './data/samples';
+import { type Attempt, type Level, type ProgressMap, computeSkill, recordAttempt } from './progress/skill';
 import { loadLibrary, loadProgress, saveLibrary, saveProgress } from './storage/persistence';
 import { Library } from './ui/screens/Library';
 import { Study } from './ui/screens/Study';
 import { Editor } from './ui/screens/Editor';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
-import { DEFAULT_SETTINGS, Settings, loadSettings, saveSettings } from './storage/settings';
+import { DEFAULT_SETTINGS, type Settings, loadSettings, saveSettings } from './storage/settings';
 import { ImportScreen } from './ui/screens/ImportScreen';
 import { theme } from './ui/components/theme';
 import type { Mode } from './study/engine';
@@ -27,9 +27,9 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    loadLibrary().then(setCustom);
-    loadProgress().then(setProgress);
-    loadSettings().then(setSettings);
+    void loadLibrary().then(setCustom);
+    void loadProgress().then(setProgress);
+    void loadSettings().then(setSettings);
   }, []);
 
   const record = useCallback(
@@ -100,7 +100,7 @@ export default function App() {
           settings={settings}
           onChange={(s) => {
             setSettings(s);
-            saveSettings(s);
+            void saveSettings(s);
           }}
           onBack={() => setScreen({ name: 'library' })}
         />

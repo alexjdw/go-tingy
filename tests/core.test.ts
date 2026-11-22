@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { StudyEngine } from '../src/study/engine';
 import { Board } from '../src/go/board';
 import { SAMPLES } from '../src/data/samples';
-import { computeSkill, Attempt } from '../src/progress/skill';
+import { computeSkill, type Attempt } from '../src/progress/skill';
 import { parseSgf, toSgf, flipColors, splitCollection } from '../src/sgf/parser';
 import { validateSgf } from '../src/sgf/validate';
 import { decodeSgfBytes } from '../src/sgf/encoding';
@@ -160,7 +160,8 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   assert.ok(r.text.includes('café'));
   // platforms whose TextDecoder only handles UTF-8 (Hermes): fall back to the pure-JS decoder
   const nativeTD = globalThis.TextDecoder;
-  (globalThis as any).TextDecoder = class {
+  const g = globalThis as unknown as { TextDecoder: unknown };
+  g.TextDecoder = class {
     private d: TextDecoder;
     constructor(l: string, o?: TextDecoderOptions) {
       if (!/^utf-?8$/i.test(l)) throw new RangeError(l);
@@ -171,7 +172,7 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
     }
   };
   r = decodeSgfBytes(bytes('(;CA[GBK]C[', GBK, '];B[aa])'));
-  (globalThis as any).TextDecoder = nativeTD;
+  g.TextDecoder = nativeTD;
   assert.ok(r.text.includes('黑先这个活'), 'polyfill path');
 
   // real-world collections: preamble text with parentheses is not a puzzle

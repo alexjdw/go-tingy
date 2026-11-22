@@ -7,7 +7,7 @@ import { baseName, expandFile } from './archive';
 import { decodeSgfBytes } from './encoding';
 import { prepareSgf } from './normalize';
 import { splitCollection } from './parser';
-import { Validation, validateSgf } from './validate';
+import { type Validation, validateSgf } from './validate';
 
 export interface BatchItem {
   name: string;

@@ -1,11 +1,15 @@
+/* eslint-disable react-hooks/immutability --
+ * The puzzle being edited is a mutable SgfNode tree held in state, and every edit mutates it and then calls
+ * force() to re-render. Making this immutable (copy-on-write nodes) is a worthwhile refactor, but until then
+ * the compiler-oriented immutability rule can't apply here. */
 import { useMemo, useReducer, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import type { Problem } from '../../data/samples';
 import { Board } from '../../go/board';
 import {
-  Color,
-  Point,
-  SgfNode,
+  type Color,
+  type Point,
+  type SgfNode,
   boardSize,
   coordName,
   firstMoveColor,
@@ -15,7 +19,7 @@ import {
   pointToSgf,
   toSgf,
 } from '../../sgf/parser';
-import { BoardView, Viewport } from '../components/Board';
+import { BoardView, type Viewport } from '../components/Board';
 import { Btn, theme } from '../components/theme';
 import { useZoom, zoomedTap } from '../zoom';
 
@@ -153,7 +157,7 @@ export function Editor({ initial, onCancel, onSave }: Props) {
     setSwap(false);
   };
 
-  const onTap = zoomedTap(zoom, tap);
+  const onTap = (p: Point) => zoomedTap(zoom, p, tap);
 
   const setMark = (m: Mark) => {
     if (cursor === root) return;

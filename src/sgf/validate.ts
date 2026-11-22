@@ -1,7 +1,7 @@
 import { Board } from '../go/board';
 import {
-  Color,
-  SgfNode,
+  type Color,
+  type SgfNode,
   boardSize,
   containsCorrect,
   coordName,

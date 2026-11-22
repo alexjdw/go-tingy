@@ -19,11 +19,17 @@ interface Dec {
   decode(b: Uint8Array): string;
 }
 
-let poly: any = null;
+interface DecoderCtor {
+  new (label: string, opts?: { fatal?: boolean }): Dec;
+}
+
+let poly: { TextDecoder: DecoderCtor } | null = null;
 function polyfill() {
   if (!poly) {
+    /* eslint-disable @typescript-eslint/no-require-imports -- lazy: only loaded when the platform can't decode */
     require('@zxing/text-encoding/cjs/encoding-indexes'); // registers the lookup tables globally
-    poly = require('@zxing/text-encoding');
+    poly = require('@zxing/text-encoding') as { TextDecoder: DecoderCtor };
+    /* eslint-enable @typescript-eslint/no-require-imports */
   }
   return poly;
 }
