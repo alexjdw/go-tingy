@@ -65,7 +65,8 @@ describe('tile stats in the browser', { skip: chromePath ? false : 'Chrome not f
     const { x, y } = await titleBox(page);
     await page.mouse.move(x, y);
     const t = await expectText(page, 'Joseki mode');
-    for (const s of ['Spaced repetition', 'Mastery', 'Not added', 'Both sides: Off']) assert.ok(t.includes(s), s);
+    for (const s of ['Spaced repetition', 'Guided learning', 'Not added', 'Both sides: Off'])
+      assert.ok(t.includes(s), s);
     await page.mouse.move(2, 2);
     await sleep(300);
     assert.equal(await page.evaluate(`document.querySelectorAll('[aria-label="Puzzle stats"]').length`), 0);

@@ -111,7 +111,7 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
 
   it('Home offers the three modes', async () => {
     const t = await expectText(page, 'How do you want to study?');
-    for (const mode of ['Mastery', 'Spaced repetition', 'Browse']) assert.ok(t.includes(mode), mode);
+    for (const mode of ['Guided Learning', 'Spaced repetition', 'Browse']) assert.ok(t.includes(mode), mode);
     assert.equal(
       (t.match(/No puzzles yet/g) ?? []).length,
       2,
@@ -148,11 +148,11 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
   it('+ pops up the choice to add to mastery and spaced repetition', async () => {
     await clickAria(page, `Add ${CORNER.title} to a study mode`);
     await expectText(page, 'Add to spaced repetition');
-    await expectText(page, 'Add to mastery');
+    await expectText(page, 'Add to guided learning');
     await click(page, 'Add to spaced repetition');
     await expectText(page, '✓ Spaced repetition (tap to remove)');
-    await click(page, 'Add to mastery');
-    await expectText(page, '✓ Mastery (tap to remove)');
+    await click(page, 'Add to guided learning');
+    await expectText(page, '✓ Guided learning (tap to remove)');
     await click(page, 'Close');
     await expectText(page, 'Spaced repetition');
     assert.equal(
@@ -231,14 +231,14 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
   });
 
   it('Mastery lists its puzzles as tiles with Add puzzles near the top', async () => {
-    await click(page, 'Mastery');
+    await click(page, 'Guided Learning');
     await expectText(page, '1 puzzle · 1 ready today');
     await expectText(page, 'Guided: stage 1 of 1 · 0 free moves');
     const t = await bodyText(page);
     assert.ok(t.indexOf('Add puzzles') < t.indexOf(CORNER.title), 'the button comes before the tiles');
     await click(page, 'Add puzzles');
-    await expectText(page, 'to Mastery · 1 added so far');
-    await clickAria(page, `Add ${EDGE.title} to Mastery`);
+    await expectText(page, 'to Guided learning · 1 added so far');
+    await clickAria(page, `Add ${EDGE.title} to Guided learning`);
     await expectText(page, '2 added so far');
     await click(page, '‹ Back');
     await expectText(page, '2 puzzles · 2 ready today');
@@ -249,7 +249,7 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     const barBefore = (await page.evaluate(BARS)) as string;
     assert.ok(barBefore, 'a mastery tile has a progress bar');
     await click(page, 'Play'); // Corner capture's tile is first
-    await expectText(page, 'Guided mastery · 0 free moves');
+    await expectText(page, 'Guided learning · 0 free moves');
     // the first time, a short tutorial explains the mode
     await expectText(page, 'Follow the green dot');
     await click(page, 'Next');

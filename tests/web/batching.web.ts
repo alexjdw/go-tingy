@@ -154,9 +154,9 @@ describe('tile batches in the browser', { skip: chromePath ? false : 'Chrome not
 
   it('the Add puzzles picker is batched too', async () => {
     await click(page, '‹ Back');
-    await click(page, 'Mastery');
+    await click(page, 'Guided Learning');
     await click(page, 'Add puzzles');
-    await expectText(page, 'to Mastery · 0 added so far');
+    await expectText(page, 'to Guided learning · 0 added so far');
     const added = (await page.evaluate(
       `[...document.querySelectorAll('div, span')].filter((e) => !e.children.length && e.innerText === 'Add').length`,
     )) as number;

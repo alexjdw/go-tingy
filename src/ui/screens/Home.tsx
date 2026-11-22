@@ -44,7 +44,7 @@ export function Home({
       </View>
 
       <ModeCard
-        title="Mastery"
+        title="Guided Learning"
         blurb="Work a puzzle up from guided moves to solving every line, fast."
         status={
           masteryCount ? `${plural(masteryCount, 'puzzle')} · ${masteryReady} ready today` : 'No puzzles yet. Add some.'

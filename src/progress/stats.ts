@@ -67,7 +67,7 @@ export function tileStats(i: StatsInput): StatSection[] {
     );
   } else spaced.rows.push({ label: 'Reviews', value: 'None yet' });
 
-  const mastery: StatSection = { title: 'Mastery', rows: [] };
+  const mastery: StatSection = { title: 'Guided learning', rows: [] };
   if (!inCategory(i.mastery, 'mastery', i.id)) mastery.rows.push({ label: 'Status', value: 'Not added' });
   else {
     const g = guidedStatus(i.mastery, i.id, i.learnerMoves);

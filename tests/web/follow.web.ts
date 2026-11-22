@@ -98,12 +98,12 @@ describe(
     it('shows the tutorial once, then has you click the given moves for both sides', async () => {
       await click(page, 'Browse');
       await clickAria(page, `Add ${PUZZLE.title} to a study mode`);
-      await click(page, 'Add to mastery');
+      await click(page, 'Add to guided learning');
       await click(page, 'Close');
       await click(page, '‹ Back');
-      await click(page, 'Mastery');
+      await click(page, 'Guided Learning');
       await click(page, 'Play');
-      await expectText(page, 'Guided mastery · 2 free moves');
+      await expectText(page, 'Guided learning · 2 free moves');
       await expectText(page, 'Follow the green dot');
       await click(page, 'Skip'); // the first-time tutorial
       await expectText(page, 'Follow the green dot');
@@ -122,10 +122,10 @@ describe(
     it('does not show the tutorial again', async () => {
       await page.reload({ waitUntil: 'networkidle0' });
       await sleep(700);
-      await click(page, 'Mastery');
+      await click(page, 'Guided Learning');
       await click(page, 'Play');
-      await expectText(page, 'Guided mastery');
-      assert.doesNotMatch(await bodyText(page), /How mastery works/);
+      await expectText(page, 'Guided learning');
+      assert.doesNotMatch(await bodyText(page), /How guided learning works/);
     });
 
     it('threw no errors', () => {

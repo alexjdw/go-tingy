@@ -27,7 +27,7 @@ export function RunTutorial({ onDone }: { onDone: () => void }) {
       <View style={styles.backdrop}>
         <View style={styles.sheet} accessibilityViewIsModal>
           <Text style={styles.count}>
-            How mastery works · {i + 1} of {STEPS.length}
+            How guided learning works · {i + 1} of {STEPS.length}
           </Text>
           <Text style={styles.title}>{step.title}</Text>
           <Text style={styles.text}>{step.text}</Text>

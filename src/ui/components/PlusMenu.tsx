@@ -43,7 +43,7 @@ export function PlusMenu({
             onPress={() => onToggle('spaced', !spaced)}
           />
           <Btn
-            label={mastery ? '✓ Mastery (tap to remove)' : 'Add to mastery'}
+            label={mastery ? '✓ Guided learning (tap to remove)' : 'Add to guided learning'}
             kind={mastery ? 'solid' : 'ghost'}
             onPress={() => onToggle('mastery', !mastery)}
           />

@@ -264,7 +264,7 @@ export function Study({
           </Text>
           <Text style={styles.sub}>
             {run
-              ? `Guided mastery · ${engine.freeMovesPlayed} free move${engine.freeMovesPlayed === 1 ? '' : 's'}`
+              ? `Guided learning · ${engine.freeMovesPlayed} free move${engine.freeMovesPlayed === 1 ? '' : 's'}`
               : session
                 ? `Review ${session.position} of ${session.total}`
                 : MODE_LABEL[mode]}

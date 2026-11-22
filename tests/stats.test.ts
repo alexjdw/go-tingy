@@ -16,10 +16,10 @@ describe('tile stats', () => {
     const s = tileStats({ ...base, mastery: emptyMasteryState() });
     assert.deepEqual(
       s.map((x) => x.title),
-      ['Spaced repetition', 'Mastery', 'Joseki mode'],
+      ['Spaced repetition', 'Guided learning', 'Joseki mode'],
     );
     assert.equal(rows(s, 'Spaced repetition').Status, 'Not added');
-    assert.equal(rows(s, 'Mastery').Status, 'Not added');
+    assert.equal(rows(s, 'Guided learning').Status, 'Not added');
     assert.equal(rows(s, 'Joseki mode')['Both sides'], 'Off');
   });
 
@@ -36,13 +36,13 @@ describe('tile stats', () => {
 
   it('show guided stage, best run and attempts left for mastery', () => {
     let m = setCategory(emptyMasteryState(), 'mastery', 'p', true);
-    let r = rows(tileStats({ ...base, mastery: m }), 'Mastery');
+    let r = rows(tileStats({ ...base, mastery: m }), 'Guided learning');
     assert.match(r.Guided, /^Stage 1 of \d+ \(5 free moves\)$/);
     assert.equal(r['Best run'], 'None yet');
     assert.equal(r.Today, '2 of 2 attempts left');
     for (let i = 0; i < 10; i++) m = recordGuidedResult(m, 'p', 6, true);
     m = recordMasteryResult(m, 'p', { score: 12.34, level: 'gold', moves: 9, mistakes: 0, ms: 1, lines: 1, at: 0 });
-    r = rows(tileStats({ ...base, mastery: m }), 'Mastery');
+    r = rows(tileStats({ ...base, mastery: m }), 'Guided learning');
     assert.equal(r.Guided, 'Cleared');
     assert.equal(r['Best run'], '12.3 · Gold');
     assert.equal(r.Runs, '1');

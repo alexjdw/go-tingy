@@ -144,17 +144,17 @@ describe('joseki mode in the browser', { skip: chromePath ? false : 'Chrome not 
     await clickAria(page, `Add ${PUZZLE.title} to a study mode`);
     await click(page, 'Joseki mode: play both sides');
     await expectText(page, '✓ Joseki mode (tap to turn off)');
-    await click(page, 'Add to mastery');
+    await click(page, 'Add to guided learning');
     await click(page, 'Close');
     await expectText(page, 'Joseki');
   });
 
   it('applies in mastery too: a guided run is played from both sides', async () => {
     await click(page, '‹ Back');
-    await click(page, 'Mastery');
+    await click(page, 'Guided Learning');
     await expectText(page, 'Joseki');
     await click(page, 'Play');
-    await expectText(page, 'Guided mastery');
+    await expectText(page, 'Guided learning');
     await click(page, 'Skip'); // the first-time tutorial
     await expectText(page, 'side 1 of 2');
     // the given moves are clicked through (the green dot), for both colors

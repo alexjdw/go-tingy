@@ -5,14 +5,14 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 
 ## Features
 
-- **Pick how to study** on the home screen: **Mastery**, **Spaced repetition** or **Browse**.
+- **Pick how to study** on the home screen: **Guided Learning**, **Spaced repetition** or **Browse**.
   - **Browse** shows every puzzle as a tile (a 7x7 window of its starting position) with **Play** and **+** under it.
     Play opens the puzzle, where you can switch between hints, solving it yourself and free exploration; **+** adds it
     to spaced repetition and/or mastery. Creating and importing puzzles are here too.
   - **Spaced repetition** starts a review session at once: the puzzles that are due, one after another, a missed one
     coming back once at the end. The end screen offers **Add puzzles** and **Prune puzzles** (remove the ones that got
     too easy).
-  - **Mastery** lists your mastery puzzles as tiles, with **Add puzzles** at the top. Play does each puzzle's next
+  - **Guided Learning** lists your guided-learning puzzles as tiles, with **Add puzzles** at the top. Play does each puzzle's next
     training step (see below).
 - **Spaced repetition** records how each review went (accuracy and speed) to decide when a puzzle comes due again.
   Playing a puzzle from Browse never changes that.
@@ -20,7 +20,7 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
   branching point and asks you to mark every good move first.
 - **Two study categories** per puzzle: **spaced repetition** (the only puzzles that ever come due) and **guided
   mastery**.
-- **Guided mastery:** a _guided run_ gives you some moves along a correct line (you click through them, for both sides, on the green dot; a short tutorial explains it the first time) and you solve the rest. Each clean
+- **Guided learning:** a _guided run_ gives you some moves along a correct line (you click through them, for both sides, on the green dot; a short tutorial explains it the first time) and you solve the rest. Each clean
   run gives fewer free moves, down to zero. Clearing that unlocks the _mastery run_: solve every line of the puzzle in
   random order; your score is correct moves per minute, halved for each mistake (green above 5, gold above 10, diamond
   above 15). A **GM** badge on the tile fills with the level, and a progress bar shows how far along the puzzle is.

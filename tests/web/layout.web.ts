@@ -101,7 +101,7 @@ const STEPS: [string, string | null][] = [
   ['browse: new from game', 'New from game'],
   ['back to browse from new from game', '‹ Cancel'],
   ['back to home', '‹ Back'],
-  ['mastery', 'Mastery'],
+  ['mastery', 'Guided Learning'],
   ['mastery: add puzzles', 'Add puzzles'],
   ['mastery: back from add puzzles', '‹ Back'],
   ['mastery: play (run)', 'Play'],

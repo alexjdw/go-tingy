@@ -6,7 +6,7 @@ import { PuzzleTile } from '../components/PuzzleTile';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { View } from 'react-native';
 
-const NAMES: Record<Category, string> = { mastery: 'Mastery', spaced: 'Spaced repetition' };
+const NAMES: Record<Category, string> = { mastery: 'Guided learning', spaced: 'Spaced repetition' };
 
 interface Props {
   category: Category;

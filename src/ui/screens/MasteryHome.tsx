@@ -60,7 +60,7 @@ export function MasteryHome({
   const header = (
     <View style={{ gap: 12 }}>
       <ScreenHeader
-        title="Mastery"
+        title="Guided Learning"
         subtitle={`${members.length} puzzle${members.length === 1 ? '' : 's'} · ${ready} ready today`}
         onBack={onBack}
         right={<Btn label="Add puzzles" onPress={onAddPuzzles} />}
@@ -74,7 +74,7 @@ export function MasteryHome({
         data={members}
         keyExtractor={(p) => p.id}
         header={header}
-        empty="No puzzles in mastery yet. Tap Add puzzles to choose some."
+        empty="No puzzles in guided learning yet. Tap Add puzzles to choose some."
         renderTile={(p, width) => {
           const a = actions.get(p.id)!;
           return (
