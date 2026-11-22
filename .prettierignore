@@ -6,3 +6,4 @@ coverage/
 package-lock.json
 tests/fixtures/
 assets/
+.native-test/

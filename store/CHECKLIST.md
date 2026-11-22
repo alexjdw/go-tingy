@@ -13,7 +13,10 @@ This list is what is left, in order. Store policies change often: where a step d
 - EAS build profiles with managed build numbers (`eas.json`).
 - Listing text for both stores, age-rating and privacy answers, and a privacy policy draft.
 - Built-in puzzles are original and checked by the rules; the unverified joseki sample was removed.
-- Tests: layout in a real browser (`npm run test:web`), plus the unit tests (`npm run check`).
+- Tests: layout in a real browser (`npm run test:web`), the generated iOS and Android native projects
+  (`npm run test:native`), plus the unit tests (`npm run check`).
+- Apple privacy manifest: the "required reason" API declarations of the native packages are copied into `app.json`
+  (`npm run privacy:sync`) because Apple does not reliably read the manifests inside static pods.
 
 ## 1. Decide and fill in (blocks `npm run check:store`)
 
@@ -51,8 +54,16 @@ npm run check:store               # must pass
 
 ## 4. Test builds on real devices
 
-The unit tests and the browser test cannot see native problems (sound, file picker, fonts, safe areas). Do this
-before submitting:
+`npm run test:native` already generates the real iOS and Android projects here and checks their configuration. It
+cannot compile or run the app, though: Xcode needs a Mac. Two ways to get further without owning one:
+
+- **Compile on a Mac in the cloud, no Apple account needed:** `eas build --platform ios --profile ios-simulator`
+  (needs `eas login` and `eas init`). A successful build proves the native project compiles; the result is a
+  simulator build, which only runs in an iOS Simulator on a Mac.
+- **Run on a real iPhone:** a production build through TestFlight (needs the Apple Developer account).
+
+The unit tests, the browser test and the native-config test cannot see runtime problems (sound, file picker,
+fonts, safe areas). Do this before submitting:
 
 ```bash
 eas build --platform android --profile preview     # an installable .apk

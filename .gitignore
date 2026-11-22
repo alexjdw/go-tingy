@@ -49,3 +49,6 @@ coverage/
 
 # generated store screenshots (npm run assets:screenshots)
 store/screenshots/
+
+# scratch projects for npm run test:native
+.native-test/
