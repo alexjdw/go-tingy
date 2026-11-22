@@ -39,7 +39,17 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 
 ## Run
 
-You need [Node.js](https://nodejs.org) (a current LTS) and npm.
+You need [Node.js](https://nodejs.org) 20 or newer (the LTS version is fine); npm comes with it.
+
+**Quickest:** run the start script. It installs the dependencies (the first time, or when they change) and opens the
+app in your browser.
+
+```bash
+start.cmd            # Windows: double-click it, or run it from a terminal
+./start.sh           # macOS / Linux
+```
+
+Or do it yourself:
 
 ```bash
 npm install
