@@ -17,6 +17,15 @@ interface Props {
   settings: Settings;
   onExit: () => void;
   onResult: (a: Attempt) => Promise<Level> | void;
+  /**
+   * A guided mastery run: this many moves are played for you first, then you solve the rest. Results go to
+   * `onRunResult` (not to skill tracking), and undo/restart are hidden so the attempt can't be dodged.
+   */
+  run?: { freeMoves: number };
+  /** Called once, on the first move of a run: it uses up one of today's attempts. */
+  onRunStart?: () => void;
+  /** Called when the run is solved. May return a message to show, like what the next stage will be. */
+  onRunResult?: (r: { correct: boolean }) => string | void;
 }
 
 const MODE_LABEL: Record<Mode, string> = {
@@ -25,12 +34,17 @@ const MODE_LABEL: Record<Mode, string> = {
   explore: 'Free exploration',
 };
 
-export function Study({ problem, mode, settings, onExit, onResult }: Props) {
+export function Study({ problem, mode, settings, onExit, onResult, run, onRunStart, onRunResult }: Props) {
   const { width } = useWindowDimensions();
   const boardW = Math.min(width - 24, 560);
   const engine = useMemo(
-    () => new StudyEngine(problem.sgf, mode, { markChoices: settings.markChoices, flipColors: settings.flipColors }),
-    [problem.sgf, mode, settings],
+    () =>
+      new StudyEngine(problem.sgf, mode, {
+        markChoices: run ? 'off' : settings.markChoices,
+        flipColors: settings.flipColors,
+        freeMoves: run?.freeMoves,
+      }),
+    [problem.sgf, mode, settings, run?.freeMoves], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const base = useMemo(() => initialViewport(allPoints(engine.root), engine.dims, engine.open), [engine]);
   const zoom = useZoom(base);
@@ -38,6 +52,8 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
   const [flash, setFlash] = useState<'wrong' | null>(null);
   const [showBook, setShowBook] = useState(false);
   const [earned, setEarned] = useState<Level | null>(null);
+  const [runMessage, setRunMessage] = useState('');
+  const runStarted = useRef(false);
 
   // Timer starts on the first board interaction (or when the replay finishes), not on screen open.
   const startRef = useRef<number | null>(null);
@@ -80,6 +96,10 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
       force();
       return;
     }
+    if (run && !runStarted.current) {
+      runStarted.current = true;
+      onRunStart?.();
+    }
     if (startRef.current == null) startRef.current = Date.now();
     const r = engine.play(p);
     if (r === 'ok' || r === 'solved') playStone();
@@ -87,7 +107,10 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
     if (r === 'solved') {
       const ms = Date.now() - startRef.current;
       setElapsed(ms);
-      if (engine.tracksSkill) {
+      if (run) {
+        const msg = onRunResult?.({ correct: engine.mistakes === 0 });
+        if (msg) setRunMessage(msg);
+      } else if (engine.tracksSkill) {
         void Promise.resolve(onResult(engine.attempt(ms))).then((lvl) => {
           if (lvl) setEarned(lvl);
         });
@@ -137,7 +160,9 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
             {problem.title}
           </Text>
           <Text style={styles.sub}>
-            {MODE_LABEL[mode]}
+            {run
+              ? `Guided mastery · ${engine.freeMovesPlayed} free move${engine.freeMovesPlayed === 1 ? '' : 's'}`
+              : MODE_LABEL[mode]}
             {mode !== 'explore' ? ` · ${(elapsed / 1000).toFixed(0)}s` : ''}
             {engine.flipped ? ' · colors flipped' : ''}
           </Text>
@@ -175,19 +200,24 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
           <Text style={styles.badgeText}>Skill level: {earned}</Text>
         </View>
       ) : null}
+      {runMessage ? <Text style={styles.status}>{runMessage}</Text> : null}
       {s.message || engine.comment() ? <Text style={styles.comment}>{s.message || engine.comment()}</Text> : null}
 
       <View style={styles.row}>
         {phase === 'mark' ? <Btn label="Submit choices" onPress={submit} disabled={engine.marks.length === 0} /> : null}
-        <Btn
-          label="Undo"
-          onPress={() => {
-            engine.undo();
-            force();
-          }}
-          disabled={!engine.canUndo}
-        />
-        <Btn label="Restart" onPress={restart} />
+        {run ? null : (
+          <>
+            <Btn
+              label="Undo"
+              onPress={() => {
+                engine.undo();
+                force();
+              }}
+              disabled={!engine.canUndo}
+            />
+            <Btn label="Restart" onPress={restart} />
+          </>
+        )}
         {mode === 'explore' ? (
           <>
             <Btn

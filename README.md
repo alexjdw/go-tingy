@@ -9,6 +9,13 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
   (red, yellow, green, silver, gold) based on accuracy and speed, with simple spaced-repetition due dates.
 - **Multiple choice** puzzles (lettered `A`/`B`/`C` points) and an optional **mark-the-choices** step that replays to a
   branching point and asks you to mark every good move first.
+- **Two study categories** per puzzle: **spaced repetition** (the only puzzles that ever come due) and **guided
+  mastery**.
+- **Guided mastery:** a _guided run_ plays some moves for you along a correct line and you solve the rest. Each clean
+  run gives fewer free moves, down to zero. Clearing that unlocks the _mastery run_: solve every line of the puzzle in
+  random order; your score is correct moves per minute, halved for each mistake (green above 5, gold above 10, diamond
+  above 15). Each puzzle allows two guided/mastery attempts a day. Scores are backed up when you leave a run (the 15
+  most recent backups are kept) and restored at startup if the saved state is lost.
 - **Automatic color flipping**, one-shot click-to-zoom for large boards, stone animation and sound.
 - **SGF import** from files (`.sgf`, `.sgf.gz`, `.zip`) or pasted text, including whole collections; every puzzle is
   validated, encodings (UTF-8, GBK, Shift_JIS, ...) are detected, and old FF[3] files are normalized.

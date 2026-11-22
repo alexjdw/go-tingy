@@ -40,3 +40,11 @@ const styles = StyleSheet.create({
   ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.muted },
   btnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });
+
+/** Colors for the mastery levels (guided mastery runs). */
+export const MASTERY_COLORS = {
+  none: '#8a8f98',
+  green: '#30a46c',
+  gold: '#e5a50a',
+  diamond: '#5ac8fa',
+} as const;

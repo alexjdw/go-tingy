@@ -38,8 +38,11 @@ src/sgf/                  parser, validator, normalizer, editing helpers, encodi
 src/go/board.ts           board rules (cols x rows): captures, suicide, simple ko                (pure TS)
 src/go/viewport.ts        what part of the board is shown, and where the grid lines go           (pure TS)
 src/study/engine.ts       guided / unguided / explore engine, choice modes, color flipping       (pure TS)
+src/study/lines.ts        a puzzle's solution lines (root-to-leaf paths) and their length        (pure TS)
+src/study/mastery.ts      MasteryRun: all lines in random order, clock, score                    (pure TS)
 src/progress/skill.ts     attempt history -> skill level, spaced-repetition due dates            (pure TS)
-src/storage/              AsyncStorage persistence for library, progress, settings
+src/progress/mastery.ts   categories, guided stages, mastery score/levels, daily limit, backups  (pure TS)
+src/storage/              AsyncStorage persistence for library, progress, settings, mastery (+15 backups)
 src/data/samples.ts       built-in demo problems and the Problem type
 src/ui/screens/           Library, Study, Editor, ImportScreen, SettingsScreen
 src/ui/components/        Board (SVG), theme + Btn
