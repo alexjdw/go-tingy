@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { StudyEngine } from '../src/study/engine';
 import { Board } from '../src/go/board';
 import { SAMPLES } from '../src/data/samples';
+import { JOSEKI_DEMO } from './fixtures/joseki-demo';
 import { computeSkill, type Attempt } from '../src/progress/skill';
 import { parseSgf, toSgf, flipColors, splitCollection } from '../src/sgf/parser';
 import { validateSgf } from '../src/sgf/validate';
@@ -25,7 +26,7 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   assert.equal(e2.play({ x: 0, y: 3 }), 'solved');
 
   // joseki: learner is W, opponent replies from book
-  const j = new StudyEngine(SAMPLES[2].sgf, 'guided', { rng: () => 0 });
+  const j = new StudyEngine(JOSEKI_DEMO, 'guided', { rng: () => 0 });
   assert.equal(j.playerColor, 'W');
   assert.equal(j.play({ x: 2, y: 2 }), 'ok');
   assert.equal(j.snap.toPlay, 'W');
@@ -34,7 +35,7 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   assert.equal(j.snap.node, j.root);
 
   // explore leaves book
-  const x = new StudyEngine(SAMPLES[2].sgf, 'explore');
+  const x = new StudyEngine(JOSEKI_DEMO, 'explore');
   x.play({ x: 2, y: 2 });
   x.play({ x: 10, y: 10 });
   assert.equal(x.snap.node, null);

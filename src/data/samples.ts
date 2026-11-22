@@ -7,7 +7,10 @@ export interface Problem {
   builtin?: boolean;
 }
 
-/** Small demo set. Import your own SGFs in the app; wrong branches use BM[1] or "Wrong" comments. */
+/**
+ * The built-in starter puzzles. They are deliberately simple "capture the stones" problems whose answers can be
+ * checked from the rules alone (see tests/samples.test.ts). Real study material comes from importing SGF files.
+ */
 export const SAMPLES: Problem[] = [
   {
     id: 'sample-capture-1',
@@ -24,18 +27,17 @@ export const SAMPLES: Problem[] = [
       (;B[ad]C[Correct! Both stones are captured.]))`,
   },
   {
-    id: 'sample-33-invasion',
-    title: '3-3 invasion (demo sequence)',
+    id: 'sample-capture-3',
+    title: 'Capture in the open',
     builtin: true,
-    sgf: `(;GM[1]FF[4]SZ[19]PL[W]AB[dd]C[White invades at the 3-3 point.]
-      (;W[cc]
-        (;B[cd]C[Block from below.]
-          (;W[dc]
-            (;B[ec]C[Hane on top.]))
-          (;W[bd]C[Hane at the bottom.]
-            (;B[ce]C[Cut off the hane stone.])))
-        (;B[dc]C[Block from the side.]
-          (;W[cd]
-            (;B[ce]C[Hane underneath.])))))`,
+    sgf: `(;GM[1]FF[4]SZ[19]PL[B]AB[dc][cd][ed]AW[dd]C[Black to play: the white stone has one liberty left.]
+      (;B[de]C[Correct! The stone is captured.]))`,
+  },
+  {
+    id: 'sample-capture-4',
+    title: 'Capture two stones',
+    builtin: true,
+    sgf: `(;GM[1]FF[4]SZ[19]PL[B]AB[dc][ec][cd][fd][de]AW[dd][ed]C[Black to play: find the last liberty of the white pair.]
+      (;B[ee]C[Correct! Both stones are captured.]))`,
   },
 ];
