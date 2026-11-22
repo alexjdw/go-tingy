@@ -5,7 +5,7 @@ address (a static page, a GitHub Pages site or a document you host). Both stores
 `store.config.json` (`privacyPolicyUrl`) and in the Play Console._
 
 **Effective date:** TODO
-**Contact:** TODO (an email address users can write to)
+**Contact:** Alex Weavers, https://github.com/alexjdw
 
 ## Summary
 
