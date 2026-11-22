@@ -4,7 +4,8 @@ import type { Problem } from '../../data/samples';
 import { StudyEngine, type Mode } from '../../study/engine';
 import { allPoints, type Point } from '../../sgf/parser';
 import type { Settings } from '../../storage/settings';
-import { BoardView, computeViewport } from '../components/Board';
+import { BoardView } from '../components/Board';
+import { initialViewport } from '../../go/viewport';
 import { type Attempt, type Level, LEVEL_COLORS } from '../../progress/skill';
 import { Btn, theme } from '../components/theme';
 import { playStone } from '../sound';
@@ -31,7 +32,7 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
     () => new StudyEngine(problem.sgf, mode, { markChoices: settings.markChoices, flipColors: settings.flipColors }),
     [problem.sgf, mode, settings],
   );
-  const base = useMemo(() => computeViewport(allPoints(engine.root), engine.size), [engine]);
+  const base = useMemo(() => initialViewport(allPoints(engine.root), engine.dims, engine.open), [engine]);
   const zoom = useZoom(base);
   const [, force] = useReducer((n: number) => n + 1, 0);
   const [flash, setFlash] = useState<'wrong' | null>(null);
@@ -160,6 +161,7 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
           marks={engine.marks}
           markup={engine.markup()}
           onPlay={onTap}
+          open={engine.open}
           animKey={engine.placed}
           disabled={phase === 'replay' || (s.status === 'solved' && mode !== 'explore')}
         />

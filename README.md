@@ -12,7 +12,7 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 - **Automatic color flipping**, one-shot click-to-zoom for large boards, stone animation and sound.
 - **SGF import** from files (`.sgf`, `.sgf.gz`, `.zip`) or pasted text, including whole collections; every puzzle is
   validated, encodings (UTF-8, GBK, Shift_JIS, ...) are detected, and old FF[3] files are normalized.
-- An **SGF editor** for building puzzles: board size, setup stones, a move tree with correct / incorrect / neutral
+- An **SGF editor** for building puzzles: board size (square or rectangular, with any border removed), setup stones, a move tree with correct / incorrect / neutral
   nodes, and `A`/`B`/`C` labels.
 
 ## Run
@@ -42,13 +42,15 @@ See `AGENTS.md` for the project layout and conventions.
 
 Standard SGF, plus a few markers that say which moves are right or wrong:
 
-| Marker                                                        | Meaning                                            |
-| ------------------------------------------------------------- | -------------------------------------------------- |
-| `TE[1]`, or a comment starting `Correct` / `Right`            | correct branch                                     |
-| `BM[1]`, `DO[1]`, or a comment starting `Wrong` / `Incorrect` | wrong branch                                       |
-| `LB[xx:A]` on a position                                      | lettered multiple-choice point                     |
-| `PL[B]` / `PL[W]`                                             | who plays first (else the color of the first move) |
-| `C[...]`                                                      | explanation shown to the learner                   |
+| Marker                                                        | Meaning                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TE[1]`, or a comment starting `Correct` / `Right`            | correct branch                                                                                                                                                                                                                              |
+| `BM[1]`, `DO[1]`, or a comment starting `Wrong` / `Incorrect` | wrong branch                                                                                                                                                                                                                                |
+| `LB[xx:A]` on a position                                      | lettered multiple-choice point                                                                                                                                                                                                              |
+| `PL[B]` / `PL[W]`                                             | who plays first (else the color of the first move)                                                                                                                                                                                          |
+| `SZ[19]` or `SZ[9:5]`                                         | board size: square, or `columns:rows` for a rectangle (2–25 each)                                                                                                                                                                           |
+| `OE[tl]`                                                      | open edges (any of `t` `r` `b` `l`): that side is drawn without a border, as a diagram cropped from a bigger board. Display only: the rules still treat the last row/column as the edge. Private to this app; other SGF software ignores it |
+| `C[...]`                                                      | explanation shown to the learner                                                                                                                                                                                                            |
 
 A leaf not marked wrong counts as a success. On import, a triangle on a move's own point (`;B[br]TR[br]`) is treated
 as a wrong branch, which is how the u-go.net uliGo problem files mark refutations.

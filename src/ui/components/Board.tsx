@@ -2,33 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Svg, { Circle, G, Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import type { Board as GoBoard } from '../../go/board';
 import type { Markup } from '../../study/engine';
-import type { Point } from '../../sgf/parser';
-
-export interface Viewport {
-  x0: number;
-  x1: number;
-  y0: number;
-  y1: number;
-}
-
-/** Crop to the area around the stones, snapping to board edges (typical tsumego diagram). */
-export function computeViewport(points: Point[], size: number): Viewport {
-  if (!points.length) return { x0: 0, x1: size - 1, y0: 0, y1: size - 1 };
-  let x0 = Math.min(...points.map((p) => p.x));
-  let x1 = Math.max(...points.map((p) => p.x));
-  let y0 = Math.min(...points.map((p) => p.y));
-  let y1 = Math.max(...points.map((p) => p.y));
-  const pad = 2;
-  const snap = 3;
-  x0 = x0 - pad <= snap ? 0 : x0 - pad;
-  y0 = y0 - pad <= snap ? 0 : y0 - pad;
-  x1 = x1 + pad >= size - 1 - snap ? size - 1 : x1 + pad;
-  y1 = y1 + pad >= size - 1 - snap ? size - 1 : y1 + pad;
-  // ensure a usable minimum
-  if (x1 - x0 < 6) x1 = Math.min(size - 1, x0 + 6);
-  if (y1 - y0 < 6) y1 = Math.min(size - 1, y0 + 6);
-  return { x0, x1, y0, y1 };
-}
+import { type Viewport, gridGeometry } from '../../go/viewport';
+import { type OpenEdges, type Point, NO_OPEN_EDGES } from '../../sgf/parser';
 
 interface Props {
   board: GoBoard;
@@ -41,15 +16,19 @@ interface Props {
   markup: Markup[];
   onPlay: (p: Point) => void;
   disabled?: boolean;
+  /** Sides drawn without a border (the diagram is a crop there). */
+  open?: OpenEdges;
   /** Increases whenever a stone is placed; triggers the placement animation. */
   animKey?: number;
 }
 
-const starPoints = (size: number): Point[] => {
-  if (size === 19) return [3, 9, 15].flatMap((x) => [3, 9, 15].map((y) => ({ x, y })));
-  if (size === 13) return [3, 6, 9].flatMap((x) => [3, 6, 9].map((y) => ({ x, y })));
-  if (size === 9) return [2, 4, 6].flatMap((x) => [2, 4, 6].map((y) => ({ x, y })));
-  return [];
+const STAR_LINES: Record<number, number[]> = { 19: [3, 9, 15], 13: [3, 6, 9], 9: [2, 4, 6] };
+
+/** Hoshi only where both dimensions are standard sizes (so a 19x9 strip gets them, a 7x5 box doesn't). */
+const starPoints = (cols: number, rows: number): Point[] => {
+  const xs = STAR_LINES[cols];
+  const ys = STAR_LINES[rows];
+  return xs && ys ? xs.flatMap((x) => ys.map((y) => ({ x, y }))) : [];
 };
 
 const ANIM_MS = 200;
@@ -64,6 +43,7 @@ export function BoardView({
   markup,
   onPlay,
   disabled,
+  open = NO_OPEN_EDGES,
   animKey = 0,
 }: Props) {
   // 0..1 progress of the newest stone's placement animation (1 = idle).
@@ -89,25 +69,23 @@ export function BoardView({
   }, [animKey]);
   const ease = 1 - (1 - t) * (1 - t);
 
-  const cols = view.x1 - view.x0 + 1;
-  const rows = view.y1 - view.y0 + 1;
-  const margin = 0.8; // in cells
-  const cell = width / (cols - 1 + margin * 2);
-  const height = cell * (rows - 1 + margin * 2);
-  const px = (x: number) => (x - view.x0 + margin) * cell;
-  const py = (y: number) => (y - view.y0 + margin) * cell;
+  const { cell, height, px, py, vertical, horizontal } = gridGeometry(
+    view,
+    { cols: board.cols, rows: board.rows },
+    open,
+    width,
+  );
   const stoneR = cell * 0.47;
 
   const stars = useMemo(
-    () => starPoints(board.size).filter((p) => p.x >= view.x0 && p.x <= view.x1 && p.y >= view.y0 && p.y <= view.y1),
-    [board.size, view],
+    () =>
+      starPoints(board.cols, board.rows).filter(
+        (p) => p.x >= view.x0 && p.x <= view.x1 && p.y >= view.y0 && p.y <= view.y1,
+      ),
+    [board.cols, board.rows, view],
   );
 
-  // Grid lines extend half a cell past the edge when the board continues (cropped side).
-  const lx0 = view.x0 === 0 ? px(0) : px(view.x0) - cell * 0.5;
-  const lx1 = view.x1 === board.size - 1 ? px(view.x1) : px(view.x1) + cell * 0.5;
-  const ly0 = view.y0 === 0 ? py(0) : py(view.y0) - cell * 0.5;
-  const ly1 = view.y1 === board.size - 1 ? py(view.y1) : py(view.y1) + cell * 0.5;
+  const BORDER = 2.2;
 
   const points: Point[] = [];
   for (let y = view.y0; y <= view.y1; y++) for (let x = view.x0; x <= view.x1; x++) points.push({ x, y });
@@ -115,26 +93,26 @@ export function BoardView({
   return (
     <Svg width={width} height={height}>
       <Rect x={0} y={0} width={width} height={height} fill="#e8b55a" rx={6} />
-      {Array.from({ length: cols }, (_, i) => (
+      {vertical.map((l, i) => (
         <Line
           key={`v${i}`}
-          x1={px(view.x0 + i)}
-          x2={px(view.x0 + i)}
-          y1={ly0}
-          y2={ly1}
+          x1={l.x1}
+          x2={l.x2}
+          y1={l.y1}
+          y2={l.y2}
           stroke="#5a4210"
-          strokeWidth={1}
+          strokeWidth={l.heavy ? BORDER : 1}
         />
       ))}
-      {Array.from({ length: rows }, (_, i) => (
+      {horizontal.map((l, i) => (
         <Line
           key={`h${i}`}
-          x1={lx0}
-          x2={lx1}
-          y1={py(view.y0 + i)}
-          y2={py(view.y0 + i)}
+          x1={l.x1}
+          x2={l.x2}
+          y1={l.y1}
+          y2={l.y2}
           stroke="#5a4210"
-          strokeWidth={1}
+          strokeWidth={l.heavy ? BORDER : 1}
         />
       ))}
       {stars.map((p) => (

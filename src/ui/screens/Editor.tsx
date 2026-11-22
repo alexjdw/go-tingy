@@ -8,18 +8,27 @@ import type { Problem } from '../../data/samples';
 import { Board } from '../../go/board';
 import {
   type Color,
+  type Dims,
+  type Edge,
+  type OpenEdges,
   type Point,
   type SgfNode,
-  boardSize,
+  MAX_DIM,
+  MIN_DIM,
+  NO_OPEN_EDGES,
+  boardDims,
   coordName,
   firstMoveColor,
   nodeMove,
+  openEdges,
   parseSgf,
   pointList,
   pointToSgf,
   toSgf,
 } from '../../sgf/parser';
-import { BoardView, type Viewport } from '../components/Board';
+import { fullViewport } from '../../go/viewport';
+import { resizeSetup, writeBoardProps } from '../../sgf/editing';
+import { BoardView } from '../components/Board';
 import { Btn, theme } from '../components/theme';
 import { useZoom, zoomedTap } from '../zoom';
 
@@ -52,19 +61,23 @@ export function Editor({ initial, onCancel, onSave }: Props) {
   const init = useMemo(() => {
     if (!initial) return null;
     const root = parseSgf(initial.sgf);
-    const size = boardSize(root);
-    const black = pointList(root.props.AB, size);
-    const white = pointList(root.props.AW, size);
+    const dims = boardDims(root);
+    const open = openEdges(root);
+    const black = pointList(root.props.AB, dims);
+    const white = pointList(root.props.AW, dims);
     const first = firstMoveColor(root);
     delete root.props.AB;
     delete root.props.AW;
-    return { root, size, black, white, first };
+    return { root, dims, open, black, white, first };
   }, [initial]);
 
   const [, force] = useReducer((n: number) => n + 1, 0);
   const [step, setStep] = useState<Step>(init ? 'tree' : 'size');
-  const [size, setSize] = useState(init?.size ?? 19);
-  const [customSize, setCustomSize] = useState('');
+  const [dims, setDims] = useState<Dims>(init?.dims ?? { cols: 19, rows: 19 });
+  const [open, setOpen] = useState<OpenEdges>(init?.open ?? NO_OPEN_EDGES);
+  const [colsText, setColsText] = useState(String(init?.dims.cols ?? 19));
+  const [rowsText, setRowsText] = useState(String(init?.dims.rows ?? 19));
+  const [notice, setNotice] = useState('');
   const [black, setBlack] = useState<Point[]>(init?.black ?? []);
   const [white, setWhite] = useState<Point[]>(init?.white ?? []);
   const [root] = useState<SgfNode>(() => init?.root ?? { props: {}, children: [], parent: null });
@@ -75,42 +88,69 @@ export function Editor({ initial, onCancel, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [error, setError] = useState('');
 
-  const base: Viewport = useMemo(() => ({ x0: 0, x1: size - 1, y0: 0, y1: size - 1 }), [size]);
+  const base = useMemo(() => fullViewport(dims), [dims]);
   const zoom = useZoom(base);
 
   // Board at the cursor: setup stones, then every move on the path from the root.
   const path: SgfNode[] = [];
   for (let n: SgfNode | null = cursor; n && n !== root; n = n.parent) path.unshift(n);
-  let board = new Board(size);
+  let board = new Board(dims.cols, dims.rows);
   for (const p of black) board = board.withStone(p, 'B');
   for (const p of white) board = board.withStone(p, 'W');
   if (step === 'tree') {
     for (const n of path) {
-      const m = nodeMove(n, size);
+      const m = nodeMove(n, dims);
       if (m) board = board.play(m.point, m.color)?.board ?? board;
     }
   }
-  const lastMove = cursor !== root ? (nodeMove(cursor, size)?.point ?? null) : null;
+  const lastMove = cursor !== root ? (nodeMove(cursor, dims)?.point ?? null) : null;
 
-  const lastColor = cursor !== root ? nodeMove(cursor, size)?.color : undefined;
+  const lastColor = cursor !== root ? nodeMove(cursor, dims)?.color : undefined;
   const natural: Color = lastColor ? other(lastColor) : first;
   const nextColor: Color = swap ? other(natural) : natural;
 
   const labels = (cursor.props.LB ?? []).map((v) => {
     const [pt, label] = v.split(':');
-    return { point: pointList([pt], size)[0], label };
+    return { point: pointList([pt], dims)[0], label };
   });
 
-  const chooseSize = (n: number) => {
-    if (n === size) return;
-    setSize(n);
-    setBlack([]);
-    setWhite([]);
-    root.children = [];
-    root.props = {};
-    setCursor(root);
+  /** Resize the board, keeping whatever still fits. Moves outside the new board can't be kept, so the tree goes. */
+  const resizeTo = (next: Dims) => {
+    if (next.cols === dims.cols && next.rows === dims.rows) return;
+    const r = resizeSetup(black, white, root, dims, next);
+    const clearTree = root.children.length > 0 && !r.treeFits;
+    setDims(next);
+    setBlack(r.black);
+    setWhite(r.white);
+    if (clearTree) {
+      root.children = [];
+      setCursor(root);
+    }
+    const parts = [
+      r.dropped ? `${r.dropped} stone${r.dropped > 1 ? 's' : ''} outside the board removed` : '',
+      clearTree ? 'the move tree had moves outside the board and was cleared' : '',
+    ].filter(Boolean);
+    setNotice(parts.length ? `Resized to ${next.cols}×${next.rows}: ${parts.join('; ')}.` : '');
     zoom.reset();
   };
+
+  const dimValue = (text: string) => (/^\d{1,2}$/.test(text.trim()) ? parseInt(text, 10) : NaN);
+  const dimOk = (n: number) => n >= MIN_DIM && n <= MAX_DIM;
+
+  const applyDim = (axis: 'cols' | 'rows', text: string) => {
+    (axis === 'cols' ? setColsText : setRowsText)(text);
+    const n = dimValue(text);
+    if (dimOk(n)) resizeTo({ ...dims, [axis]: n });
+  };
+
+  const choosePreset = (n: number) => {
+    setColsText(String(n));
+    setRowsText(String(n));
+    resizeTo({ cols: n, rows: n });
+  };
+
+  const toggleEdge = (edge: Edge) => setOpen((o) => ({ ...o, [edge]: !o[edge] }));
+  const setAllEdges = (isOpen: boolean) => setOpen({ top: isOpen, right: isOpen, bottom: isOpen, left: isOpen });
 
   const toggleStone = (p: Point, color: Color) => {
     const mine = color === 'B' ? black : white;
@@ -187,10 +227,10 @@ export function Editor({ initial, onCancel, onSave }: Props) {
       ...root.props,
       GM: ['1'],
       FF: ['4'],
-      SZ: [String(size)],
       GN: [title.trim() || 'Untitled'],
       PL: [first],
     };
+    writeBoardProps(root, dims, open);
     if (black.length) root.props.AB = black.map(pointToSgf);
     else delete root.props.AB;
     if (white.length) root.props.AW = white.map(pointToSgf);
@@ -204,8 +244,8 @@ export function Editor({ initial, onCancel, onSave }: Props) {
 
   const stepIdx = STEPS.indexOf(step);
   const crumbs = path.map((n) => {
-    const m = nodeMove(n, size)!;
-    return `${m.color === 'B' ? '●' : '○'}${m.point ? coordName(m.point, size) : 'pass'}${markOf(n) === 'correct' ? '✓' : markOf(n) === 'incorrect' ? '✗' : ''}`;
+    const m = nodeMove(n, dims)!;
+    return `${m.color === 'B' ? '●' : '○'}${m.point ? coordName(m.point, dims) : 'pass'}${markOf(n) === 'correct' ? '✓' : markOf(n) === 'incorrect' ? '✗' : ''}`;
   });
 
   return (
@@ -240,35 +280,71 @@ export function Editor({ initial, onCancel, onSave }: Props) {
               : []
           }
           onPlay={onTap}
+          open={open}
         />
       </View>
 
       {step === 'size' && (
         <View style={styles.panel}>
-          <Text style={styles.hint}>Choose the board size.</Text>
+          <Text style={styles.hint}>
+            Board: {dims.cols}×{dims.rows}. Pick a square size, or set the width and height for a rectangle.
+          </Text>
           <View style={styles.row}>
             {[9, 13, 19].map((n) => (
-              <Btn key={n} label={`${n}×${n}`} kind={size === n ? 'solid' : 'ghost'} onPress={() => chooseSize(n)} />
+              <Btn
+                key={n}
+                label={`${n}×${n}`}
+                kind={dims.cols === n && dims.rows === n ? 'solid' : 'ghost'}
+                onPress={() => choosePreset(n)}
+              />
             ))}
           </View>
           <View style={styles.row}>
+            <Text style={styles.hint}>Width</Text>
             <TextInput
-              value={customSize}
-              onChangeText={setCustomSize}
-              placeholder="Custom (5–25)"
-              placeholderTextColor={theme.muted}
+              value={colsText}
+              onChangeText={(t) => applyDim('cols', t)}
               keyboardType="number-pad"
-              style={[styles.input, { flex: 1 }]}
+              maxLength={2}
+              accessibilityLabel="Board width"
+              style={[styles.input, styles.dimInput, !dimOk(dimValue(colsText)) && styles.invalid]}
             />
-            <Btn
-              label="Use"
-              kind="ghost"
-              onPress={() => {
-                const n = parseInt(customSize, 10);
-                if (n >= 5 && n <= 25) chooseSize(n);
-              }}
+            <Text style={styles.hint}>× Height</Text>
+            <TextInput
+              value={rowsText}
+              onChangeText={(t) => applyDim('rows', t)}
+              keyboardType="number-pad"
+              maxLength={2}
+              accessibilityLabel="Board height"
+              style={[styles.input, styles.dimInput, !dimOk(dimValue(rowsText)) && styles.invalid]}
             />
+            <Text style={styles.hint}>
+              ({MIN_DIM}–{MAX_DIM})
+            </Text>
           </View>
+
+          <Text style={styles.hint}>
+            Borders: turn one off for a diagram cropped from a bigger board (a corner, a side, or the middle).
+          </Text>
+          <View style={styles.row}>
+            {(['top', 'right', 'bottom', 'left'] as Edge[]).map((edge) => (
+              <Btn
+                key={edge}
+                label={`${edge[0].toUpperCase()}${edge.slice(1)}: ${open[edge] ? 'open' : 'border'}`}
+                kind={open[edge] ? 'ghost' : 'solid'}
+                onPress={() => toggleEdge(edge)}
+              />
+            ))}
+          </View>
+          <View style={styles.row}>
+            <Btn label="Remove all borders" kind="ghost" onPress={() => setAllEdges(true)} />
+            <Btn label="Restore all borders" kind="ghost" onPress={() => setAllEdges(false)} />
+          </View>
+          <Text style={styles.hint}>
+            Open sides only change how the board is drawn. Stones on the last row still have no liberties beyond it, so
+            leave room as you would on the full board.
+          </Text>
+          {notice ? <Text style={styles.hint}>{notice}</Text> : null}
         </View>
       )}
 
@@ -333,13 +409,13 @@ export function Editor({ initial, onCancel, onSave }: Props) {
             <View style={styles.row}>
               <Text style={styles.hint}>Variations:</Text>
               {cursor.children.map((c, i) => {
-                const m = nodeMove(c, size)!;
+                const m = nodeMove(c, dims)!;
                 const mk = markOf(c);
                 return (
                   <Btn
                     key={i}
                     kind="ghost"
-                    label={`${m.color === 'B' ? '●' : '○'} ${m.point ? coordName(m.point, size) : 'pass'}${mk === 'correct' ? ' ✓' : mk === 'incorrect' ? ' ✗' : ''}`}
+                    label={`${m.color === 'B' ? '●' : '○'} ${m.point ? coordName(m.point, dims) : 'pass'}${mk === 'correct' ? ' ✓' : mk === 'incorrect' ? ' ✗' : ''}`}
                     onPress={() => setCursor(c)}
                   />
                 );
@@ -404,4 +480,6 @@ const styles = StyleSheet.create({
   hint: { color: theme.muted, fontSize: 14 },
   crumbs: { color: theme.text, fontSize: 14 },
   input: { backgroundColor: theme.card, color: theme.text, borderRadius: 8, padding: 12, fontSize: 15 },
+  dimInput: { width: 64, textAlign: 'center' },
+  invalid: { borderWidth: 2, borderColor: '#e5484d' },
 });

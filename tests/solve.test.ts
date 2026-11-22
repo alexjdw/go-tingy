@@ -187,10 +187,10 @@ describe('every valid problem in the fixtures', () => {
     it(`${file}: a move outside the book is always rejected and leaves the board alone`, () => {
       for (const sgf of problems) {
         const e = new StudyEngine(sgf, 'unguided');
-        const inBook = new Set(e.root.children.map((c) => nodeMove(c, e.size)?.point).map((p) => p && `${p.x},${p.y}`));
+        const inBook = new Set(e.root.children.map((c) => nodeMove(c, e.dims)?.point).map((p) => p && `${p.x},${p.y}`));
         let probe: { x: number; y: number } | null = null;
-        for (let y = e.size - 1; y >= 0 && !probe; y--)
-          for (let x = e.size - 1; x >= 0 && !probe; x--) {
+        for (let y = e.dims.rows - 1; y >= 0 && !probe; y--)
+          for (let x = e.dims.cols - 1; x >= 0 && !probe; x--) {
             const p = { x, y };
             if (!inBook.has(`${x},${y}`) && e.snap.board.play(p, e.playerColor)) probe = p;
           }
@@ -209,7 +209,7 @@ describe('every valid problem in the fixtures', () => {
       const probe = new StudyEngine(sgf, 'unguided');
       for (const c of probe.root.children.filter(leadsOnlyToFailure)) {
         const e = new StudyEngine(sgf, 'unguided');
-        assert.equal(e.play(nodeMove(c, e.size)!.point!), 'wrong');
+        assert.equal(e.play(nodeMove(c, e.dims)!.point!), 'wrong');
         checked++;
       }
     }
@@ -339,11 +339,11 @@ describe('failing a puzzle', () => {
 
         const bad = new StudyEngine(sgf, 'unguided');
         const inBook = new Set(
-          bad.root.children.map((c) => nodeMove(c, bad.size)?.point).map((p) => p && `${p.x},${p.y}`),
+          bad.root.children.map((c) => nodeMove(c, bad.dims)?.point).map((p) => p && `${p.x},${p.y}`),
         );
         let probe: { x: number; y: number } | null = null;
-        for (let y = 0; y < bad.size && !probe; y++)
-          for (let x = 0; x < bad.size && !probe; x++)
+        for (let y = 0; y < bad.dims.rows && !probe; y++)
+          for (let x = 0; x < bad.dims.cols && !probe; x++)
             if (!inBook.has(`${x},${y}`) && bad.snap.board.play({ x, y }, bad.playerColor)) probe = { x, y };
         assert.equal(bad.play(probe!), 'wrong');
         solveByBook(bad);

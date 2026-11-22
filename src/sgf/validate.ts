@@ -1,8 +1,12 @@
 import { Board } from '../go/board';
 import {
   type Color,
+  type Dims,
   type SgfNode,
-  boardSize,
+  boardDims,
+  parseSize,
+  MIN_DIM,
+  MAX_DIM,
   containsCorrect,
   coordName,
   firstMoveColor,
@@ -16,7 +20,7 @@ export interface Validation {
   errors: string[]; // blocking
   warnings: string[]; // importable, but worth knowing
   title?: string;
-  size?: number;
+  dims?: Dims;
   /** number of move nodes in the tree (all variations) */
   moves: number;
 }
@@ -44,32 +48,31 @@ export function validateSgf(text: string): Validation {
   v.title = root.props.GN?.[0]?.trim() || undefined;
 
   const szRaw = root.props.SZ?.[0]?.trim();
-  if (szRaw !== undefined) {
-    const n = /^\d+$/.test(szRaw) ? parseInt(szRaw, 10) : NaN;
-    if (!(n >= 2 && n <= 25)) {
-      err(`Unsupported board size "${szRaw}" (square boards 2–25 only)`);
-      return v;
-    }
+  if (szRaw !== undefined && !parseSize(szRaw)) {
+    err(`Unsupported board size "${szRaw}" (use N or COLS:ROWS, each ${MIN_DIM}–${MAX_DIM})`);
+    return v;
   }
-  const size = boardSize(root);
-  v.size = size;
+  const dims = boardDims(root);
+  v.dims = dims;
+  const boardName = `${dims.cols}×${dims.rows}`;
+  if (root.props.OE && /[^trblTRBL]/.test(root.props.OE.join(''))) warn('OE (open edges) should only list t, r, b, l');
 
   // Setup stones
   for (const key of ['AB', 'AW', 'AE']) {
     for (const val of root.props[key] ?? []) {
       for (const part of val.split(':')) {
-        if (!sgfToPoint(part, size)) err(`${key} point "${part}" is outside the ${size}×${size} board`);
+        if (!sgfToPoint(part, dims)) err(`${key} point "${part}" is outside the ${boardName} board`);
       }
     }
   }
-  const ab = pointList(root.props.AB, size);
-  const aw = pointList(root.props.AW, size);
+  const ab = pointList(root.props.AB, dims);
+  const aw = pointList(root.props.AW, dims);
   const abKeys = new Set(ab.map((p) => `${p.x},${p.y}`));
   for (const p of aw)
-    if (abKeys.has(`${p.x},${p.y}`)) err(`Black and white setup stones overlap at ${coordName(p, size)}`);
+    if (abKeys.has(`${p.x},${p.y}`)) err(`Black and white setup stones overlap at ${coordName(p, dims)}`);
   if (v.errors.length) return v;
 
-  let setup = new Board(size);
+  let setup = new Board(dims.cols, dims.rows);
   for (const p of ab) setup = setup.withStone(p, 'B');
   for (const p of aw) setup = setup.withStone(p, 'W');
 
@@ -91,7 +94,7 @@ export function validateSgf(text: string): Validation {
         continue;
       }
       const raw = c.props[color][0] ?? '';
-      if (raw === '' || (raw === 'tt' && size <= 19)) {
+      if (raw === '' || (raw === 'tt' && dims.cols <= 19 && dims.rows <= 19)) {
         warn('Contains passes');
         const r = board.play(null, color);
         if (r) {
@@ -100,14 +103,14 @@ export function validateSgf(text: string): Validation {
         }
         continue;
       }
-      const p = sgfToPoint(raw, size);
+      const p = sgfToPoint(raw, dims);
       if (!p) {
-        err(`Move "${raw}" is outside the ${size}×${size} board`);
+        err(`Move "${raw}" is outside the ${boardName} board`);
         continue;
       }
       const r = board.play(p, color);
       if (!r) {
-        err(`Illegal ${color === 'B' ? 'black' : 'white'} move at ${coordName(p, size)} (occupied, suicide or ko)`);
+        err(`Illegal ${color === 'B' ? 'black' : 'white'} move at ${coordName(p, dims)} (occupied, suicide or ko)`);
         continue;
       }
       v.moves++;

@@ -34,8 +34,9 @@ This app does **not** use Expo Router. `src/App.tsx` switches between screens wi
 ```
 index.ts                  entry point (registerRootComponent)
 src/App.tsx               screen switching, persistence wiring
-src/sgf/                  parser, validator, normalizer, encoding detection, archives, importer  (pure TS)
-src/go/board.ts           board rules: captures, suicide, simple ko                              (pure TS)
+src/sgf/                  parser, validator, normalizer, editing helpers, encoding, archives, importer (pure TS)
+src/go/board.ts           board rules (cols x rows): captures, suicide, simple ko                (pure TS)
+src/go/viewport.ts        what part of the board is shown, and where the grid lines go           (pure TS)
 src/study/engine.ts       guided / unguided / explore engine, choice modes, color flipping       (pure TS)
 src/progress/skill.ts     attempt history -> skill level, spaced-repetition due dates            (pure TS)
 src/storage/              AsyncStorage persistence for library, progress, settings

@@ -1,4 +1,4 @@
-import { type SgfNode, boardSize, nodeMove, parseSgf, pointList, toSgf } from './parser';
+import { type SgfNode, boardDims, nodeMove, parseSgf, pointList, toSgf } from './parser';
 
 export interface Prepared {
   sgf: string;
@@ -54,16 +54,16 @@ export function prepareSgf(text: string): Prepared {
   }
 
   // 3. Triangle on the move = wrong answer.
-  const size = boardSize(root);
+  const dims = boardDims(root);
   let wrong = 0;
   const walk = (n: SgfNode) => {
     for (const c of n.children) {
-      const m = nodeMove(c, size);
+      const m = nodeMove(c, dims);
       if (
         m?.point &&
         !c.props.BM &&
         !c.props.TE &&
-        pointList(c.props.TR, size).some((p) => p.x === m.point!.x && p.y === m.point!.y)
+        pointList(c.props.TR, dims).some((p) => p.x === m.point!.x && p.y === m.point!.y)
       ) {
         c.props.BM = ['1'];
         wrong++;

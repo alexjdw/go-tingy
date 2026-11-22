@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import type { Point } from '../sgf/parser';
-import type { Viewport } from './components/Board';
+import type { Viewport } from '../go/viewport';
 
 /** Width/height (in intersections) of the zoomed window. */
 export const ZOOM_SPAN = 9;

@@ -9,6 +9,9 @@
  *   - AB/AW/AE       : setup stones
  *   - C[]            : shown to the learner as an explanation
  *   - TR/SQ/CR/MA/LB : markup, rendered on the board
+ *   - SZ[n] / SZ[cols:rows] : board size; rectangular boards use the standard "cols:rows" form
+ *   - OE[trbl]       : private property: which sides are "open" (cropped diagram edge, drawn without a
+ *                      border). Display only: the rules still treat the diagram's last row/column as the edge.
  * A leaf not marked wrong counts as success.
  */
 
@@ -24,6 +27,26 @@ export interface Point {
   x: number;
   y: number;
 }
+
+export interface Dims {
+  cols: number;
+  rows: number;
+}
+
+export type Edge = 'top' | 'right' | 'bottom' | 'left';
+/** true = the edge is open (no board border drawn there) */
+export type OpenEdges = Record<Edge, boolean>;
+
+export const NO_OPEN_EDGES: OpenEdges = { top: false, right: false, bottom: false, left: false };
+export const MIN_DIM = 2;
+export const MAX_DIM = 25;
+export const DEFAULT_DIMS: Dims = { cols: 19, rows: 19 };
+const EDGE_LETTERS: [Edge, string][] = [
+  ['top', 't'],
+  ['right', 'r'],
+  ['bottom', 'b'],
+  ['left', 'l'],
+];
 
 export function parseSgf(text: string): SgfNode {
   let i = 0;
@@ -106,41 +129,72 @@ export function parseSgf(text: string): SgfNode {
   return parseTree(null);
 }
 
-export function sgfToPoint(s: string, size: number): Point | null {
+export function sgfToPoint(s: string, dims: Dims): Point | null {
   if (s.length < 2) return null;
   const x = s.charCodeAt(0) - 97;
   const y = s.charCodeAt(1) - 97;
-  if (x < 0 || y < 0 || x >= size || y >= size) return null; // pass ("tt" on <=19 boards also lands here)
+  if (x < 0 || y < 0 || x >= dims.cols || y >= dims.rows) return null; // pass ("tt" on <=19 boards also lands here)
   return { x, y };
 }
 
 /** Expand "aa:cc" compressed point lists as used by AB/AW/TR/etc. */
-export function pointList(values: string[] | undefined, size: number): Point[] {
+export function pointList(values: string[] | undefined, dims: Dims): Point[] {
   const out: Point[] = [];
   for (const v of values ?? []) {
     if (v.includes(':')) {
       const [a, b] = v.split(':');
-      const p1 = sgfToPoint(a, size);
-      const p2 = sgfToPoint(b, size);
+      const p1 = sgfToPoint(a, dims);
+      const p2 = sgfToPoint(b, dims);
       if (!p1 || !p2) continue;
       for (let x = Math.min(p1.x, p2.x); x <= Math.max(p1.x, p2.x); x++)
         for (let y = Math.min(p1.y, p2.y); y <= Math.max(p1.y, p2.y); y++) out.push({ x, y });
     } else {
-      const p = sgfToPoint(v, size);
+      const p = sgfToPoint(v, dims);
       if (p) out.push(p);
     }
   }
   return out;
 }
 
-export function boardSize(root: SgfNode): number {
-  const sz = parseInt(root.props.SZ?.[0] ?? '19', 10);
-  return Number.isFinite(sz) && sz >= 2 && sz <= 25 ? sz : 19;
+/** Parse an SZ value: "19" (square) or "cols:rows". Null if malformed or outside MIN_DIM..MAX_DIM. */
+export function parseSize(raw: string | undefined): Dims | null {
+  const m = /^\s*(\d+)\s*(?::\s*(\d+)\s*)?$/.exec(raw ?? '');
+  if (!m) return null;
+  const cols = parseInt(m[1], 10);
+  const rows = m[2] === undefined ? cols : parseInt(m[2], 10);
+  const ok = (n: number) => n >= MIN_DIM && n <= MAX_DIM;
+  return ok(cols) && ok(rows) ? { cols, rows } : null;
 }
 
-export function nodeMove(node: SgfNode, size: number): { color: Color; point: Point | null } | null {
-  if (node.props.B) return { color: 'B', point: sgfToPoint(node.props.B[0], size) };
-  if (node.props.W) return { color: 'W', point: sgfToPoint(node.props.W[0], size) };
+/** Board dimensions from SZ; 19x19 if absent or unusable (the validator reports unusable ones). */
+export function boardDims(root: SgfNode): Dims {
+  return parseSize(root.props.SZ?.[0]) ?? DEFAULT_DIMS;
+}
+
+/** SZ value for dims: "19" for squares, "cols:rows" otherwise. */
+export const formatSize = (d: Dims) => (d.cols === d.rows ? String(d.cols) : `${d.cols}:${d.rows}`);
+
+/** Open (border-less) sides from OE[...], e.g. OE[tl] = top and left are open. */
+export function openEdges(root: SgfNode): OpenEdges {
+  const v = (root.props.OE ?? []).join('').toLowerCase();
+  const out = { ...NO_OPEN_EDGES };
+  for (const [edge, letter] of EDGE_LETTERS) out[edge] = v.includes(letter);
+  return out;
+}
+
+/** OE value for a set of open edges, or null if every border is present. */
+export function formatOpenEdges(open: OpenEdges): string | null {
+  const s = EDGE_LETTERS.filter(([edge]) => open[edge])
+    .map(([, l]) => l)
+    .join('');
+  return s || null;
+}
+
+export const hasOpenEdge = (open: OpenEdges) => open.top || open.right || open.bottom || open.left;
+
+export function nodeMove(node: SgfNode, dims: Dims): { color: Color; point: Point | null } | null {
+  if (node.props.B) return { color: 'B', point: sgfToPoint(node.props.B[0], dims) };
+  if (node.props.W) return { color: 'W', point: sgfToPoint(node.props.W[0], dims) };
   return null;
 }
 
@@ -167,9 +221,9 @@ export function firstMoveColor(root: SgfNode): Color {
   const pl = root.props.PL?.[0];
   if (pl === 'B' || pl === 'W') return pl;
   let n: SgfNode | undefined = root;
-  const size = boardSize(root);
+  const dims = boardDims(root);
   while (n) {
-    const m = nodeMove(n, size);
+    const m = nodeMove(n, dims);
     if (m) return m.color;
     n = n.children[0];
   }
@@ -178,11 +232,11 @@ export function firstMoveColor(root: SgfNode): Color {
 
 /** Every point touched by setup stones or any move anywhere in the tree. */
 export function allPoints(root: SgfNode): Point[] {
-  const size = boardSize(root);
+  const dims = boardDims(root);
   const pts: Point[] = [];
   const walk = (n: SgfNode) => {
-    for (const key of ['AB', 'AW', 'AE']) pts.push(...pointList(n.props[key], size));
-    const m = nodeMove(n, size);
+    for (const key of ['AB', 'AW', 'AE']) pts.push(...pointList(n.props[key], dims));
+    const m = nodeMove(n, dims);
     if (m?.point) pts.push(m.point);
     n.children.forEach(walk);
   };
@@ -231,7 +285,7 @@ export function splitCollection(text: string): string[] {
 }
 
 /** Human coordinate like "D4" (columns skip I; rows count from the bottom). */
-export const coordName = (p: Point, size: number) => `${'ABCDEFGHJKLMNOPQRSTUVWXYZ'[p.x]}${size - p.y}`;
+export const coordName = (p: Point, dims: Dims) => `${'ABCDEFGHJKLMNOPQRSTUVWXYZ'[p.x]}${dims.rows - p.y}`;
 
 export const pointToSgf = (p: Point) => String.fromCharCode(97 + p.x) + String.fromCharCode(97 + p.y);
 

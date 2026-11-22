@@ -113,7 +113,7 @@ export function ImportScreen({ existing, onCancel, onImport }: Props) {
                 </Text>
                 <Text style={[styles.sub, { color }]}>
                   {bad ? 'Invalid' : e.dup ? 'Duplicate' : e.v.warnings.length ? 'OK with warnings' : 'Valid'}
-                  {!bad && e.v.size ? ` · ${e.v.size}×${e.v.size} · ${e.v.moves} moves` : ''}
+                  {!bad && e.v.dims ? ` · ${e.v.dims.cols}×${e.v.dims.rows} · ${e.v.moves} moves` : ''}
                   {e.encoding ? ` · decoded as ${e.encoding}` : ''}
                 </Text>
                 {lines.slice(0, 3).map((l, i) => (

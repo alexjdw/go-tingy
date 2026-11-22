@@ -144,7 +144,7 @@ describe('Import SGF → "Add pasted text"', () => {
     assert.equal(e.collection, undefined, 'single puzzles are not part of a collection');
     assert.equal(e.include, true);
     assert.deepEqual(e.v.errors, []);
-    assert.equal(e.v.size, 19);
+    assert.deepEqual(e.v.dims, { cols: 19, rows: 19 });
   });
 
   it('accepts a whole pasted collection, preamble and all', () => {

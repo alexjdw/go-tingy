@@ -3,9 +3,11 @@ import type { Attempt } from '../progress/skill';
 import type { Tri } from '../storage/settings';
 import {
   type Color,
+  type Dims,
+  type OpenEdges,
   type Point,
   type SgfNode,
-  boardSize,
+  boardDims,
   comment,
   containsCorrect,
   firstMoveColor,
@@ -13,6 +15,7 @@ import {
   isWrongNode,
   leadsOnlyToFailure,
   nodeMove,
+  openEdges,
   parseSgf,
   pointList,
 } from '../sgf/parser';
@@ -49,7 +52,9 @@ const other = (c: Color): Color => (c === 'B' ? 'W' : 'B');
 
 export class StudyEngine {
   root!: SgfNode;
-  size!: number;
+  dims!: Dims;
+  /** Sides drawn without a border (display only). */
+  open!: OpenEdges;
   playerColor!: Color;
   snap!: Snapshot;
   flipped = false;
@@ -84,7 +89,8 @@ export class StudyEngine {
     this.root = parseSgf(this.sgf);
     this.flipped = this.mode !== 'explore' && this.resolve(this.opts.flipColors);
     if (this.flipped) flipColors(this.root);
-    this.size = boardSize(this.root);
+    this.dims = boardDims(this.root);
+    this.open = openEdges(this.root);
     this.playerColor = firstMoveColor(this.root);
     this.anyExplicit = containsCorrect(this.root);
     this.history = [];
@@ -108,10 +114,10 @@ export class StudyEngine {
   }
 
   private initial(): Snapshot {
-    let board = new Board(this.size);
-    for (const p of pointList(this.root.props.AE, this.size)) board = board.withStone(p, null);
-    for (const p of pointList(this.root.props.AB, this.size)) board = board.withStone(p, 'B');
-    for (const p of pointList(this.root.props.AW, this.size)) board = board.withStone(p, 'W');
+    let board = new Board(this.dims.cols, this.dims.rows);
+    for (const p of pointList(this.root.props.AE, this.dims)) board = board.withStone(p, null);
+    for (const p of pointList(this.root.props.AB, this.dims)) board = board.withStone(p, 'B');
+    for (const p of pointList(this.root.props.AW, this.dims)) board = board.withStone(p, 'W');
     return { board, node: this.root, toPlay: this.playerColor, last: null, status: 'playing', message: '' };
   }
 
@@ -139,7 +145,7 @@ export class StudyEngine {
     const cands: SgfNode[][] = [];
     const walk = (n: SgfNode, path: SgfNode[]) => {
       const good = this.goodChildren(n);
-      const m = good[0] && nodeMove(good[0], this.size);
+      const m = good[0] && nodeMove(good[0], this.dims);
       if (m && m.color === this.playerColor && good.length >= 2) cands.push(path);
       for (const c of good) walk(c, [...path, c]);
     };
@@ -155,7 +161,7 @@ export class StudyEngine {
     if (!s.node || s.toPlay !== this.playerColor) return [];
     const labelled = (s.node.props.LB ?? []).map((v) => v.split(':')).filter(([, l]) => /^[A-Z]$/.test(l ?? ''));
     if (labelled.length < 2) return [];
-    return labelled.map(([pt]) => pointList([pt], this.size)[0]).filter(Boolean);
+    return labelled.map(([pt]) => pointList([pt], this.dims)[0]).filter(Boolean);
   }
 
   // ---------- replay + mark phases ----------
@@ -164,7 +170,7 @@ export class StudyEngine {
   replayStep(): boolean {
     if (this.phase !== 'replay') return false;
     const node = this.plan[this.planIdx++];
-    const m = node && nodeMove(node, this.size);
+    const m = node && nodeMove(node, this.dims);
     const s = this.snap;
     let board = s.board;
     if (m) {
@@ -201,7 +207,7 @@ export class StudyEngine {
   submitMarks(): 'ok' | 'wrong' {
     const node = this.snap.node!;
     const want = this.goodChildren(node)
-      .map((c) => nodeMove(c, this.size))
+      .map((c) => nodeMove(c, this.dims))
       .filter((m) => m && m.color === this.playerColor && m.point)
       .map((m) => m!.point!);
     const ok = want.length === this.marks.length && want.every((w) => this.marks.some((m) => same(m, w)));
@@ -247,7 +253,7 @@ export class StudyEngine {
     const out: Point[] = [];
     for (const c of node.children) {
       if (this.mode !== 'explore' && leadsOnlyToFailure(c)) continue;
-      const m = nodeMove(c, this.size);
+      const m = nodeMove(c, this.dims);
       if (m?.point) out.push(m.point);
     }
     return out;
@@ -258,10 +264,10 @@ export class StudyEngine {
     if (!node) return [];
     const out: Markup[] = [];
     for (const kind of ['TR', 'SQ', 'CR', 'MA'] as const)
-      for (const point of pointList(node.props[kind], this.size)) out.push({ kind, point });
+      for (const point of pointList(node.props[kind], this.dims)) out.push({ kind, point });
     for (const v of node.props.LB ?? []) {
       const [pt, label] = v.split(':');
-      const point = pointList([pt], this.size)[0];
+      const point = pointList([pt], this.dims)[0];
       if (point) out.push({ kind: 'LB', point, label });
     }
     return out;
@@ -278,7 +284,7 @@ export class StudyEngine {
     while (n) {
       const next: SgfNode | undefined = n.children.find((c) => !leadsOnlyToFailure(c));
       if (!next) break;
-      if (nodeMove(next, this.size)?.color === this.playerColor) depth++;
+      if (nodeMove(next, this.dims)?.color === this.playerColor) depth++;
       n = next;
     }
     return 6000 + 5000 * Math.max(1, depth) + (this.hasMarkPhase ? 6000 : 0);
@@ -310,7 +316,7 @@ export class StudyEngine {
     const res = s.board.play(p, s.toPlay);
     if (!res) return 'illegal';
     const match = node.children.find((c) => {
-      const m = nodeMove(c, this.size);
+      const m = nodeMove(c, this.dims);
       return m?.point && same(m.point, p) && m.color === s.toPlay;
     });
     if (!match || leadsOnlyToFailure(match)) {
@@ -329,7 +335,7 @@ export class StudyEngine {
       return 'solved';
     }
     const reply = this.pickReply(cur);
-    const m = reply && nodeMove(reply, this.size);
+    const m = reply && nodeMove(reply, this.dims);
     if (reply && m) {
       const r = board.play(m.point, m.color);
       if (r) {
@@ -351,7 +357,7 @@ export class StudyEngine {
     const res = s.board.play(p, s.toPlay);
     if (!res) return 'illegal';
     const match = s.node?.children.find((c) => {
-      const m = nodeMove(c, this.size);
+      const m = nodeMove(c, this.dims);
       return m?.point && same(m.point, p) && m.color === s.toPlay;
     });
     this.commit({
