@@ -5,7 +5,7 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 
 ## Features
 
-- **Pick how to study** on the home screen: **Guided Learning**, **Spaced repetition** or **Browse**.
+- **Pick how to study** on the home screen: **Spaced repetition**, **Guided Learning** or **Browse**.
   - **Browse** shows every puzzle as a tile (a 7x7 window of its starting position) with **Play** and **+** under it.
     Play opens the puzzle, where you can switch between hints, solving it yourself and free exploration; **+** adds it
     to spaced repetition and/or mastery. Creating and importing puzzles are here too.

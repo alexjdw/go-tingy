@@ -44,14 +44,6 @@ export function Home({
       </View>
 
       <ModeCard
-        title="Guided Learning"
-        blurb="Work a puzzle up from guided moves to solving every line, fast."
-        status={
-          masteryCount ? `${plural(masteryCount, 'puzzle')} · ${masteryReady} ready today` : 'No puzzles yet. Add some.'
-        }
-        onPress={onMastery}
-      />
-      <ModeCard
         title="Spaced repetition"
         blurb="Review the puzzles that are due. A session starts right away."
         status={
@@ -63,6 +55,14 @@ export function Home({
         }
         highlight={dueCount > 0}
         onPress={onSpaced}
+      />
+      <ModeCard
+        title="Guided Learning"
+        blurb="Work a puzzle up from guided moves to solving every line, fast."
+        status={
+          masteryCount ? `${plural(masteryCount, 'puzzle')} · ${masteryReady} ready today` : 'No puzzles yet. Add some.'
+        }
+        onPress={onMastery}
       />
       <ModeCard
         title="Browse"

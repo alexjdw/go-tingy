@@ -30,9 +30,8 @@ This app does **not** use Expo Router. `src/App.tsx` keeps a small navigation st
 shows the last one; Back pops it, and the Android back button does the same (from Home it leaves the app). There is no
 `src/app/` routes folder. Don't add one without discussing it.
 
-The app opens on **Home**, where the player picks one of three modes: **Guided Learning** (a list of tiles with Add puzzles
-at the top), **Spaced repetition** (a review session that starts at once; Add puzzles and Prune puzzles are on its
-end screen) or **Browse** (every puzzle as tiles with Play and +; New puzzle, New from game and Import SGF live here).
+The app opens on **Home**, where the player picks one of three modes: **Spaced repetition** (a review session that starts at once; Add puzzles and Prune puzzles are on its
+end screen), **Guided Learning** (a list of tiles with Add puzzles at the top) or **Browse** (every puzzle as tiles with Play and +; New puzzle, New from game and Import SGF live here).
 
 ## Project layout
 
