@@ -132,7 +132,9 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
       <View style={styles.header}>
         <Btn label="‹ Back" onPress={onExit} kind="ghost" />
         <View style={{ flex: 1, marginLeft: 8 }}>
-          <Text style={styles.title} numberOfLines={1}>{problem.title}</Text>
+          <Text style={styles.title} numberOfLines={1}>
+            {problem.title}
+          </Text>
           <Text style={styles.sub}>
             {MODE_LABEL[mode]}
             {mode !== 'explore' ? ` · ${(elapsed / 1000).toFixed(0)}s` : ''}
@@ -140,7 +142,11 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
           </Text>
         </View>
         {zoom.canZoom ? (
-          <Btn label={zoom.mode === 'off' ? 'Zoom (z)' : zoom.mode === 'armed' ? 'Tap area…' : 'Zoomed'} kind={zoom.mode === 'off' ? 'ghost' : 'solid'} onPress={zoom.toggle} />
+          <Btn
+            label={zoom.mode === 'off' ? 'Zoom (z)' : zoom.mode === 'armed' ? 'Tap area…' : 'Zoomed'}
+            kind={zoom.mode === 'off' ? 'ghost' : 'solid'}
+            onPress={zoom.toggle}
+          />
         ) : null}
       </View>
 
@@ -159,7 +165,9 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
         />
       </View>
 
-      <Text style={[styles.status, s.status === 'solved' && phase === 'play' && { color: LEVEL_COLORS.green }]}>{status}</Text>
+      <Text style={[styles.status, s.status === 'solved' && phase === 'play' && { color: LEVEL_COLORS.green }]}>
+        {status}
+      </Text>
       {earned ? (
         <View style={[styles.badge, { backgroundColor: LEVEL_COLORS[earned] }]}>
           <Text style={styles.badgeText}>Skill level: {earned}</Text>
@@ -169,11 +177,24 @@ export function Study({ problem, mode, settings, onExit, onResult }: Props) {
 
       <View style={styles.row}>
         {phase === 'mark' ? <Btn label="Submit choices" onPress={submit} disabled={engine.marks.length === 0} /> : null}
-        <Btn label="Undo" onPress={() => { engine.undo(); force(); }} disabled={!engine.canUndo} />
+        <Btn
+          label="Undo"
+          onPress={() => {
+            engine.undo();
+            force();
+          }}
+          disabled={!engine.canUndo}
+        />
         <Btn label="Restart" onPress={restart} />
         {mode === 'explore' ? (
           <>
-            <Btn label="Pass" onPress={() => { engine.pass(); force(); }} />
+            <Btn
+              label="Pass"
+              onPress={() => {
+                engine.pass();
+                force();
+              }}
+            />
             <Btn label={showBook ? 'Hide book' : 'Show book'} onPress={() => setShowBook((v) => !v)} />
           </>
         ) : null}

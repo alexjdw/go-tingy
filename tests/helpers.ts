@@ -15,7 +15,8 @@ export const fixtureText = (name: string) =>
     .join('\n');
 
 /** The i-th puzzle in a fixture, normalized the way the importer stores it. */
-export const fixtureProblem = (name: string, index: number) => prepareSgf(splitCollection(fixtureText(name))[index]).sgf;
+export const fixtureProblem = (name: string, index: number) =>
+  prepareSgf(splitCollection(fixtureText(name))[index]).sgf;
 
 /** Every puzzle in a fixture that passes validation, as stored sgf. */
 export const validProblems = (name: string) =>

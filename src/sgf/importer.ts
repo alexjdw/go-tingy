@@ -63,7 +63,7 @@ export function makeEntries(name: string, text: string, taken: Set<string>, enco
     const dup = taken.has(norm);
     taken.add(norm);
     const unique = v.title && gnCount.get(v.title) === 1;
-    const title = unique ? v.title! : multi ? `${v.title ?? name} #${i + 1}` : v.title ?? name;
+    const title = unique ? v.title! : multi ? `${v.title ?? name} #${i + 1}` : (v.title ?? name);
     return {
       key: `e${counter++}`,
       title,

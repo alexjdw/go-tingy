@@ -233,7 +233,7 @@ export function splitCollection(text: string): string[] {
 /** Human coordinate like "D4" (columns skip I; rows count from the bottom). */
 export const coordName = (p: Point, size: number) => `${'ABCDEFGHJKLMNOPQRSTUVWXYZ'[p.x]}${size - p.y}`;
 
-export const pointToSgf =(p: Point) => String.fromCharCode(97 + p.x) + String.fromCharCode(97 + p.y);
+export const pointToSgf = (p: Point) => String.fromCharCode(97 + p.x) + String.fromCharCode(97 + p.y);
 
 /** True if this node or anything below it is explicitly marked correct (TE / "Correct" comment). */
 export function containsCorrect(node: SgfNode): boolean {

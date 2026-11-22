@@ -9,7 +9,8 @@ export interface RawFile {
 export const MAX_BYTES = 64 * 1024 * 1024;
 
 const isGzip = (b: Uint8Array) => b[0] === 0x1f && b[1] === 0x8b;
-const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b && (b[2] === 3 || b[2] === 5) && (b[3] === 4 || b[3] === 6);
+const isZip = (b: Uint8Array) =>
+  b[0] === 0x50 && b[1] === 0x4b && (b[2] === 3 || b[2] === 5) && (b[3] === 4 || b[3] === 6);
 
 /** Name without directories or extensions like .sgf / .sgf.gz / .zip, for use as a collection name. */
 export const baseName = (name: string) =>

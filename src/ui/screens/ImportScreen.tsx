@@ -2,7 +2,15 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { Problem } from '../../data/samples';
-import { addToBatch, normalize, readPickedFile, selectValid, summarize, toProblems, toggleEntry } from '../../sgf/importer';
+import {
+  addToBatch,
+  normalize,
+  readPickedFile,
+  selectValid,
+  summarize,
+  toProblems,
+  toggleEntry,
+} from '../../sgf/importer';
 import type { BatchItem, Entry } from '../../sgf/importer';
 import { LEVEL_COLORS } from '../../progress/skill';
 import { Btn, theme } from '../components/theme';
@@ -55,7 +63,8 @@ export function ImportScreen({ existing, onCancel, onImport }: Props) {
     <View style={{ gap: 10, marginBottom: 12 }}>
       <Text style={styles.h1}>Import SGF</Text>
       <Text style={styles.hint}>
-        Pick .sgf, .sgf.gz or .zip files. A file can hold a whole collection of puzzles; each one is split out and validated before import.
+        Pick .sgf, .sgf.gz or .zip files. A file can hold a whole collection of puzzles; each one is split out and
+        validated before import.
       </Text>
       <Btn label="Choose files…" onPress={pickFiles} />
       <TextInput
@@ -87,7 +96,11 @@ export function ImportScreen({ existing, onCancel, onImport }: Props) {
         contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
         renderItem={({ item: e }) => {
           const bad = e.v.errors.length > 0;
-          const color = bad ? LEVEL_COLORS.red : e.dup || e.v.warnings.length ? LEVEL_COLORS.yellow : LEVEL_COLORS.green;
+          const color = bad
+            ? LEVEL_COLORS.red
+            : e.dup || e.v.warnings.length
+              ? LEVEL_COLORS.yellow
+              : LEVEL_COLORS.green;
           const lines = [...e.v.errors, ...(e.dup ? ['Already in your library or this batch'] : []), ...e.v.warnings];
           return (
             <Pressable style={styles.card} onPress={() => toggle(e.key)}>
@@ -95,14 +108,18 @@ export function ImportScreen({ existing, onCancel, onImport }: Props) {
                 {e.include ? <Text style={styles.tick}>✓</Text> : null}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.title} numberOfLines={1}>{e.title}</Text>
+                <Text style={styles.title} numberOfLines={1}>
+                  {e.title}
+                </Text>
                 <Text style={[styles.sub, { color }]}>
                   {bad ? 'Invalid' : e.dup ? 'Duplicate' : e.v.warnings.length ? 'OK with warnings' : 'Valid'}
                   {!bad && e.v.size ? ` · ${e.v.size}×${e.v.size} · ${e.v.moves} moves` : ''}
                   {e.encoding ? ` · decoded as ${e.encoding}` : ''}
                 </Text>
                 {lines.slice(0, 3).map((l, i) => (
-                  <Text key={i} style={styles.line}>• {l}</Text>
+                  <Text key={i} style={styles.line}>
+                    • {l}
+                  </Text>
                 ))}
               </View>
             </Pressable>
@@ -111,12 +128,7 @@ export function ImportScreen({ existing, onCancel, onImport }: Props) {
       />
       <View style={styles.footer}>
         <Btn label="Cancel" kind="ghost" onPress={onCancel} />
-        <Btn
-          label="Select valid"
-          kind="ghost"
-          disabled={!entries.length}
-          onPress={() => setEntries(selectValid)}
-        />
+        <Btn label="Select valid" kind="ghost" disabled={!entries.length} onPress={() => setEntries(selectValid)} />
         <Btn label={`Import ${selectedCount}`} onPress={doImport} disabled={!selectedCount} />
       </View>
     </View>
@@ -128,8 +140,23 @@ const styles = StyleSheet.create({
   h1: { color: theme.text, fontSize: 22, fontWeight: '800' },
   hint: { color: theme.muted, fontSize: 13 },
   input: { backgroundColor: theme.card, color: theme.text, borderRadius: 8, padding: 12, fontSize: 14 },
-  card: { flexDirection: 'row', gap: 12, backgroundColor: theme.card, borderRadius: 10, padding: 12, alignItems: 'flex-start' },
-  box: { width: 22, height: 22, borderRadius: 5, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  card: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: theme.card,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'flex-start',
+  },
+  box: {
+    width: 22,
+    height: 22,
+    borderRadius: 5,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
   tick: { color: '#111', fontWeight: '900', fontSize: 14 },
   title: { color: theme.text, fontSize: 15, fontWeight: '600' },
   sub: { fontSize: 13, marginTop: 2 },

@@ -90,7 +90,7 @@ export function Editor({ initial, onCancel, onSave }: Props) {
       if (m) board = board.play(m.point, m.color)?.board ?? board;
     }
   }
-  const lastMove = cursor !== root ? nodeMove(cursor, size)?.point ?? null : null;
+  const lastMove = cursor !== root ? (nodeMove(cursor, size)?.point ?? null) : null;
 
   const lastColor = cursor !== root ? nodeMove(cursor, size)?.color : undefined;
   const natural: Color = lastColor ? other(lastColor) : first;
@@ -219,7 +219,11 @@ export function Editor({ initial, onCancel, onSave }: Props) {
           </Text>
         </View>
         {zoom.canZoom ? (
-          <Btn label={zoom.mode === 'off' ? 'Zoom (z)' : zoom.mode === 'armed' ? 'Tap area…' : 'Zoomed'} kind={zoom.mode === 'off' ? 'ghost' : 'solid'} onPress={zoom.toggle} />
+          <Btn
+            label={zoom.mode === 'off' ? 'Zoom (z)' : zoom.mode === 'armed' ? 'Tap area…' : 'Zoomed'}
+            kind={zoom.mode === 'off' ? 'ghost' : 'solid'}
+            onPress={zoom.toggle}
+          />
         ) : null}
       </View>
 
@@ -230,7 +234,11 @@ export function Editor({ initial, onCancel, onSave }: Props) {
           width={boardW}
           last={lastMove}
           hints={[]}
-          markup={step === 'tree' ? labels.filter((l) => l.point).map((l) => ({ kind: 'LB' as const, point: l.point, label: l.label })) : []}
+          markup={
+            step === 'tree'
+              ? labels.filter((l) => l.point).map((l) => ({ kind: 'LB' as const, point: l.point, label: l.label }))
+              : []
+          }
           onPlay={onTap}
         />
       </View>
@@ -267,7 +275,8 @@ export function Editor({ initial, onCancel, onSave }: Props) {
       {(step === 'black' || step === 'white') && (
         <View style={styles.panel}>
           <Text style={styles.hint}>
-            Tap to add or remove {step === 'black' ? 'black' : 'white'} starting stones ({(step === 'black' ? black : white).length} placed).
+            Tap to add or remove {step === 'black' ? 'black' : 'white'} starting stones (
+            {(step === 'black' ? black : white).length} placed).
           </Text>
           <Btn label="Clear" kind="ghost" onPress={() => (step === 'black' ? setBlack([]) : setWhite([]))} />
         </View>
@@ -276,14 +285,19 @@ export function Editor({ initial, onCancel, onSave }: Props) {
       {step === 'tree' && (
         <View style={styles.panel}>
           <Text style={styles.hint}>
-            Tap to play {nextColor === 'B' ? 'Black' : 'White'}. Moves alternate; each node can be marked correct, incorrect or neutral.
+            Tap to play {nextColor === 'B' ? 'Black' : 'White'}. Moves alternate; each node can be marked correct,
+            incorrect or neutral.
           </Text>
           <Text style={styles.crumbs}>{crumbs.length ? crumbs.join('  →  ') : 'Start position'}</Text>
 
           <View style={styles.row}>
             <Btn label="Move" kind={tool === 'move' ? 'solid' : 'ghost'} onPress={() => setTool('move')} />
             <Btn label="Label A/B/C" kind={tool === 'label' ? 'solid' : 'ghost'} onPress={() => setTool('label')} />
-            <Btn label={`Next: ${nextColor === 'B' ? 'White' : 'Black'}`} kind="ghost" onPress={() => setSwap((v) => !v)} />
+            <Btn
+              label={`Next: ${nextColor === 'B' ? 'White' : 'Black'}`}
+              kind="ghost"
+              onPress={() => setSwap((v) => !v)}
+            />
           </View>
           {root.children.length === 0 && cursor === root ? (
             <View style={styles.row}>
@@ -296,7 +310,12 @@ export function Editor({ initial, onCancel, onSave }: Props) {
           {cursor !== root ? (
             <View style={styles.row}>
               {(['correct', 'incorrect', 'neutral'] as Mark[]).map((m) => (
-                <Btn key={m} label={m[0].toUpperCase() + m.slice(1)} kind={markOf(cursor) === m ? 'solid' : 'ghost'} onPress={() => setMark(m)} />
+                <Btn
+                  key={m}
+                  label={m[0].toUpperCase() + m.slice(1)}
+                  kind={markOf(cursor) === m ? 'solid' : 'ghost'}
+                  onPress={() => setMark(m)}
+                />
               ))}
             </View>
           ) : null}
@@ -329,11 +348,22 @@ export function Editor({ initial, onCancel, onSave }: Props) {
           ) : null}
 
           <View style={styles.row}>
-            <Btn label="↑ Parent" kind="ghost" disabled={cursor === root} onPress={() => cursor.parent && setCursor(cursor.parent)} />
+            <Btn
+              label="↑ Parent"
+              kind="ghost"
+              disabled={cursor === root}
+              onPress={() => cursor.parent && setCursor(cursor.parent)}
+            />
             <Btn label="Delete node" kind="ghost" disabled={cursor === root} onPress={deleteNode} />
           </View>
 
-          <TextInput value={title} onChangeText={setTitle} placeholder="Title" placeholderTextColor={theme.muted} style={styles.input} />
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Title"
+            placeholderTextColor={theme.muted}
+            style={styles.input}
+          />
           {error ? <Text style={{ color: '#e5484d' }}>{error}</Text> : null}
           <Btn label="Save puzzle" onPress={save} />
         </View>

@@ -62,7 +62,12 @@ describe('solving a known problem: xxqj #1 (White to play, 6 learner moves)', ()
     const e = new StudyEngine(sgf, 'unguided');
     solveByBook(e);
     const par = e.parMs();
-    const attempts: Attempt[] = Array.from({ length: 5 }, (_, i) => ({ correct: true, ms: par * 0.8, parMs: par, at: i }));
+    const attempts: Attempt[] = Array.from({ length: 5 }, (_, i) => ({
+      correct: true,
+      ms: par * 0.8,
+      parMs: par,
+      at: i,
+    }));
     assert.equal(computeSkill(attempts).level, 'gold');
     assert.equal(computeSkill([{ correct: false, ms: par * 5, parMs: par, at: 0 }]).level, 'red');
   });
@@ -319,7 +324,8 @@ describe('failing a puzzle', () => {
 
   it('keeps only the most recent attempts', () => {
     let progress: ProgressMap = {};
-    for (let i = 0; i < 60; i++) progress = recordAttempt(progress, 'p', { correct: i % 2 === 0, ms: 1, parMs: 1, at: i });
+    for (let i = 0; i < 60; i++)
+      progress = recordAttempt(progress, 'p', { correct: i % 2 === 0, ms: 1, parMs: 1, at: i });
     assert.equal(progress.p.length, 50);
     assert.equal(progress.p[0].at, 10);
   });
@@ -332,7 +338,9 @@ describe('failing a puzzle', () => {
         assert.equal(ok.attempt(1).correct, true);
 
         const bad = new StudyEngine(sgf, 'unguided');
-        const inBook = new Set(bad.root.children.map((c) => nodeMove(c, bad.size)?.point).map((p) => p && `${p.x},${p.y}`));
+        const inBook = new Set(
+          bad.root.children.map((c) => nodeMove(c, bad.size)?.point).map((p) => p && `${p.x},${p.y}`),
+        );
         let probe: { x: number; y: number } | null = null;
         for (let y = 0; y < bad.size && !probe; y++)
           for (let x = 0; x < bad.size && !probe; x++)

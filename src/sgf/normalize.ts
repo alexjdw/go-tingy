@@ -35,7 +35,8 @@ export function prepareSgf(text: string): Prepared {
     const c = root.children[0];
     if (c.props.B || c.props.W) break;
     if (!Object.keys(c.props).every((k) => SETUP_ONLY.has(k))) break;
-    for (const [k, v] of Object.entries(c.props)) root.props[k] = ADDITIVE.has(k) ? [...(root.props[k] ?? []), ...v] : v;
+    for (const [k, v] of Object.entries(c.props))
+      root.props[k] = ADDITIVE.has(k) ? [...(root.props[k] ?? []), ...v] : v;
     root.children = c.children;
     for (const g of c.children) g.parent = root;
     merged++;
@@ -58,7 +59,12 @@ export function prepareSgf(text: string): Prepared {
   const walk = (n: SgfNode) => {
     for (const c of n.children) {
       const m = nodeMove(c, size);
-      if (m?.point && !c.props.BM && !c.props.TE && pointList(c.props.TR, size).some((p) => p.x === m.point!.x && p.y === m.point!.y)) {
+      if (
+        m?.point &&
+        !c.props.BM &&
+        !c.props.TE &&
+        pointList(c.props.TR, size).some((p) => p.x === m.point!.x && p.y === m.point!.y)
+      ) {
         c.props.BM = ['1'];
         wrong++;
       }
@@ -68,7 +74,9 @@ export function prepareSgf(text: string): Prepared {
   walk(root);
   if (wrong) {
     changed = true;
-    notes.push(`${wrong} branch${wrong > 1 ? 'es' : ''} with a triangle on the move treated as wrong (uliGo convention)`);
+    notes.push(
+      `${wrong} branch${wrong > 1 ? 'es' : ''} with a triangle on the move treated as wrong (uliGo convention)`,
+    );
   }
 
   return { sgf: changed ? toSgf(root) : text, notes };

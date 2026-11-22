@@ -12,7 +12,6 @@ import { gzipSync, zipSync, strToU8 } from 'fflate';
 import { test } from 'node:test';
 
 test('core: engine, board, parser, validation, encoding, archives, skill', () => {
-
   // capture
   const e = new StudyEngine(SAMPLES[0].sgf, 'unguided');
   assert.equal(e.play({ x: 5, y: 5 }), 'wrong');
@@ -130,7 +129,10 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   const ascii = (s: string) => [...s].map((c) => c.charCodeAt(0));
   const bytes = (...parts: (string | number[])[]) =>
     Uint8Array.from(parts.flatMap((p) => (typeof p === 'string' ? ascii(p) : p)));
-  const SJIS = [0x93, 0xfa, 0x96, 0x7b, 0x8c, 0xea, 0x82, 0xcc, 0x83, 0x52, 0x83, 0x81, 0x83, 0x93, 0x83, 0x67, 0x82, 0xc5, 0x82, 0xb7]; // 日本語のコメントです
+  const SJIS = [
+    0x93, 0xfa, 0x96, 0x7b, 0x8c, 0xea, 0x82, 0xcc, 0x83, 0x52, 0x83, 0x81, 0x83, 0x93, 0x83, 0x67, 0x82, 0xc5, 0x82,
+    0xb7,
+  ]; // 日本語のコメントです
   const GBK = [0xba, 0xda, 0xcf, 0xc8, 0xd5, 0xe2, 0xb8, 0xf6, 0xbb, 0xee]; // 黑先这个活
   const KR = [0xc7, 0xd1, 0xb1, 0xdb, 0xc7, 0xd1, 0xb1, 0xdb]; // 한글한글
   let r = decodeSgfBytes(new TextEncoder().encode('(;C[黑先活 日本語 한글];B[aa])'));
@@ -200,8 +202,14 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   const one = strToU8('(;SZ[9];B[aa])');
   assert.equal(new TextDecoder().decode(expandFile('a.sgf.gz', gzipSync(one))[0].bytes), '(;SZ[9];B[aa])');
   assert.equal(expandFile('a.sgf.gz', gzipSync(one))[0].name, 'a.sgf');
-  const z = expandFile('pack.zip', zipSync({ 'dir/b.sgf': one, 'c.sgf': one, 'readme.md': one, '__MACOSX/._b.sgf': one }));
-  assert.deepEqual(z.map((f) => f.name), ['c.sgf', 'dir/b.sgf']);
+  const z = expandFile(
+    'pack.zip',
+    zipSync({ 'dir/b.sgf': one, 'c.sgf': one, 'readme.md': one, '__MACOSX/._b.sgf': one }),
+  );
+  assert.deepEqual(
+    z.map((f) => f.name),
+    ['c.sgf', 'dir/b.sgf'],
+  );
   assert.equal(expandFile('plain.sgf', one).length, 1);
   assert.throws(() => expandFile('x.zip', zipSync({ 'b.png': one })), /No .sgf/);
   assert.equal(baseName('dir/xxqj.sgf.gz'), 'xxqj');

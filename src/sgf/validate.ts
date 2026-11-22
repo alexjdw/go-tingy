@@ -65,7 +65,8 @@ export function validateSgf(text: string): Validation {
   const ab = pointList(root.props.AB, size);
   const aw = pointList(root.props.AW, size);
   const abKeys = new Set(ab.map((p) => `${p.x},${p.y}`));
-  for (const p of aw) if (abKeys.has(`${p.x},${p.y}`)) err(`Black and white setup stones overlap at ${coordName(p, size)}`);
+  for (const p of aw)
+    if (abKeys.has(`${p.x},${p.y}`)) err(`Black and white setup stones overlap at ${coordName(p, size)}`);
   if (v.errors.length) return v;
 
   let setup = new Board(size);
@@ -118,7 +119,8 @@ export function validateSgf(text: string): Validation {
   if (v.moves === 0 && !v.errors.length) err('The game tree has no moves');
   if (!v.errors.length) {
     const pl = root.props.PL?.[0];
-    if (pl && pl !== firstMoveColor({ ...root, props: { ...root.props, PL: [] } })) warn('PL (player to move) disagrees with the first move');
+    if (pl && pl !== firstMoveColor({ ...root, props: { ...root.props, PL: [] } }))
+      warn('PL (player to move) disagrees with the first move');
     if (!containsCorrect(root) && !hasWrong(root))
       warn('No branch is marked correct or wrong, so every line will count as correct');
   }

@@ -172,7 +172,14 @@ export class StudyEngine {
       if (r) board = r.board;
       this.placed++;
     }
-    this.snap = { board, node, toPlay: m ? other(m.color) : s.toPlay, last: m?.point ?? null, status: 'playing', message: '' };
+    this.snap = {
+      board,
+      node,
+      toPlay: m ? other(m.color) : s.toPlay,
+      last: m?.point ?? null,
+      status: 'playing',
+      message: '',
+    };
     if (this.planIdx >= this.plan.length) this.enterMark();
     return !!m;
   }

@@ -54,7 +54,18 @@ const starPoints = (size: number): Point[] => {
 
 const ANIM_MS = 200;
 
-export function BoardView({ board, view, width, last, hints, marks = [], markup, onPlay, disabled, animKey = 0 }: Props) {
+export function BoardView({
+  board,
+  view,
+  width,
+  last,
+  hints,
+  marks = [],
+  markup,
+  onPlay,
+  disabled,
+  animKey = 0,
+}: Props) {
   // 0..1 progress of the newest stone's placement animation (1 = idle).
   const [t, setT] = useState(1);
   const prevKey = useRef(animKey);
@@ -105,10 +116,26 @@ export function BoardView({ board, view, width, last, hints, marks = [], markup,
     <Svg width={width} height={height}>
       <Rect x={0} y={0} width={width} height={height} fill="#e8b55a" rx={6} />
       {Array.from({ length: cols }, (_, i) => (
-        <Line key={`v${i}`} x1={px(view.x0 + i)} x2={px(view.x0 + i)} y1={ly0} y2={ly1} stroke="#5a4210" strokeWidth={1} />
+        <Line
+          key={`v${i}`}
+          x1={px(view.x0 + i)}
+          x2={px(view.x0 + i)}
+          y1={ly0}
+          y2={ly1}
+          stroke="#5a4210"
+          strokeWidth={1}
+        />
       ))}
       {Array.from({ length: rows }, (_, i) => (
-        <Line key={`h${i}`} x1={lx0} x2={lx1} y1={py(view.y0 + i)} y2={py(view.y0 + i)} stroke="#5a4210" strokeWidth={1} />
+        <Line
+          key={`h${i}`}
+          x1={lx0}
+          x2={lx1}
+          y1={py(view.y0 + i)}
+          y2={py(view.y0 + i)}
+          stroke="#5a4210"
+          strokeWidth={1}
+        />
       ))}
       {stars.map((p) => (
         <Circle key={`s${p.x},${p.y}`} cx={px(p.x)} cy={py(p.y)} r={cell * 0.1} fill="#5a4210" />
@@ -120,7 +147,14 @@ export function BoardView({ board, view, width, last, hints, marks = [], markup,
         const fresh = last && last.x === p.x && last.y === p.y;
         return (
           <G key={`st${p.x},${p.y}`} opacity={fresh ? ease : 1}>
-            <Circle cx={px(p.x)} cy={py(p.y)} r={fresh ? stoneR * (0.82 + 0.18 * ease) : stoneR} fill={c === 'B' ? '#111' : '#f6f6f2'} stroke={c === 'B' ? '#000' : '#888'} strokeWidth={1} />
+            <Circle
+              cx={px(p.x)}
+              cy={py(p.y)}
+              r={fresh ? stoneR * (0.82 + 0.18 * ease) : stoneR}
+              fill={c === 'B' ? '#111' : '#f6f6f2'}
+              stroke={c === 'B' ? '#000' : '#888'}
+              strokeWidth={1}
+            />
           </G>
         );
       })}
@@ -152,9 +186,28 @@ export function BoardView({ board, view, width, last, hints, marks = [], markup,
         const r = stoneR * 0.55;
         switch (m.kind) {
           case 'TR':
-            return <Polygon key={i} points={`${cx},${cy - r} ${cx - r},${cy + r * 0.8} ${cx + r},${cy + r * 0.8}`} fill="none" stroke={col} strokeWidth={2} />;
+            return (
+              <Polygon
+                key={i}
+                points={`${cx},${cy - r} ${cx - r},${cy + r * 0.8} ${cx + r},${cy + r * 0.8}`}
+                fill="none"
+                stroke={col}
+                strokeWidth={2}
+              />
+            );
           case 'SQ':
-            return <Rect key={i} x={cx - r * 0.8} y={cy - r * 0.8} width={r * 1.6} height={r * 1.6} fill="none" stroke={col} strokeWidth={2} />;
+            return (
+              <Rect
+                key={i}
+                x={cx - r * 0.8}
+                y={cy - r * 0.8}
+                width={r * 1.6}
+                height={r * 1.6}
+                fill="none"
+                stroke={col}
+                strokeWidth={2}
+              />
+            );
           case 'CR':
             return <Circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={col} strokeWidth={2} />;
           case 'MA':
@@ -166,7 +219,15 @@ export function BoardView({ board, view, width, last, hints, marks = [], markup,
             );
           case 'LB':
             return (
-              <SvgText key={i} x={cx} y={cy + cell * 0.18} fontSize={cell * 0.55} fontWeight="bold" fill={col} textAnchor="middle">
+              <SvgText
+                key={i}
+                x={cx}
+                y={cy + cell * 0.18}
+                fontSize={cell * 0.55}
+                fontWeight="bold"
+                fill={col}
+                textAnchor="middle"
+              >
                 {m.label}
               </SvgText>
             );

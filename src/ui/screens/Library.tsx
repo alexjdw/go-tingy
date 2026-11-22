@@ -17,7 +17,17 @@ interface Props {
   onSettings: () => void;
 }
 
-export function Library({ problems, progress, onStart, onImport, onDelete, onDeleteMany, onNew, onEdit, onSettings }: Props) {
+export function Library({
+  problems,
+  progress,
+  onStart,
+  onImport,
+  onDelete,
+  onDeleteMany,
+  onNew,
+  onEdit,
+  onSettings,
+}: Props) {
   const [open, setOpen] = useState<string | null>(null);
   const [dueOnly, setDueOnly] = useState(false);
   const [coll, setColl] = useState<string | null>(null);
@@ -45,9 +55,24 @@ export function Library({ problems, progress, onStart, onImport, onDelete, onDel
       {collections.length ? (
         <View style={{ marginBottom: 12, gap: 8 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            <Btn label="All" kind={activeColl ? 'ghost' : 'solid'} onPress={() => { setColl(null); setConfirm(false); }} />
+            <Btn
+              label="All"
+              kind={activeColl ? 'ghost' : 'solid'}
+              onPress={() => {
+                setColl(null);
+                setConfirm(false);
+              }}
+            />
             {collections.map(([c, n]) => (
-              <Btn key={c} label={`${c} (${n})`} kind={activeColl === c ? 'solid' : 'ghost'} onPress={() => { setColl(c); setConfirm(false); }} />
+              <Btn
+                key={c}
+                label={`${c} (${n})`}
+                kind={activeColl === c ? 'solid' : 'ghost'}
+                onPress={() => {
+                  setColl(c);
+                  setConfirm(false);
+                }}
+              />
             ))}
           </ScrollView>
           {activeColl ? (
@@ -81,7 +106,8 @@ export function Library({ problems, progress, onStart, onImport, onDelete, onDel
                 <View style={{ flex: 1 }}>
                   <Text style={styles.title}>{item.title}</Text>
                   <Text style={styles.sub}>
-                    {item.collection && !activeColl ? `${item.collection} · ` : ''}{skill.level}
+                    {item.collection && !activeColl ? `${item.collection} · ` : ''}
+                    {skill.level}
                     {skill.attempts ? ` · ${Math.round(skill.accuracy * 100)}% accurate (${skill.attempts})` : ''}
                   </Text>
                 </View>

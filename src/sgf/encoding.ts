@@ -120,7 +120,8 @@ function plausibility(text: string, label: string): number {
       bad++; // rare extension / compatibility ideographs: typical of a wrong guess
     } else if (c >= 0x4e00 && c <= 0x9fff) {
       good++;
-      if ((zh && (zh.includes(ch) || ZH_SHARED.includes(ch))) || (!zh && label !== 'euc-kr' && ZH_SHARED.includes(ch))) hits++;
+      if ((zh && (zh.includes(ch) || ZH_SHARED.includes(ch))) || (!zh && label !== 'euc-kr' && ZH_SHARED.includes(ch)))
+        hits++;
     } else if ((c >= 0x3000 && c <= 0x303f) || (c >= 0xff00 && c <= 0xff60) || (c >= 0x2000 && c <= 0x206f)) {
       good += 0.5; // CJK / fullwidth punctuation
     } else if ((c >= 0xff61 && c <= 0xff9f) || (c >= 0xe000 && c <= 0xf8ff) || c === 0xfffd || c < 0xa0) {

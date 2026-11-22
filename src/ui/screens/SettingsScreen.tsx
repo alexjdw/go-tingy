@@ -6,14 +6,12 @@ const ROWS: { key: keyof Settings; title: string; desc: string }[] = [
   {
     key: 'markChoices',
     title: 'Mark the correct choices',
-    desc:
-      'Unguided only. Replays the problem up to a point with several good moves and asks you to mark all of them before you play one. On: always. Random: sometimes. Off: never.',
+    desc: 'Unguided only. Replays the problem up to a point with several good moves and asks you to mark all of them before you play one. On: always. Random: sometimes. Off: never.',
   },
   {
     key: 'flipColors',
     title: 'Flip colors',
-    desc:
-      'Guided and unguided only. Swaps black and white so you learn the shape, not the colors. On: always. Random: each attempt. Off: never.',
+    desc: 'Guided and unguided only. Swaps black and white so you learn the shape, not the colors. On: always. Random: each attempt. Off: never.',
   },
 ];
 

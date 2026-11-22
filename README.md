@@ -42,13 +42,13 @@ See `AGENTS.md` for the project layout and conventions.
 
 Standard SGF, plus a few markers that say which moves are right or wrong:
 
-| Marker | Meaning |
-|--------|---------|
-| `TE[1]`, or a comment starting `Correct` / `Right` | correct branch |
-| `BM[1]`, `DO[1]`, or a comment starting `Wrong` / `Incorrect` | wrong branch |
-| `LB[xx:A]` on a position | lettered multiple-choice point |
-| `PL[B]` / `PL[W]` | who plays first (else the color of the first move) |
-| `C[...]` | explanation shown to the learner |
+| Marker                                                        | Meaning                                            |
+| ------------------------------------------------------------- | -------------------------------------------------- |
+| `TE[1]`, or a comment starting `Correct` / `Right`            | correct branch                                     |
+| `BM[1]`, `DO[1]`, or a comment starting `Wrong` / `Incorrect` | wrong branch                                       |
+| `LB[xx:A]` on a position                                      | lettered multiple-choice point                     |
+| `PL[B]` / `PL[W]`                                             | who plays first (else the color of the first move) |
+| `C[...]`                                                      | explanation shown to the learner                   |
 
 A leaf not marked wrong counts as a success. On import, a triangle on a move's own point (`;B[br]TR[br]`) is treated
 as a wrong branch, which is how the u-go.net uliGo problem files mark refutations.

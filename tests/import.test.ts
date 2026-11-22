@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { gzipSync, strToU8, zipSync } from 'fflate';
-import { addToBatch, normalize, readPickedFile, selectValid, summarize, toProblems, toggleEntry } from '../src/sgf/importer';
+import {
+  addToBatch,
+  normalize,
+  readPickedFile,
+  selectValid,
+  summarize,
+  toProblems,
+  toggleEntry,
+} from '../src/sgf/importer';
 import type { BatchItem, Entry } from '../src/sgf/importer';
 import { fixtureBytes, fixtureText } from './helpers';
 import { splitCollection } from '../src/sgf/parser';
@@ -43,7 +51,9 @@ describe('Import SGF → "Choose files"', () => {
     const entries = addToBatch([], none, pick('qjzm-a.sgf.gz'));
     assert.deepEqual(summarize(entries), { total: 85, invalid: 0, duplicates: 0, selected: 85 });
     assert.ok(entries.every((e) => e.v.warnings.some((w) => /setup stones from a later node/.test(w))));
-    const withTriangles = entries.filter((e) => e.v.warnings.some((w) => /triangle on the move treated as wrong/.test(w)));
+    const withTriangles = entries.filter((e) =>
+      e.v.warnings.some((w) => /triangle on the move treated as wrong/.test(w)),
+    );
     assert.equal(withTriangles.length, 45, '24 + 21 puzzles carry triangle-marked wrong branches');
   });
 
@@ -102,7 +112,16 @@ describe('Import SGF → "Choose files"', () => {
     // GBK bytes for 黑先这个活 inside a comment, no CA declared
     const gbk = Uint8Array.from([
       ...Buffer.from('(;SZ[9]AB[aa]C['),
-      0xba, 0xda, 0xcf, 0xc8, 0xd5, 0xe2, 0xb8, 0xf6, 0xbb, 0xee,
+      0xba,
+      0xda,
+      0xcf,
+      0xc8,
+      0xd5,
+      0xe2,
+      0xb8,
+      0xf6,
+      0xbb,
+      0xee,
       ...Buffer.from('];B[bb]TE[1])'),
     ]);
     const [item] = readPickedFile('legacy.sgf', gbk);
