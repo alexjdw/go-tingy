@@ -61,6 +61,7 @@ export function Browse({
   return (
     <>
       <PuzzleGrid
+        key={active ?? 'all'}
         data={shown}
         keyExtractor={(p) => p.id}
         header={header}

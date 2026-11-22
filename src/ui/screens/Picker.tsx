@@ -32,6 +32,7 @@ export function Picker({ category, problems, progress, mastery, onToggle, onBack
 
   return (
     <PuzzleGrid
+      key={active ?? 'all'}
       data={shown}
       keyExtractor={(p) => p.id}
       header={header}
