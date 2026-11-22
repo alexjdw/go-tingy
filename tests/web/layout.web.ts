@@ -7,35 +7,15 @@
  * (set CHROME_PATH if it isn't in a standard place) and takes about a minute because it builds the app.
  */
 import assert from 'node:assert/strict';
-import { execSync } from 'node:child_process';
 import fs from 'node:fs';
-import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { launch, type Browser } from 'puppeteer-core';
+import { findChrome } from '../../scripts/lib/chrome';
+import { buildWeb, clickText, serveDir, sleep } from '../../scripts/lib/web';
 
-const CHROME_CANDIDATES = [
-  process.env.CHROME_PATH,
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
-];
-const chromePath = CHROME_CANDIDATES.find((p) => p && fs.existsSync(p));
-
-const TYPES: Record<string, string> = {
-  '.html': 'text/html',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.png': 'image/png',
-  '.ico': 'image/x-icon',
-  '.wav': 'audio/wav',
-  '.json': 'application/json',
-};
+const chromePath = findChrome();
 
 /** A big library, as after importing two collections, with some puzzles in each study category. */
 const LIBRARY = Array.from({ length: 300 }, (_, i) => ({
@@ -97,17 +77,6 @@ const FIND_CLIPPED = `(() => {
   return out.slice(0, 8);
 })()`;
 
-const CLICK_TEXT = `((t) => {
-  const els = [...document.querySelectorAll('div, span')].filter((e) => e.children.length === 0 && e.innerText && e.innerText.trim() === t);
-  for (const e of els) {
-    let n = e;
-    while (n && n.getAttribute && n.getAttribute('role') !== 'button' && n.tabIndex !== 0) n = n.parentElement;
-    (n || e).click();
-    return true;
-  }
-  return false;
-})`;
-
 // [label, text to click first]. Each screen is reached the way a person would.
 const STEPS: [string, string | null][] = [
   ['library', null],
@@ -133,34 +102,25 @@ const VIEWPORTS: [string, number, number][] = [
   ['phone', 390, 844],
   ['desktop', 1280, 800],
   ['short desktop', 1000, 500],
+  ['iPad', 768, 1024],
+  ['iPad Pro 13', 1032, 1376],
 ];
 
 describe('web layout', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
   let outDir = '';
-  let server: http.Server;
-  let url = '';
+  let site: { url: string; close: () => void };
   let browser: Browser;
 
   before(async () => {
     outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-web-'));
-    execSync(`npx expo export --platform web --output-dir "${outDir}"`, { cwd: process.cwd(), stdio: 'pipe' });
-    server = http.createServer((req, res) => {
-      let p = decodeURIComponent((req.url ?? '/').split('?')[0]);
-      if (p === '/') p = '/index.html';
-      const f = path.join(outDir, p);
-      const ok = f.startsWith(outDir) && fs.existsSync(f) && !fs.statSync(f).isDirectory();
-      const file = ok ? f : path.join(outDir, 'index.html');
-      res.writeHead(200, { 'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream' });
-      res.end(fs.readFileSync(file));
-    });
-    await new Promise<void>((r) => server.listen(0, r));
-    url = `http://localhost:${(server.address() as { port: number }).port}/`;
+    buildWeb(outDir);
+    site = await serveDir(outDir);
     browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
   });
 
   after(async () => {
     await browser?.close();
-    server?.close();
+    site?.close();
     if (outDir) fs.rmSync(outDir, { recursive: true, force: true });
   });
 
@@ -178,14 +138,13 @@ describe('web layout', { skip: chromePath ? false : 'Chrome not found (set CHROM
         LIBRARY,
         MASTERY_STATE,
       );
-      await page.goto(url, { waitUntil: 'networkidle0' });
-      await new Promise((r) => setTimeout(r, 800));
+      await page.goto(site.url, { waitUntil: 'networkidle0' });
+      await sleep(800);
 
       const problems: string[] = [];
       for (const [label, click] of STEPS) {
         if (click) {
-          const ok = await page.evaluate(`${CLICK_TEXT}(${JSON.stringify(click)})`);
-          await new Promise((r) => setTimeout(r, 500));
+          const ok = await clickText(page, click);
           if (!ok) {
             problems.push(`${label}: could not find "${click}" to click`);
             continue;

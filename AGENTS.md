@@ -48,6 +48,8 @@ src/ui/screens/           Library, Study, Editor, ImportScreen, SettingsScreen
 src/ui/components/        Board (SVG), theme + Btn
 src/ui/zoom.ts, sound.ts  zoom hook, stone sound
 tests/                    node:test suites + tests/fixtures (real SGF collections)
+store/                    store listing text, privacy policy/answers, graphics, publishing checklist
+scripts/                  asset generation (icons, screenshots) and the store-readiness checks
 ```
 
 Keep everything under `src/sgf`, `src/go`, `src/study` and `src/progress` free of React and React Native imports so it

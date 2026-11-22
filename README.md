@@ -38,6 +38,9 @@ npm run lint         # ESLint            (npm run lint:fix applies safe fixes)
 npm run format       # Prettier          (npm run format:check just reports)
 npm test             # tests only (node:test, no device needed)
 npm run test:web     # builds the web app and checks every screen for covered/clipped buttons in headless Chrome
+npm run check:store  # is the repo ready for the App Store / Google Play? (see store/CHECKLIST.md)
+npm run assets:icons         # regenerate the icons and store graphics
+npm run assets:screenshots   # draft store screenshots from the web build
 ```
 
 Linting is ESLint's recommended rules + typescript-eslint's recommended rules + `eslint-config-expo` (React, hooks,
