@@ -27,7 +27,7 @@ import {
   toSgf,
 } from '../../sgf/parser';
 import { fullViewport } from '../../go/viewport';
-import { resizeSetup, writeBoardProps } from '../../sgf/editing';
+import { BOARD_PRESETS, resizeSetup, writeBoardProps } from '../../sgf/editing';
 import { BoardView } from '../components/Board';
 import { Btn, theme } from '../components/theme';
 import { useZoom, zoomedTap } from '../zoom';
@@ -143,10 +143,10 @@ export function Editor({ initial, onCancel, onSave }: Props) {
     if (dimOk(n)) resizeTo({ ...dims, [axis]: n });
   };
 
-  const choosePreset = (n: number) => {
-    setColsText(String(n));
-    setRowsText(String(n));
-    resizeTo({ cols: n, rows: n });
+  const choosePreset = (d: Dims) => {
+    setColsText(String(d.cols));
+    setRowsText(String(d.rows));
+    resizeTo(d);
   };
 
   const toggleEdge = (edge: Edge) => setOpen((o) => ({ ...o, [edge]: !o[edge] }));
@@ -287,15 +287,15 @@ export function Editor({ initial, onCancel, onSave }: Props) {
       {step === 'size' && (
         <View style={styles.panel}>
           <Text style={styles.hint}>
-            Board: {dims.cols}×{dims.rows}. Pick a square size, or set the width and height for a rectangle.
+            Board: {dims.cols}×{dims.rows}. Pick a size, or set the width and height yourself.
           </Text>
           <View style={styles.row}>
-            {[9, 13, 19].map((n) => (
+            {BOARD_PRESETS.map((d) => (
               <Btn
-                key={n}
-                label={`${n}×${n}`}
-                kind={dims.cols === n && dims.rows === n ? 'solid' : 'ghost'}
-                onPress={() => choosePreset(n)}
+                key={`${d.cols}x${d.rows}`}
+                label={`${d.cols}×${d.rows}`}
+                kind={dims.cols === d.cols && dims.rows === d.rows ? 'solid' : 'ghost'}
+                onPress={() => choosePreset(d)}
               />
             ))}
           </View>

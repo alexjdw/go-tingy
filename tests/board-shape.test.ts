@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Board } from '../src/go/board';
 import { computeViewport, fullViewport, gridGeometry, initialViewport } from '../src/go/viewport';
-import { resizeSetup, writeBoardProps } from '../src/sgf/editing';
+import { BOARD_PRESETS, resizeSetup, writeBoardProps } from '../src/sgf/editing';
 import { addToBatch } from '../src/sgf/importer';
 import {
   NO_OPEN_EDGES,
@@ -382,5 +382,36 @@ describe('drawing: real borders vs open edges', () => {
     assert.equal(wide.width, W);
     // a rectangle's picture keeps the board's aspect ratio (cells stay square)
     assert.ok(Math.abs(wide.height / wide.cell - (4 + 1.6)) < 1e-9);
+  });
+});
+
+describe('editor quick-pick sizes', () => {
+  it('offers exactly the requested sizes, in order', () => {
+    assert.deepEqual(
+      BOARD_PRESETS.map((d) => `${d.cols}x${d.rows}`),
+      ['19x19', '19x10', '13x13', '13x7', '9x9', '7x7', '7x5'],
+    );
+  });
+
+  it('every preset is a valid size that round-trips through SGF and has no duplicates', () => {
+    const seen = new Set<string>();
+    for (const d of BOARD_PRESETS) {
+      assert.deepEqual(parseSize(formatSize(d)), d);
+      assert.ok(!seen.has(formatSize(d)), `duplicate ${formatSize(d)}`);
+      seen.add(formatSize(d));
+    }
+  });
+
+  it('a puzzle on each preset validates, and resizing between them keeps what fits', () => {
+    for (const d of BOARD_PRESETS) {
+      const sgf = `(;SZ[${formatSize(d)}]AB[aa]AW[ba];B[ab]TE[1])`;
+      assert.deepEqual(validateSgf(sgf).errors, [], formatSize(d));
+      assert.deepEqual(new StudyEngine(sgf, 'unguided').dims, d);
+    }
+    const root: SgfNode = { props: {}, children: [], parent: null };
+    const r = resizeSetup([pt('aa'), pt('ra')], [pt('aj')], root, { cols: 19, rows: 19 }, { cols: 19, rows: 10 });
+    assert.equal(r.dropped, 0, '19x10 still holds column 19 and row 10');
+    const small = resizeSetup([pt('aa'), pt('ra')], [pt('aj')], root, { cols: 19, rows: 19 }, { cols: 7, rows: 5 });
+    assert.deepEqual([small.black.length, small.white.length, small.dropped], [1, 0, 2]);
   });
 });

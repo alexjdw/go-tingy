@@ -1,5 +1,16 @@
 import { type Dims, type OpenEdges, type Point, type SgfNode, formatOpenEdges, formatSize, nodeMove } from './parser';
 
+/** Quick-pick board sizes in the editor: full boards, then the usual local-problem shapes. */
+export const BOARD_PRESETS: readonly Dims[] = [
+  { cols: 19, rows: 19 },
+  { cols: 19, rows: 10 },
+  { cols: 13, rows: 13 },
+  { cols: 13, rows: 7 },
+  { cols: 9, rows: 9 },
+  { cols: 7, rows: 7 },
+  { cols: 7, rows: 5 },
+];
+
 export interface ResizeResult {
   black: Point[];
   white: Point[];
