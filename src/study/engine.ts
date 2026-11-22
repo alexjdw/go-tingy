@@ -1,4 +1,5 @@
-import { Board } from '../go/board';
+import { type Board } from '../go/board';
+import { initialBoard } from '../go/setup';
 import { solutionKids } from './lines';
 import type { Attempt } from '../progress/skill';
 import type { Tri } from '../storage/settings';
@@ -138,10 +139,7 @@ export class StudyEngine {
   }
 
   private initial(): Snapshot {
-    let board = new Board(this.dims.cols, this.dims.rows);
-    for (const p of pointList(this.root.props.AE, this.dims)) board = board.withStone(p, null);
-    for (const p of pointList(this.root.props.AB, this.dims)) board = board.withStone(p, 'B');
-    for (const p of pointList(this.root.props.AW, this.dims)) board = board.withStone(p, 'W');
+    const board = initialBoard(this.root, this.dims);
     return { board, node: this.root, toPlay: this.playerColor, last: null, status: 'playing', message: '' };
   }
 

@@ -85,3 +85,19 @@ export function linesOf(sgf: string): LineSet {
  * mastery steps. 0 for a puzzle with no solution line.
  */
 export const learnerDepth = (sgf: string) => linesOf(sgf).maxLearnerMoves;
+
+const depthCache = new Map<string, number>();
+
+/** `learnerDepth` remembered per SGF (and 0 for one that cannot be read): tiles ask for it on every redraw. */
+export function cachedLearnerDepth(sgf: string): number {
+  let d = depthCache.get(sgf);
+  if (d === undefined) {
+    try {
+      d = learnerDepth(sgf);
+    } catch {
+      d = 0;
+    }
+    depthCache.set(sgf, d);
+  }
+  return d;
+}
