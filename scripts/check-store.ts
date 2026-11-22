@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { checkStoreReadiness } from './store/checks';
+import { collectInstalledReasons } from './store/privacy';
 
 const root = process.cwd();
 const json = (rel: string) => {
@@ -18,6 +19,7 @@ const findings = checkStoreReadiness({
   easJson: json('eas.json'),
   storeConfig: json('store.config.json'),
   playListing: json('store/play-listing.json'),
+  requiredPrivacy: collectInstalledReasons().reasons,
   readFile: (rel) => {
     try {
       return fs.readFileSync(path.join(root, rel));

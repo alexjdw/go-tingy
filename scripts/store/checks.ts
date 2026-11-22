@@ -3,6 +3,8 @@
  * be verified from the repo. Pure functions; `npm run check:store` runs them against the real project.
  */
 
+import { declaredReasons, missingReasons, type Reasons } from './privacy';
+
 export type Level = 'error' | 'warn';
 export interface Finding {
   level: Level;
@@ -44,6 +46,8 @@ export interface Inputs {
   easJson: any | null;
   storeConfig: any | null;
   playListing: any | null;
+  /** "required reason" API declarations shipped by the installed native packages (see privacy.ts); omit to skip */
+  requiredPrivacy?: Reasons;
   /** read a file relative to the project root, or null if it doesn't exist */
   readFile: (rel: string) => Uint8Array | null;
 }
@@ -157,6 +161,16 @@ export function checkStoreReadiness(i: Inputs): Finding[] {
       'ipad-orientation',
       'An iPad app locked to portrait must set ios.requireFullScreen to true, or App Store Connect rejects the build.',
     );
+
+  // --- Apple privacy manifest ---
+  if (i.requiredPrivacy) {
+    const missing = missingReasons(i.requiredPrivacy, declaredReasons(i.appJson));
+    if (missing.length)
+      err(
+        'privacy-manifest',
+        `app.json ios.privacyManifests is missing reasons that installed native packages declare (${missing.join(', ')}). Apple does not reliably read manifests inside static pods. Run: npm run privacy:sync`,
+      );
+  }
 
   // --- legal ---
   const license = i.readFile('LICENSE');

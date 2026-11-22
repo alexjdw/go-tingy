@@ -4,6 +4,13 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import { PNG } from 'pngjs';
 import { type Inputs, checkStoreReadiness, pngInfo } from '../scripts/store/checks';
+import {
+  collectInstalledReasons,
+  declaredReasons,
+  missingReasons,
+  parsePrivacyInfo,
+  unionReasons,
+} from '../scripts/store/privacy';
 
 const png = (w: number, h: number, alpha: boolean) => {
   const img = new PNG({ width: w, height: h });
@@ -90,6 +97,40 @@ describe('store readiness: PNG reader', () => {
   it('rejects bytes that are not a PNG', () => {
     assert.equal(pngInfo(new Uint8Array(100)), null);
     assert.equal(pngInfo(new TextEncoder().encode('not a png at all, definitely not one')), null);
+  });
+});
+
+describe('privacy manifest helpers', () => {
+  const xml = (type: string, reasons: string[]) =>
+    `<dict><key>NSPrivacyAccessedAPIType</key><string>${type}</string><key>NSPrivacyAccessedAPITypeReasons</key><array>${reasons.map((r) => `<string>${r}</string>`).join('')}</array></dict>`;
+
+  it('parses declarations out of a PrivacyInfo.xcprivacy', () => {
+    const doc = `<plist><dict><key>NSPrivacyAccessedAPITypes</key><array>${xml('CatA', ['A1', 'A2'])}${xml('CatB', ['B1'])}</array>
+      <key>NSPrivacyTracking</key><false/></dict></plist>`;
+    assert.deepEqual(parsePrivacyInfo(doc), { CatA: ['A1', 'A2'], CatB: ['B1'] });
+    assert.deepEqual(parsePrivacyInfo('<plist><dict><key>NSPrivacyTracking</key><false/></dict></plist>'), {});
+  });
+
+  it('merges declarations from several packages, sorted and without duplicates', () => {
+    assert.deepEqual(unionReasons([{ B: ['2', '1'], A: ['x'] }, { A: ['x', 'y'] }, {}]), {
+      A: ['x', 'y'],
+      B: ['1', '2'],
+    });
+  });
+
+  it('reads the declarations from app.json and reports what is missing', () => {
+    const app = {
+      expo: {
+        ios: {
+          privacyManifests: {
+            NSPrivacyAccessedAPITypes: [{ NSPrivacyAccessedAPIType: 'A', NSPrivacyAccessedAPITypeReasons: ['1'] }],
+          },
+        },
+      },
+    };
+    assert.deepEqual(declaredReasons(app), { A: ['1'] });
+    assert.deepEqual(missingReasons({ A: ['1', '2'], B: ['9'] }, declaredReasons(app)), ['A: 2', 'B: 9']);
+    assert.deepEqual(declaredReasons({}), {});
   });
 });
 
@@ -219,6 +260,35 @@ describe('store readiness: each rule', () => {
     assert.deepEqual(ids(good()), [], 'no LICENSE file at all is not flagged');
   });
 
+  it('requires the app privacy manifest to declare every reason the native packages declare', () => {
+    const required = {
+      NSPrivacyAccessedAPICategoryUserDefaults: ['CA92.1'],
+      NSPrivacyAccessedAPICategoryFileTimestamp: ['C617.1', '3B52.1'],
+    };
+    const declared = (types: unknown[]) => (i: Inputs) => {
+      i.appJson.expo.ios.privacyManifests = { NSPrivacyAccessedAPITypes: types };
+      i.requiredPrivacy = required;
+    };
+    assert.deepEqual(ids(edit(declared([]))), ['privacy-manifest']);
+    const all = [
+      {
+        NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults',
+        NSPrivacyAccessedAPITypeReasons: ['CA92.1'],
+      },
+      {
+        NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryFileTimestamp',
+        NSPrivacyAccessedAPITypeReasons: ['C617.1', '3B52.1', '0A2A.1'],
+      },
+    ];
+    assert.deepEqual(ids(edit(declared(all))), [], 'extra reasons are fine');
+    assert.deepEqual(ids(edit(declared(all.slice(0, 1)))), ['privacy-manifest']);
+    const partial = [all[0], { ...all[1], NSPrivacyAccessedAPITypeReasons: ['C617.1'] }];
+    const f = checkStoreReadiness(edit(declared(partial))).find((x) => x.id === 'privacy-manifest')!;
+    assert.match(f.message, /FileTimestamp: 3B52\.1/);
+    assert.doesNotMatch(f.message, /UserDefaults/);
+    assert.deepEqual(ids(good()), [], 'skipped when no requirement is supplied');
+  });
+
   it('checks EAS build config', () => {
     assert.deepEqual(ids(edit((i) => (i.easJson = null))), ['eas-json']);
     assert.deepEqual(ids(edit((i) => delete i.easJson.build.production)), ['eas-production', 'eas-autoincrement']);
@@ -305,6 +375,14 @@ describe('store readiness: the real repository', () => {
       checkStoreReadiness(real()).filter((f) => f.level === 'warn'),
       [],
     );
+  });
+
+  it('declares every required-reason API the installed native packages declare (Apple privacy manifest)', () => {
+    const { reasons, files } = collectInstalledReasons();
+    assert.ok(files.length >= 5, 'found the packages’ PrivacyInfo.xcprivacy files');
+    assert.deepEqual(missingReasons(reasons, declaredReasons(real().appJson)), []);
+    assert.equal(real().appJson.expo.ios.privacyManifests.NSPrivacyTracking, false);
+    assert.deepEqual(real().appJson.expo.ios.privacyManifests.NSPrivacyCollectedDataTypes, []);
   });
 
   it('never commits an invented identifier', () => {

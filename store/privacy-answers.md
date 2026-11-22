@@ -11,7 +11,9 @@ Facts these answers rest on (verified in the repo):
 - Android permissions in the generated manifest: `INTERNET` and `MODIFY_AUDIO_SETTINGS` only. Microphone,
   storage, overlay and vibration are blocked or disabled. (See `app.json` and `npm run check:store`.)
 - iOS: no usage-description strings (no microphone, camera, photos, location, tracking). No background modes.
-  `ITSAppUsesNonExemptEncryption` is `false`.
+  `ITSAppUsesNonExemptEncryption` is `false`. The app's privacy manifest declares no tracking, no collected data,
+  and the "required reason" API uses of its native packages. All checked against a generated iOS project by
+  `npm run test:native`.
 - All data (puzzles, progress, settings, backups) lives in local storage on the device.
 
 ## Apple: App Privacy ("nutrition label")
