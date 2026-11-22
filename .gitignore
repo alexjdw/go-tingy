@@ -46,3 +46,6 @@ yarn-error.*
 .vscode/
 *.log
 coverage/
+
+# generated store screenshots (npm run assets:screenshots)
+store/screenshots/
