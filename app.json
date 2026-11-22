@@ -34,7 +34,8 @@
             "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
           }
         ]
-      }
+      },
+      "bundleIdentifier": "com.weiqioverstudy.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -50,7 +51,8 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.VIBRATE"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.weiqioverstudy.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

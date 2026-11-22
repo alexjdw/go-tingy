@@ -20,9 +20,8 @@ This list is what is left, in order. Store policies change often: where a step d
 
 ## 1. Decide and fill in (blocks `npm run check:store`)
 
-1. **App ID.** A permanent reverse-domain name you control, e.g. `com.yourname.goflashcards`. Set both
-   `expo.ios.bundleIdentifier` and `expo.android.package` in `app.json`. It cannot be changed once the app exists
-   in a store.
+1. ~~**App ID.**~~ **Done:** `com.weiqioverstudy.app` for both `expo.ios.bundleIdentifier` and
+   `expo.android.package`. It cannot be changed once the app exists in a store.
    - Do not run `npx expo prebuild` and commit the result: it writes a made-up `com.anonymous...` package into
      `app.json`. A test fails if that happens.
 2. **Owner details** in `store.config.json`: `copyright` (e.g. `2026 Your Name`), the review contact (name, email,
