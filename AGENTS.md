@@ -15,13 +15,14 @@ Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
 ```bash
 npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
 npx expo start              # start the dev server
-npx expo lint               # lint (ESLint is not set up in this repo yet)
+npm run lint                # ESLint (flat config in eslint.config.js); `npx expo lint` also works
+npm run format              # Prettier
 npx tsc --noEmit            # typecheck
 npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
 
-Run `npm run check` (typecheck + tests) before declaring any task done.
+Run `npm run check` (typecheck + lint + format check + tests) before declaring any task done.
 
 ## Navigation
 
@@ -50,7 +51,7 @@ stays testable in plain Node.
 
 ## Testing
 
-`npm run check` runs the typecheck and the tests (`node:test` via `tsx`, no device needed). `tests/fixtures/` holds real
+`npm run check` runs the typecheck, ESLint, the Prettier check and the tests (`node:test` via `tsx`, no device needed). `tests/fixtures/` holds real
 puzzle collections; see its README for provenance and licensing. Behavior changes need a test; wrong-answer and
 failed-attempt behavior in particular is covered in `tests/solve.test.ts`.
 

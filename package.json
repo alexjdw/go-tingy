@@ -6,6 +6,7 @@
     "@expo/metro-runtime": "~58.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@zxing/text-encoding": "^0.9.0",
+    "eslint-config-expo": "~58.0.4",
     "expo": "~58.0.26",
     "expo-audio": "~58.0.12",
     "expo-document-picker": "~58.0.5",
@@ -18,10 +19,16 @@
     "react-native-web": "^0.21.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/node": "^26.6.6",
     "@types/react": "~19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1",
     "tsx": "^4.23.15",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.73.0"
   },
   "scripts": {
     "start": "expo start",
@@ -30,7 +37,11 @@
     "web": "expo start --web",
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "private": true,
   "description": "Go (baduk/weiqi) flashcards: tsumego and joseki training from SGF, for iOS, Android and web."

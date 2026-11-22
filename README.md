@@ -26,9 +26,15 @@ npx expo start       # scan the QR code with Expo Go (iOS / Android)
 ## Develop
 
 ```bash
-npm run check        # typecheck + tests
+npm run check        # typecheck + lint + format check + tests (run this before committing)
+npm run lint         # ESLint            (npm run lint:fix applies safe fixes)
+npm run format       # Prettier          (npm run format:check just reports)
 npm test             # tests only (node:test, no device needed)
 ```
+
+Linting is ESLint's recommended rules + typescript-eslint's recommended rules + `eslint-config-expo` (React, hooks,
+imports), with a few type-aware checks (floating/misused promises). Prettier owns formatting; the two don't overlap.
+Config: `eslint.config.js`, `.prettierrc.json`.
 
 See `AGENTS.md` for the project layout and conventions.
 
