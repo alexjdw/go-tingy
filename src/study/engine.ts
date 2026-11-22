@@ -1,4 +1,5 @@
 import { Board } from '../go/board';
+import { solutionKids } from './lines';
 import type { Attempt } from '../progress/skill';
 import type { Tri } from '../storage/settings';
 import {
@@ -29,6 +30,16 @@ export interface EngineOptions {
   markChoices?: Tri;
   flipColors?: Tri;
   rng?: () => number;
+  /**
+   * Guided mastery: before the player moves, play this many of the learner's moves (and the opponent's
+   * replies) along a correct line. The rest of the puzzle is solved normally. Such a run is not tracked as an
+   * ordinary unguided attempt.
+   */
+  freeMoves?: number;
+  /** Mastery runs: choose the opponent's reply from the candidates (instead of at random). */
+  chooseReply?: (node: SgfNode, candidates: SgfNode[]) => SgfNode | null;
+  /** Mastery runs: refuse a correct move that leads only to lines already solved. */
+  acceptMove?: (child: SgfNode) => boolean;
 }
 
 export interface Markup {
@@ -65,8 +76,11 @@ export class StudyEngine {
   /** Count of stones placed; bumps on every placement (drives the stone animation). */
   placed = 0;
   hasMarkPhase = false;
+  /** Learner moves actually played for free at the start (guided mastery). */
+  freeMovesPlayed = 0;
 
   private history: Snapshot[] = [];
+  private afterReplay: 'mark' | 'play' = 'mark';
   private plan: SgfNode[] = [];
   private planIdx = 0;
   private anyExplicit = false;
@@ -101,8 +115,18 @@ export class StudyEngine {
     this.planIdx = 0;
     this.phase = 'play';
     this.hasMarkPhase = false;
+    this.freeMovesPlayed = 0;
+    this.afterReplay = 'mark';
     this.snap = this.initial();
-    if (this.mode === 'unguided' && this.resolve(this.opts.markChoices)) {
+    const free = this.opts.freeMoves ?? 0;
+    if (this.mode === 'unguided' && free > 0) {
+      const plan = this.freePlan(free);
+      if (plan.length) {
+        this.plan = plan;
+        this.phase = 'replay';
+        this.afterReplay = 'play';
+      }
+    } else if (this.mode === 'unguided' && this.resolve(this.opts.markChoices)) {
       const path = this.findChoicePath();
       if (path) {
         this.plan = path;
@@ -186,8 +210,43 @@ export class StudyEngine {
       status: 'playing',
       message: '',
     };
-    if (this.planIdx >= this.plan.length) this.enterMark();
+    if (this.planIdx >= this.plan.length) {
+      if (this.afterReplay === 'mark') this.enterMark();
+      else this.enterPlay();
+    }
     return !!m;
+  }
+
+  private enterPlay() {
+    this.phase = 'play';
+    this.snap = { ...this.snap, message: '' };
+  }
+
+  /**
+   * A random correct line, cut after the `k`th learner move and the opponent's reply to it, leaving at least
+   * one learner move for the player. Shorter lines give fewer free moves.
+   */
+  private freePlan(k: number): SgfNode[] {
+    const line: SgfNode[] = [];
+    for (let n = this.root; ;) {
+      const kids = solutionKids(n, this.dims, this.playerColor);
+      if (!kids.length) break;
+      n = kids[Math.floor(this.rng() * kids.length)];
+      line.push(n);
+    }
+    const isLearner = (c: SgfNode) => nodeMove(c, this.dims)?.color === this.playerColor;
+    const free = Math.min(k, line.filter(isLearner).length - 1);
+    if (free <= 0) return [];
+    let end = 0;
+    for (let i = 0, seen = 0; i < line.length; i++) {
+      if (isLearner(line[i]) && ++seen === free) {
+        end = i + 1;
+        break;
+      }
+    }
+    if (end < line.length && !isLearner(line[end])) end++; // the reply, so it is the learner's turn
+    this.freeMovesPlayed = free;
+    return line.slice(0, end);
   }
 
   private enterMark() {
@@ -295,11 +354,16 @@ export class StudyEngine {
   private pickReply(node: SgfNode): SgfNode | null {
     const good = node.children.filter((c) => !leadsOnlyToFailure(c));
     const pool = good.length ? good : node.children;
-    return pool.length ? pool[Math.floor(this.rng() * pool.length)] : null;
+    if (!pool.length) return null;
+    if (this.opts.chooseReply) return this.opts.chooseReply(node, pool);
+    return pool[Math.floor(this.rng() * pool.length)];
   }
 
-  /** Play at a point. Returns 'illegal' | 'wrong' | 'ok' | 'solved'. */
-  play(p: Point): 'illegal' | 'wrong' | 'ok' | 'solved' {
+  /**
+   * Play at a point. Returns 'illegal' | 'wrong' | 'ok' | 'solved', or 'redundant' when a mastery run
+   * refuses a correct move that only leads to lines already solved (no mistake, nothing played).
+   */
+  play(p: Point): 'illegal' | 'wrong' | 'ok' | 'solved' | 'redundant' {
     const s = this.snap;
     if (s.status === 'solved' || this.phase !== 'play') return 'illegal';
     if (this.mode === 'explore') return this.playExplore(p);
@@ -324,6 +388,10 @@ export class StudyEngine {
       const why = match ? comment(match) : '';
       this.snap = { ...s, message: why || 'Not the move — try again.' };
       return 'wrong';
+    }
+    if (this.opts.acceptMove && !this.opts.acceptMove(match)) {
+      this.snap = { ...s, message: 'Correct, but you already solved that line. Find another correct move.' };
+      return 'redundant';
     }
     const opp = other(s.toPlay);
     let board = res.board;
@@ -377,9 +445,12 @@ export class StudyEngine {
     this.commit({ ...s, node: null, toPlay: other(s.toPlay), last: null, message: '' });
   }
 
-  /** Only unguided attempts count toward skill; guided and explore are free practice. */
+  /**
+   * Only plain unguided attempts count toward skill; guided and explore are free practice, and guided mastery
+   * runs (which set `freeMoves`) are scored by the mastery system instead.
+   */
   get tracksSkill() {
-    return this.mode === 'unguided';
+    return this.mode === 'unguided' && this.opts.freeMoves === undefined;
   }
 
   /**
