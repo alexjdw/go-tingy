@@ -49,6 +49,7 @@ src/study/lines.ts        a puzzle's solution lines (root-to-leaf paths) and the
 src/study/mastery.ts      MasteryRun: all lines in random order, clock, score                    (pure TS)
 src/study/session.ts      SessionQueue: a spaced-repetition session, missed puzzles retried once (pure TS)
 src/nav/stack.ts          the navigation stack                                                   (pure TS)
+src/nav/history.ts        browser Back/Forward <-> stack depth (web history entries)             (pure TS)
 src/progress/skill.ts     attempt history -> skill level, bar colors, spaced-repetition due dates            (pure TS)
 src/progress/mastery.ts   categories, guided stages, mastery score/levels, daily limit, backups  (pure TS)
 src/progress/stats.ts     the stats a tile shows on hover / long press, all modes                (pure TS)
@@ -81,6 +82,12 @@ Joseki mode is a per-puzzle toggle, remembered in `joseki.v1`, set from Study or
 every mode (Browse, sessions, guided and mastery runs, not free exploration): the puzzle is played from the first side,
 then from the second (`StudyEngine` option `side: 'second'` plays move 1 for you, with the same colors). A session or
 guided run counts both sides as one attempt; a mastery run needs every line from both sides.
+
+## Browser history
+
+On the web each screen is a history entry (`{depth}` state, kept in step in `App.tsx`): in-app Back calls `history.back()`, and the
+browser's Back/Forward move along the stack (`toDepth`, screens left behind are kept for Forward until something new
+is opened). Android uses the hardware back handler. `tests/web/history.web.ts` covers it.
 
 ## Guided runs
 

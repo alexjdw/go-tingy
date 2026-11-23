@@ -20,6 +20,7 @@ import {
 } from './progress/mastery';
 import { type RunKind, masteryAction } from './progress/practice';
 import { type Attempt, type ProgressMap, recordAttempt } from './progress/skill';
+import { depthOf, toDepth } from './nav/history';
 import { canGoBack, current, pop, push, replace, reset, type Stack } from './nav/stack';
 import {
   loadJoseki,
@@ -85,7 +86,11 @@ export default function App() {
   const masteryRef = useRef(mastery);
 
   const go = useCallback((s: Screen) => setStack((st) => push(st, s)), []);
-  const back = useCallback(() => setStack((st) => pop(st)), []);
+  // On the web the browser's history mirrors the stack, so Back is the browser's Back.
+  const back = useCallback(() => {
+    if (Platform.OS === 'web' && canGoBack(stackRef.current)) window.history.back();
+    else setStack((st) => pop(st));
+  }, []);
   /** Swap the current screen for another (used by the session end screen, so Back then returns home). */
   const swap = useCallback((s: Screen) => setStack((st) => replace(st, s)), []);
 
@@ -124,6 +129,36 @@ export default function App() {
 
   /** Snapshot the scores; done whenever a guided or mastery run is left. */
   const backupMastery = useCallback(() => void masteryStore.backup(masteryRef.current), []);
+
+  // Web: one history entry per screen; the browser's Back and Forward buttons move along the stack.
+  const forwardRef = useRef<Screen[]>([]);
+  const histDepth = useRef(1);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    window.history.replaceState({ depth: 1 }, '');
+    const onPop = (e: PopStateEvent) => {
+      const before = stackRef.current;
+      const next = toDepth({ stack: before, forward: forwardRef.current }, depthOf(e.state));
+      forwardRef.current = [...next.forward];
+      stackRef.current = next.stack;
+      histDepth.current = next.stack.length;
+      if (depthOf(e.state) !== next.stack.length) window.history.replaceState({ depth: next.stack.length }, '');
+      const left = current(before);
+      if (next.stack.length < before.length && (left.name === 'masteryRun' || (left.name === 'study' && left.run)))
+        backupMastery();
+      setStack(next.stack);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [backupMastery]);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (stack.length > histDepth.current) {
+      forwardRef.current = []; // opening something new drops the screens ahead
+      window.history.pushState({ depth: stack.length }, '');
+    }
+    histDepth.current = stack.length;
+  }, [stack]);
 
   const record = useCallback(
     async (id: string, a: Attempt): Promise<void> => {
