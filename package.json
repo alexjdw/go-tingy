@@ -55,7 +55,8 @@
     "assets:screenshots": "tsx scripts/make-screenshots.ts",
     "privacy:sync": "tsx scripts/sync-privacy.ts",
     "test:native": "node --import tsx --test --test-timeout=600000 \"tests/native/*.native.ts\"",
-    "licenses": "tsx scripts/licenses.ts"
+    "licenses": "tsx scripts/licenses.ts",
+    "release": "tsx scripts/release.ts"
   },
   "private": true,
   "description": "Go (baduk/weiqi) flashcards: tsumego and joseki training from SGF, for iOS, Android and web.",

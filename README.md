@@ -112,3 +112,23 @@ collections in `tests/fixtures/` are third-party and are not covered by this lic
 ## Support
 
 Questions, bug reports and requests: <https://github.com/alexjdw/go-tingy/issues>.
+
+## Releases
+
+Builds are made by hand and attached to a GitHub release (there is no CI).
+
+1. Build in the cloud: `npx eas-cli build --platform android --profile preview` (an installable `.apk`) and
+   `npx eas-cli build --platform ios --profile ios-simulator` (a `.tar.gz` that runs in the iOS Simulator on a Mac).
+   An `.ipa` for real iPhones needs an Apple Developer account and goes out through TestFlight, not GitHub.
+2. Copy each build's artifact URL from `npx eas-cli build:list` (they expire after a while).
+3. Create a GitHub token with write access to this repository's contents, then upload:
+
+```bash
+export GITHUB_TOKEN=...   # PowerShell: $env:GITHUB_TOKEN = '...'
+npm run release -- v1.0.0 \
+  go-flashcards-1.0.0-android.apk=https://expo.dev/artifacts/eas/....apk \
+  go-flashcards-1.0.0-ios-simulator.tar.gz=https://expo.dev/artifacts/eas/....tar.gz
+```
+
+The release is created for the tag if it does not exist, and an asset with the same name is replaced. A value can
+also be a local file path.
