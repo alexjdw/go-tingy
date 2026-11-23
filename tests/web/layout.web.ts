@@ -126,6 +126,10 @@ const VIEWPORTS: [string, number, number][] = [
   ['short desktop', 1000, 500],
   ['iPad', 768, 1024],
   ['iPad Pro 13', 1032, 1376],
+  ['Android phone', 360, 640],
+  ['phone landscape', 844, 390],
+  ['folded foldable', 280, 653],
+  ['unfolded foldable', 717, 512],
 ];
 
 describe('web layout', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
