@@ -11,7 +11,7 @@ describe('release script helpers', () => {
 
   it('reads name=source assets', () => {
     assert.deepEqual(parseAsset('a.apk=https://x/y.apk'), { name: 'a.apk', source: 'https://x/y.apk' });
-    assert.deepEqual(parseAsset('a.apk=C:\out\a.apk'), { name: 'a.apk', source: 'C:\out\a.apk' });
+    assert.deepEqual(parseAsset('a.apk=C:\\out\\a.apk'), { name: 'a.apk', source: 'C:\\out\\a.apk' });
     assert.equal(parseAsset('noequals'), null);
     assert.equal(parseAsset('dir/a.apk=x'), null);
     assert.equal(parseAsset('a.apk='), null);
