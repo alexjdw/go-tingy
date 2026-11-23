@@ -5,7 +5,7 @@ import { pt } from './helpers';
 
 const PUZZLE = '(;GM[1]SZ[19];B[pd];W[qf];B[qc];W[rc];B[sd];W[se])';
 
-describe('following the given moves (guided mastery)', () => {
+describe('following the given moves (guided learning)', () => {
   it('waits for you to click each given move, for both colors, on the green dot', () => {
     const e = new StudyEngine(PUZZLE, 'unguided', { freeMoves: 2, follow: true });
     assert.equal(e.phase, 'follow');

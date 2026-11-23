@@ -17,7 +17,7 @@ on your device.
 The app saves the following **on your device only**:
 
 - the puzzles you import or create (the SGF text and its title)
-- your practice progress: attempt history, skill levels, spaced-repetition and guided-mastery data, mastery scores,
+- your practice progress: attempt history, skill levels, spaced-repetition and guided-learning data, mastery scores,
   and a rolling set of up to 15 backups of those scores
 - your settings
 

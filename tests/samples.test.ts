@@ -64,7 +64,7 @@ describe('built-in starter puzzles', () => {
     }
   });
 
-  it('all work in guided mastery: one-move puzzles clear the guided stage with a single clean run', () => {
+  it('all work in guided learning: one-move puzzles clear the guided stage with a single clean run', () => {
     for (const s of SAMPLES) assert.equal(learnerDepth(s.sgf), 1, s.title);
   });
 });

@@ -49,7 +49,7 @@ const result = (over: Partial<MasteryResult> = {}): MasteryResult => ({
   ...over,
 });
 
-describe('categories: spaced repetition and guided mastery', () => {
+describe('categories: spaced repetition and guided learning', () => {
   it('adds and removes puzzles, idempotently and without mutating the old state', () => {
     const s0 = emptyMasteryState();
     const s1 = setCategory(s0, 'spaced', 'a', true);

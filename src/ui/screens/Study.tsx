@@ -22,7 +22,7 @@ interface Props {
   /** Spaced-repetition sessions only: records the attempt. Normal play records nothing. */
   onResult?: (a: Attempt) => Promise<void> | void;
   /**
-   * A guided mastery run: this many moves are played for you first, then you solve the rest. Results go to
+   * A guided learning run: this many moves are played for you first, then you solve the rest. Results go to
    * `onRunResult` (not to skill tracking), and undo/restart are hidden so the attempt can't be dodged.
    */
   run?: { freeMoves: number };
@@ -41,11 +41,11 @@ interface Props {
   onModeChange?: (mode: Mode) => void;
   /**
    * Joseki mode for this puzzle: solve it from the first side, then again from the second. The player's choice is
-   * remembered by the app. Not offered in guided mastery runs or free exploration.
+   * remembered by the app. Not offered in guided learning runs or free exploration.
    */
   joseki?: boolean;
   onJosekiChange?: (on: boolean) => void;
-  /** A guided mastery run: the puzzle's mastery progress, shown once the run is solved. */
+  /** A guided learning run: the puzzle's mastery progress, shown once the run is solved. */
   runBar?: SkillBarData;
   /** Show the first-time introduction to guided runs, until onTutorialDone. */
   tutorial?: string;

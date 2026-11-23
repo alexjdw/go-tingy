@@ -3,7 +3,7 @@
  *
  * Two categories a puzzle can be added to (and removed from):
  *  - spaced repetition: only these puzzles ever come "due"
- *  - guided mastery: the puzzle is trained in two special modes
+ *  - guided learning: the puzzle is trained in two special modes
  *      guided run   the player is given N "free" moves along a correct line, then solves the rest. Each clean
  *                   run reduces N, until a clean run with 0 free moves clears the guided stage.
  *      mastery run  unlocked once guided is cleared: solve every line, scored in moves per minute.

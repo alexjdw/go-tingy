@@ -8,7 +8,7 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 - **Pick how to study** on the home screen: **Spaced repetition**, **Guided Learning** or **Browse**.
   - **Browse** shows every puzzle as a tile (a 7x7 window of its starting position) with **Play** and **+** under it.
     Play opens the puzzle, where you can switch between hints, solving it yourself and free exploration; **+** adds it
-    to spaced repetition and/or mastery. Creating and importing puzzles are here too.
+    to spaced repetition and/or guided learning. Creating and importing puzzles are here too.
   - **Spaced repetition** starts a review session at once: the puzzles that are due, one after another, a missed one
     coming back once at the end. The end screen offers **Add puzzles** and **Prune puzzles** (remove the ones that got
     too easy).
@@ -19,7 +19,7 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 - **Multiple choice** puzzles (lettered `A`/`B`/`C` points) and an optional **mark-the-choices** step that replays to a
   branching point and asks you to mark every good move first.
 - **Two study categories** per puzzle: **spaced repetition** (the only puzzles that ever come due) and **guided
-  mastery**.
+  learning**.
 - **Guided learning:** a _guided run_ gives you some moves along a correct line (you click through them, for both sides, on the green dot; a short tutorial explains it the first time) and you solve the rest. Each clean
   run gives fewer free moves, down to zero. Clearing that unlocks the _mastery run_: solve every line of the puzzle in
   random order; your score is correct moves per minute, halved for each mistake (green above 5, gold above 10, diamond
@@ -28,7 +28,7 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
   most recent backups are kept) and restored at startup if the saved state is lost.
 - **Joseki mode** (per puzzle, set from Study or the **+** menu): the puzzle is played from the first side and then
   again from the second, with the first move played for you. It works in every mode.
-- **Tile stats:** hover over a tile, or long-press it, to see its stats for spaced repetition, mastery and joseki.
+- **Tile stats:** hover over a tile, or long-press it, to see its stats for spaced repetition, guided learning and joseki.
 - **New from game:** load a real game's SGF, scrub to pick the first and last move, then cut the board down to the
   part you want, and save it as a puzzle.
 - **Automatic color flipping**, one-shot click-to-zoom for large boards, stone animation and sound.

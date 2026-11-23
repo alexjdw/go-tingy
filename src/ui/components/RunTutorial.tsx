@@ -17,7 +17,7 @@ const STEPS = [
   },
 ];
 
-/** A short first-time introduction to guided mastery runs. */
+/** A short first-time introduction to guided learning runs. */
 export function RunTutorial({ onDone }: { onDone: () => void }) {
   const [i, setI] = useState(0);
   const step = STEPS[i];

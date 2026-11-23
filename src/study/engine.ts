@@ -35,7 +35,7 @@ export interface EngineOptions {
   flipColors?: Tri;
   rng?: () => number;
   /**
-   * Guided mastery: before the player moves, play this many of the learner's moves (and the opponent's
+   * Guided learning: before the player moves, play this many of the learner's moves (and the opponent's
    * replies) along a correct line. The rest of the puzzle is solved normally. Such a run is not tracked as an
    * ordinary unguided attempt.
    */
@@ -91,7 +91,7 @@ export class StudyEngine {
   /** Count of stones placed; bumps on every placement (drives the stone animation). */
   placed = 0;
   hasMarkPhase = false;
-  /** Learner moves actually played for free at the start (guided mastery). */
+  /** Learner moves actually played for free at the start (guided learning). */
   freeMovesPlayed = 0;
 
   private history: Snapshot[] = [];
@@ -494,7 +494,7 @@ export class StudyEngine {
   }
 
   /**
-   * Only plain unguided attempts count toward skill; guided and explore are free practice, and guided mastery
+   * Only plain unguided attempts count toward skill; guided and explore are free practice, and guided learning
    * runs (which set `freeMoves`) are scored by the mastery system instead.
    */
   get tracksSkill() {

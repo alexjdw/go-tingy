@@ -1,5 +1,5 @@
 /**
- * Journey test for guided mastery runs: the first-time tutorial, then clicking through the given moves (both sides)
+ * Journey test for guided learning runs: the first-time tutorial, then clicking through the given moves (both sides)
  * on the green dot, then finishing alone. Run with `npm run test:web`.
  */
 import assert from 'node:assert/strict';
