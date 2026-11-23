@@ -4,12 +4,12 @@ import type { Attempt } from '../src/progress/skill';
 import {
   DAILY_LIMIT,
   MAX_BACKUPS,
-  type MasteryResult,
-  type MasteryState,
+  type TimedResult,
+  type LearningState,
   attemptsLeft,
   attemptsToday,
   chooseStartupState,
-  emptyMasteryState,
+  emptyLearningState,
   freeStep,
   guidedStages,
   guidedStatus,
@@ -17,20 +17,20 @@ import {
   initialFree,
   isDueNow,
   localDay,
-  masteryLevel,
-  masteryScore,
-  masteryUnlocked,
+  timedLevel,
+  timedScore,
+  timedUnlocked,
   parseBackups,
-  parseMasteryState,
+  parseLearningState,
   pushBackup,
-  puzzleMasteryLevel,
+  puzzleTimedLevel,
   recordAttemptStart,
   recordGuidedResult,
-  recordMasteryResult,
+  recordTimedResult,
   setCategory,
   visibleIds,
-} from '../src/progress/mastery';
-import { createMasteryStore, type KeyValue, BACKUPS_KEY, STATE_KEY } from '../src/storage/mastery';
+} from '../src/progress/learning';
+import { createLearningStore, type KeyValue, BACKUPS_KEY, STATE_KEY } from '../src/storage/learning';
 import { enumerateLines, isUnder, learnerDepth, linesOf, nodeKey } from '../src/study/lines';
 import { boardDims, firstMoveColor, parseSgf } from '../src/sgf/parser';
 import { fixtureProblem } from './helpers';
@@ -38,7 +38,7 @@ import { fixtureProblem } from './helpers';
 export const BRANCHY =
   '(;SZ[19]PL[B]AB[aa]AW[ab](;B[cc](;W[dd];B[ee]TE[1])(;W[ff];B[gg]TE[1]))(;B[jj];W[kk];B[ll]TE[1])(;B[mm]BM[1]))';
 
-const result = (over: Partial<MasteryResult> = {}): MasteryResult => ({
+const result = (over: Partial<TimedResult> = {}): TimedResult => ({
   score: 7,
   level: 'green',
   moves: 7,
@@ -51,26 +51,26 @@ const result = (over: Partial<MasteryResult> = {}): MasteryResult => ({
 
 describe('categories: spaced repetition and guided learning', () => {
   it('adds and removes puzzles, idempotently and without mutating the old state', () => {
-    const s0 = emptyMasteryState();
+    const s0 = emptyLearningState();
     const s1 = setCategory(s0, 'spaced', 'a', true);
     assert.equal(inCategory(s1, 'spaced', 'a'), true);
     assert.equal(inCategory(s0, 'spaced', 'a'), false, 'original untouched');
     assert.equal(setCategory(s1, 'spaced', 'a', true), s1, 'adding twice is a no-op');
     assert.equal(inCategory(setCategory(s1, 'spaced', 'a', false), 'spaced', 'a'), false);
-    assert.equal(setCategory(s0, 'mastery', 'a', false), s0, 'removing something absent is a no-op');
+    assert.equal(setCategory(s0, 'learning', 'a', false), s0, 'removing something absent is a no-op');
   });
 
   it('the two categories are independent', () => {
-    const s = setCategory(emptyMasteryState(), 'mastery', 'a', true);
-    assert.equal(inCategory(s, 'mastery', 'a'), true);
+    const s = setCategory(emptyLearningState(), 'learning', 'a', true);
+    assert.equal(inCategory(s, 'learning', 'a'), true);
     assert.equal(inCategory(s, 'spaced', 'a'), false);
   });
 
   it('removing keeps the puzzle’s scores, so adding it back resumes', () => {
-    let s = setCategory(emptyMasteryState(), 'mastery', 'a', true);
+    let s = setCategory(emptyLearningState(), 'learning', 'a', true);
     s = recordGuidedResult(s, 'a', 6, true);
-    s = setCategory(s, 'mastery', 'a', false);
-    s = setCategory(s, 'mastery', 'a', true);
+    s = setCategory(s, 'learning', 'a', false);
+    s = setCategory(s, 'learning', 'a', true);
     assert.equal(guidedStatus(s, 'a', 6).free, 3);
   });
 
@@ -78,7 +78,7 @@ describe('categories: spaced repetition and guided learning', () => {
   const attempt = (correct: boolean, at = now): Attempt => ({ correct, ms: 1000, parMs: 1000, at });
 
   it('only spaced-repetition puzzles ever come due', () => {
-    let s = emptyMasteryState();
+    let s = emptyLearningState();
     assert.equal(isDueNow(s, 'a', undefined, now), false, 'never added: not due, even with no history');
     assert.equal(isDueNow(s, 'a', [attempt(false)], now), false, 'history alone does not make it due');
     s = setCategory(s, 'spaced', 'a', true);
@@ -92,16 +92,16 @@ describe('categories: spaced repetition and guided learning', () => {
   });
 
   it('filters the library by category and due-ness', () => {
-    let s = emptyMasteryState();
+    let s = emptyLearningState();
     s = setCategory(s, 'spaced', 'a', true);
     s = setCategory(s, 'spaced', 'b', true);
-    s = setCategory(s, 'mastery', 'b', true);
-    s = setCategory(s, 'mastery', 'c', true);
+    s = setCategory(s, 'learning', 'b', true);
+    s = setCategory(s, 'learning', 'c', true);
     const progress = { b: Array.from({ length: 5 }, () => attempt(true)) };
     const ids = ['a', 'b', 'c', 'd'];
     assert.deepEqual(visibleIds(ids, 'all', s, progress, now), ids);
     assert.deepEqual(visibleIds(ids, 'spaced', s, progress, now), ['a', 'b']);
-    assert.deepEqual(visibleIds(ids, 'mastery', s, progress, now), ['b', 'c']);
+    assert.deepEqual(visibleIds(ids, 'learning', s, progress, now), ['b', 'c']);
     assert.deepEqual(
       visibleIds(ids, 'due', s, progress, now),
       ['a'],
@@ -134,7 +134,7 @@ describe('guided stage: free moves step down to zero', () => {
   });
 
   it('a clean run reduces the free moves; a run with a mistake changes nothing', () => {
-    let s = emptyMasteryState();
+    let s = emptyLearningState();
     assert.deepEqual(guidedStatus(s, 'a', 6), { free: 5, cleared: false });
     s = recordGuidedResult(s, 'a', 6, false);
     assert.deepEqual(guidedStatus(s, 'a', 6), { free: 5, cleared: false }, 'a failed run is not progress');
@@ -145,26 +145,26 @@ describe('guided stage: free moves step down to zero', () => {
   });
 
   it('clearing needs a clean run with zero free moves', () => {
-    let s = emptyMasteryState();
+    let s = emptyLearningState();
     const seen: number[] = [];
     for (let i = 0; i < 10 && !guidedStatus(s, 'a', 6).cleared; i++) {
       seen.push(guidedStatus(s, 'a', 6).free);
-      assert.equal(masteryUnlocked(s, 'a'), false, 'locked until cleared');
+      assert.equal(timedUnlocked(s, 'a'), false, 'locked until cleared');
       s = recordGuidedResult(s, 'a', 6, true);
     }
     assert.deepEqual(seen, [5, 3, 1, 0], 'the last run is the one at 0 free moves');
     assert.equal(guidedStatus(s, 'a', 6).cleared, true);
-    assert.equal(masteryUnlocked(s, 'a'), true);
+    assert.equal(timedUnlocked(s, 'a'), true);
     assert.equal(recordGuidedResult(s, 'a', 6, true), s, 'nothing more to do once cleared');
   });
 
   it('a one-move puzzle clears with a single clean run', () => {
-    const s = recordGuidedResult(emptyMasteryState(), 'a', 1, true);
-    assert.equal(masteryUnlocked(s, 'a'), true);
+    const s = recordGuidedResult(emptyLearningState(), 'a', 1, true);
+    assert.equal(timedUnlocked(s, 'a'), true);
   });
 
   it('puzzles progress independently', () => {
-    let s = recordGuidedResult(emptyMasteryState(), 'a', 6, true);
+    let s = recordGuidedResult(emptyLearningState(), 'a', 6, true);
     s = recordGuidedResult(s, 'b', 3, true);
     assert.equal(guidedStatus(s, 'a', 6).free, 3);
     assert.equal(guidedStatus(s, 'b', 3).free, 1);
@@ -172,31 +172,31 @@ describe('guided stage: free moves step down to zero', () => {
   });
 
   it('stale progress is clamped if the puzzle got shorter', () => {
-    const s = recordGuidedResult(emptyMasteryState(), 'a', 10, true); // free 9 -> 7
+    const s = recordGuidedResult(emptyLearningState(), 'a', 10, true); // free 9 -> 7
     assert.equal(guidedStatus(s, 'a', 4).free, 3);
   });
 });
 
-describe('mastery score and levels', () => {
+describe('timed score and levels', () => {
   it('is correct moves per minute', () => {
-    assert.equal(masteryScore({ moves: 6, ms: 60000, mistakes: 0 }), 6);
-    assert.equal(masteryScore({ moves: 6, ms: 30000, mistakes: 0 }), 12);
-    assert.equal(masteryScore({ moves: 3, ms: 90000, mistakes: 0 }), 2);
+    assert.equal(timedScore({ moves: 6, ms: 60000, mistakes: 0 }), 6);
+    assert.equal(timedScore({ moves: 6, ms: 30000, mistakes: 0 }), 12);
+    assert.equal(timedScore({ moves: 3, ms: 90000, mistakes: 0 }), 2);
   });
 
   it('halves for every mistake', () => {
-    assert.equal(masteryScore({ moves: 12, ms: 60000, mistakes: 1 }), 6);
-    assert.equal(masteryScore({ moves: 12, ms: 60000, mistakes: 2 }), 3);
-    assert.equal(masteryScore({ moves: 12, ms: 60000, mistakes: 3 }), 1.5);
+    assert.equal(timedScore({ moves: 12, ms: 60000, mistakes: 1 }), 6);
+    assert.equal(timedScore({ moves: 12, ms: 60000, mistakes: 2 }), 3);
+    assert.equal(timedScore({ moves: 12, ms: 60000, mistakes: 3 }), 1.5);
   });
 
   it('is 0 without time or moves', () => {
-    assert.equal(masteryScore({ moves: 5, ms: 0, mistakes: 0 }), 0);
-    assert.equal(masteryScore({ moves: 0, ms: 5000, mistakes: 0 }), 0);
+    assert.equal(timedScore({ moves: 5, ms: 0, mistakes: 0 }), 0);
+    assert.equal(timedScore({ moves: 0, ms: 5000, mistakes: 0 }), 0);
   });
 
   it('levels are strictly above 5, 10 and 15', () => {
-    const at = (n: number) => masteryLevel(n);
+    const at = (n: number) => timedLevel(n);
     assert.deepEqual([at(0), at(4.99), at(5)], ['none', 'none', 'none']);
     assert.deepEqual([at(5.0001), at(7), at(10)], ['green', 'green', 'green']);
     assert.deepEqual([at(10.0001), at(12), at(15)], ['gold', 'gold', 'gold']);
@@ -204,28 +204,28 @@ describe('mastery score and levels', () => {
   });
 
   it('a mistake can drop a run a whole level', () => {
-    assert.equal(masteryLevel(masteryScore({ moves: 12, ms: 60000, mistakes: 0 })), 'gold');
-    assert.equal(masteryLevel(masteryScore({ moves: 12, ms: 60000, mistakes: 1 })), 'green');
-    assert.equal(masteryLevel(masteryScore({ moves: 12, ms: 60000, mistakes: 2 })), 'none');
+    assert.equal(timedLevel(timedScore({ moves: 12, ms: 60000, mistakes: 0 })), 'gold');
+    assert.equal(timedLevel(timedScore({ moves: 12, ms: 60000, mistakes: 1 })), 'green');
+    assert.equal(timedLevel(timedScore({ moves: 12, ms: 60000, mistakes: 2 })), 'none');
   });
 
   it('keeps the best run for the level, and the latest run separately', () => {
-    let s = emptyMasteryState();
-    assert.equal(puzzleMasteryLevel(s, 'a'), 'none');
-    s = recordMasteryResult(s, 'a', result({ score: 12, level: 'gold' }));
-    s = recordMasteryResult(s, 'a', result({ score: 7, level: 'green', at: 2 }));
+    let s = emptyLearningState();
+    assert.equal(puzzleTimedLevel(s, 'a'), 'none');
+    s = recordTimedResult(s, 'a', result({ score: 12, level: 'gold' }));
+    s = recordTimedResult(s, 'a', result({ score: 7, level: 'green', at: 2 }));
     assert.equal(s.scores.a.best?.score, 12, 'a worse run does not lower the best');
     assert.equal(s.scores.a.last?.score, 7);
     assert.equal(s.scores.a.runs, 2);
-    assert.equal(puzzleMasteryLevel(s, 'a'), 'gold');
-    s = recordMasteryResult(s, 'a', result({ score: 16, level: 'diamond', at: 3 }));
-    assert.equal(puzzleMasteryLevel(s, 'a'), 'diamond');
+    assert.equal(puzzleTimedLevel(s, 'a'), 'gold');
+    s = recordTimedResult(s, 'a', result({ score: 16, level: 'diamond', at: 3 }));
+    assert.equal(puzzleTimedLevel(s, 'a'), 'diamond');
   });
 
-  it('recording a mastery result keeps the guided progress', () => {
-    let s = recordGuidedResult(emptyMasteryState(), 'a', 1, true);
-    s = recordMasteryResult(s, 'a', result());
-    assert.equal(masteryUnlocked(s, 'a'), true);
+  it('recording a learning result keeps the guided progress', () => {
+    let s = recordGuidedResult(emptyLearningState(), 'a', 1, true);
+    s = recordTimedResult(s, 'a', result());
+    assert.equal(timedUnlocked(s, 'a'), true);
   });
 });
 
@@ -240,7 +240,7 @@ describe('two attempts per day', () => {
 
   it('allows exactly two and then none', () => {
     assert.equal(DAILY_LIMIT, 2);
-    let s = emptyMasteryState();
+    let s = emptyLearningState();
     assert.equal(attemptsLeft(s, 'a', day1), 2);
     s = recordAttemptStart(s, 'a', day1);
     assert.equal(attemptsLeft(s, 'a', day1), 1);
@@ -251,7 +251,7 @@ describe('two attempts per day', () => {
   });
 
   it('resets the next day, including across month and year boundaries', () => {
-    let s = recordAttemptStart(recordAttemptStart(emptyMasteryState(), 'a', day1), 'a', day1);
+    let s = recordAttemptStart(recordAttemptStart(emptyLearningState(), 'a', day1), 'a', day1);
     assert.equal(attemptsLeft(s, 'a', '2026-11-23'), 2);
     assert.equal(attemptsLeft(s, 'a', localDay(new Date(2026, 11, 1))), 2);
     s = recordAttemptStart(recordAttemptStart(s, 'a', '2026-12-31'), 'a', '2026-12-31');
@@ -260,14 +260,14 @@ describe('two attempts per day', () => {
   });
 
   it('is counted per puzzle', () => {
-    let s = recordAttemptStart(recordAttemptStart(emptyMasteryState(), 'a', day1), 'a', day1);
+    let s = recordAttemptStart(recordAttemptStart(emptyLearningState(), 'a', day1), 'a', day1);
     s = recordAttemptStart(s, 'b', day1);
     assert.deepEqual([attemptsLeft(s, 'a', day1), attemptsLeft(s, 'b', day1), attemptsLeft(s, 'c', day1)], [0, 1, 2]);
     assert.equal(attemptsToday(s, 'a', day1), 2);
   });
 
   it('starting a new day starts the count over (not carried from yesterday)', () => {
-    const s = recordAttemptStart(recordAttemptStart(emptyMasteryState(), 'a', day1), 'a', day1);
+    const s = recordAttemptStart(recordAttemptStart(emptyLearningState(), 'a', day1), 'a', day1);
     const next = recordAttemptStart(s, 'a', '2026-11-23');
     assert.equal(attemptsToday(next, 'a', '2026-11-23'), 1);
   });
@@ -316,11 +316,11 @@ describe('puzzle lines', () => {
 });
 
 describe('persistence: validation and backups', () => {
-  const state = (n: number): MasteryState => setCategory(emptyMasteryState(), 'mastery', `p${n}`, true);
+  const state = (n: number): LearningState => setCategory(emptyLearningState(), 'learning', `p${n}`, true);
 
   it('accepts a valid state and fills in missing maps', () => {
-    assert.deepEqual(parseMasteryState(emptyMasteryState()), emptyMasteryState());
-    assert.deepEqual(parseMasteryState({ version: 1 }), emptyMasteryState());
+    assert.deepEqual(parseLearningState(emptyLearningState()), emptyLearningState());
+    assert.deepEqual(parseLearningState({ version: 1 }), emptyLearningState());
   });
 
   it('rejects things that are not a usable state', () => {
@@ -335,7 +335,7 @@ describe('persistence: validation and backups', () => {
       { version: 1, spaced: [] },
       { version: 1, scores: 4 },
     ]) {
-      assert.equal(parseMasteryState(bad), null, JSON.stringify(bad));
+      assert.equal(parseLearningState(bad), null, JSON.stringify(bad));
     }
   });
 
@@ -345,8 +345,8 @@ describe('persistence: validation and backups', () => {
     for (let i = 0; i < 20; i++) list = pushBackup(list, state(i), 1000 + i);
     assert.equal(list.length, 15);
     assert.deepEqual([list[0].at, list[14].at], [1005, 1019], 'the five oldest were dropped');
-    assert.ok(inCategory(list[14].state, 'mastery', 'p19'));
-    assert.ok(!inCategory(list[0].state, 'mastery', 'p4'), 'p4 is gone');
+    assert.ok(inCategory(list[14].state, 'learning', 'p19'));
+    assert.ok(!inCategory(list[0].state, 'learning', 'p4'), 'p4 is gone');
   });
 
   it('parses stored backups: sorted, invalid entries skipped', () => {
@@ -375,9 +375,9 @@ describe('persistence: validation and backups', () => {
     for (const broken of [undefined, null, 'garbage', { version: 7 }]) {
       const r = chooseStartupState(broken, backups);
       assert.equal(r.source, 'backup');
-      assert.ok(inCategory(r.state, 'mastery', 'p2'), 'the newest backup');
+      assert.ok(inCategory(r.state, 'learning', 'p2'), 'the newest backup');
     }
-    assert.deepEqual(chooseStartupState(undefined, []), { state: emptyMasteryState(), source: 'empty' });
+    assert.deepEqual(chooseStartupState(undefined, []), { state: emptyLearningState(), source: 'empty' });
   });
 });
 
@@ -394,18 +394,18 @@ class MemoryKv implements KeyValue {
   }
 }
 
-describe('the mastery store (save, back up on exit, load on app start)', () => {
+describe('the learning store (save, back up on exit, load on app start)', () => {
   let t = 5000;
   const make = () => {
     const kv = new MemoryKv();
-    return { kv, store: createMasteryStore(kv, () => ++t) };
+    return { kv, store: createLearningStore(kv, () => ++t) };
   };
   const withScore = (n: number) =>
-    recordGuidedResult(setCategory(emptyMasteryState(), 'mastery', 'a', true), 'a', 12, n > 0);
+    recordGuidedResult(setCategory(emptyLearningState(), 'learning', 'a', true), 'a', 12, n > 0);
 
   it('starts empty on a fresh install', async () => {
     const { store } = make();
-    assert.deepEqual(await store.load(), { state: emptyMasteryState(), source: 'empty' });
+    assert.deepEqual(await store.load(), { state: emptyLearningState(), source: 'empty' });
   });
 
   it('saves and loads the state', async () => {
@@ -417,11 +417,11 @@ describe('the mastery store (save, back up on exit, load on app start)', () => {
 
   it('keeps the most recent 15 backups over many exits', async () => {
     const { store, kv } = make();
-    for (let i = 0; i < 22; i++) await store.backup(setCategory(emptyMasteryState(), 'mastery', `p${i}`, true));
+    for (let i = 0; i < 22; i++) await store.backup(setCategory(emptyLearningState(), 'learning', `p${i}`, true));
     const list = await store.backups();
     assert.equal(list.length, 15);
-    assert.ok(inCategory(list[14].state, 'mastery', 'p21'));
-    assert.ok(inCategory(list[0].state, 'mastery', 'p7'));
+    assert.ok(inCategory(list[14].state, 'learning', 'p21'));
+    assert.ok(inCategory(list[0].state, 'learning', 'p7'));
     assert.equal(JSON.parse(kv.data.get(BACKUPS_KEY)!).length, 15);
   });
 
@@ -438,8 +438,8 @@ describe('the mastery store (save, back up on exit, load on app start)', () => {
 
   it('a lost saved state is recovered too, picking the newest of several backups', async () => {
     const { store, kv } = make();
-    await store.backup(setCategory(emptyMasteryState(), 'spaced', 'old', true));
-    await store.backup(setCategory(emptyMasteryState(), 'spaced', 'new', true));
+    await store.backup(setCategory(emptyLearningState(), 'spaced', 'old', true));
+    await store.backup(setCategory(emptyLearningState(), 'spaced', 'new', true));
     kv.data.delete(STATE_KEY);
     const r = await store.load();
     assert.equal(r.source, 'backup');
@@ -459,13 +459,13 @@ describe('the mastery store (save, back up on exit, load on app start)', () => {
   it('unavailable storage reads as empty instead of crashing', async () => {
     const { store, kv } = make();
     kv.fail = true;
-    assert.deepEqual(await store.load(), { state: emptyMasteryState(), source: 'empty' });
+    assert.deepEqual(await store.load(), { state: emptyLearningState(), source: 'empty' });
   });
 });
 
-describe('mastery badge fill', () => {
+describe('learning badge fill', () => {
   it('rises with the level, from empty to full', async () => {
-    const { levelFill } = await import('../src/progress/mastery');
+    const { levelFill } = await import('../src/progress/learning');
     const fills = (['none', 'green', 'gold', 'diamond'] as const).map(levelFill);
     assert.deepEqual(fills, [0, 1 / 3, 2 / 3, 1]);
   });

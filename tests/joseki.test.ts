@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { StudyEngine, hasSecondSide } from '../src/study/engine';
-import { MasteryRun } from '../src/study/mastery';
+import { TimedRun } from '../src/study/timed';
 import { pt } from './helpers';
 
 const seeded = (seed: number) => {
@@ -74,7 +74,7 @@ describe('joseki mode: playing the second side', () => {
   });
 });
 
-describe('joseki mode in guided and mastery runs', () => {
+describe('joseki mode in guided and timed runs', () => {
   it('a guided run on the second side starts with the opening and the free moves', () => {
     const e = new StudyEngine(JOSEKI, 'unguided', { side: 'second', freeMoves: 1 });
     assert.equal(e.playerColor, 'W');
@@ -95,9 +95,9 @@ describe('joseki mode in guided and mastery runs', () => {
     assert.equal(e.play(pt('qf')), 'solved');
   });
 
-  it('a mastery run of a joseki has every line from both sides', () => {
-    const plain = new MasteryRun(JOSEKI);
-    const both = new MasteryRun(JOSEKI, { joseki: true });
+  it('a timed run of a joseki has every line from both sides', () => {
+    const plain = new TimedRun(JOSEKI);
+    const both = new TimedRun(JOSEKI, { joseki: true });
     assert.equal(plain.totalLines, 2);
     assert.equal(plain.bothSides, false);
     assert.equal(both.totalLines, 4);
@@ -105,7 +105,7 @@ describe('joseki mode in guided and mastery runs', () => {
   });
 
   it('is solved only when both sides of every line are', () => {
-    const run = new MasteryRun(JOSEKI, { joseki: true, rng: seeded(7) });
+    const run = new TimedRun(JOSEKI, { joseki: true, rng: seeded(7) });
     run.start();
     const seen = { B: 0, W: 0 };
     for (let guard = 0; run.phase !== 'done' && guard < 60; guard++) {
@@ -130,7 +130,7 @@ describe('joseki mode in guided and mastery runs', () => {
   });
 
   it('a joseki of one-move lines has only one side to play', () => {
-    const run = new MasteryRun(ONE_MOVE, { joseki: true });
+    const run = new TimedRun(ONE_MOVE, { joseki: true });
     assert.equal(run.bothSides, false);
     assert.equal(run.totalLines, 1);
   });

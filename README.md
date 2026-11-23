@@ -21,10 +21,10 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
 - **Two study categories** per puzzle: **spaced repetition** (the only puzzles that ever come due) and **guided
   learning**.
 - **Guided learning:** a _guided run_ gives you some moves along a correct line (you click through them, for both sides, on the green dot; a short tutorial explains it the first time) and you solve the rest. Each clean
-  run gives fewer free moves, down to zero. Clearing that unlocks the _mastery run_: solve every line of the puzzle in
+  run gives fewer free moves, down to zero. Clearing that unlocks the _timed run_: solve every line of the puzzle in
   random order; your score is correct moves per minute, halved for each mistake (green above 5, gold above 10, diamond
   above 15). A **GM** badge on the tile fills with the level, and a progress bar shows how far along the puzzle is.
-  Each puzzle allows two guided/mastery attempts a day. Scores are backed up when you leave a run (the 15
+  Each puzzle allows two guided/timed attempts a day. Scores are backed up when you leave a run (the 15
   most recent backups are kept) and restored at startup if the saved state is lost.
 - **Joseki mode** (per puzzle, set from Study or the **+** menu): the puzzle is played from the first side and then
   again from the second, with the first move played for you. It works in every mode.

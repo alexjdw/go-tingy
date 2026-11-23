@@ -2,21 +2,21 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   attemptsLeft,
-  emptyMasteryState,
+  emptyLearningState,
   guidedStages,
   guidedStatus,
   localDay,
-  masteryUnlocked,
-  puzzleMasteryLevel,
+  timedUnlocked,
+  puzzleTimedLevel,
   recordAttemptStart,
   recordGuidedResult,
-  recordMasteryResult,
+  recordTimedResult,
   setCategory,
-} from '../src/progress/mastery';
+} from '../src/progress/learning';
 import { StudyEngine } from '../src/study/engine';
 import { learnerDepth } from '../src/study/lines';
-import { MasteryRun } from '../src/study/mastery';
-import { BRANCHY } from './mastery.test';
+import { TimedRun } from '../src/study/timed';
+import { BRANCHY } from './learning.test';
 import { fixtureProblem, pt, solveByBook, validProblems } from './helpers';
 
 /** Small deterministic generator; the seed is scrambled so neighboring seeds give unrelated sequences. */
@@ -129,7 +129,7 @@ function clock(start = 0) {
 }
 
 /** Play correct moves until the round ends (success), skipping refused ones. */
-function playRound(run: MasteryRun, c?: ReturnType<typeof clock>, stepMs = 0) {
+function playRound(run: TimedRun, c?: ReturnType<typeof clock>, stepMs = 0) {
   for (let guard = 0; run.phase === 'playing'; guard++) {
     assert.ok(guard < 1000, 'stuck'); // some collection lines run past 150 moves
     let moved = false;
@@ -145,7 +145,7 @@ function playRound(run: MasteryRun, c?: ReturnType<typeof clock>, stepMs = 0) {
   }
 }
 
-function playRun(run: MasteryRun, c?: ReturnType<typeof clock>, stepMs = 0) {
+function playRun(run: TimedRun, c?: ReturnType<typeof clock>, stepMs = 0) {
   run.start();
   for (let rounds = 0; run.phase !== 'done'; rounds++) {
     assert.ok(rounds < 500, 'too many rounds');
@@ -154,10 +154,10 @@ function playRun(run: MasteryRun, c?: ReturnType<typeof clock>, stepMs = 0) {
   }
 }
 
-describe('mastery run: timing and score', () => {
+describe('timed run: timing and score', () => {
   it('scores correct moves per minute over the whole run', () => {
     const c = clock(1000);
-    const run = new MasteryRun(XXQJ1(), { now: c.now });
+    const run = new TimedRun(XXQJ1(), { now: c.now });
     assert.equal(run.phase, 'ready');
     assert.equal(run.elapsedMs(), 0, 'the clock has not started');
     run.start();
@@ -180,7 +180,7 @@ describe('mastery run: timing and score', () => {
     ] as const;
     for (const [ms, level] of levels) {
       const c = clock();
-      const run = new MasteryRun(XXQJ1(), { now: c.now });
+      const run = new TimedRun(XXQJ1(), { now: c.now });
       run.start();
       for (const m of LEARNER) {
         c.tick(ms / 6);
@@ -192,7 +192,7 @@ describe('mastery run: timing and score', () => {
 
   it('the clock stops when the last line is solved', () => {
     const c = clock();
-    const run = new MasteryRun(XXQJ1(), { now: c.now });
+    const run = new TimedRun(XXQJ1(), { now: c.now });
     run.start();
     for (const m of LEARNER) {
       c.tick(1000);
@@ -206,7 +206,7 @@ describe('mastery run: timing and score', () => {
 
   it('the score is live while playing', () => {
     const c = clock();
-    const run = new MasteryRun(XXQJ1(), { now: c.now });
+    const run = new TimedRun(XXQJ1(), { now: c.now });
     run.start();
     c.tick(30000);
     run.play(pt('jj'));
@@ -216,10 +216,10 @@ describe('mastery run: timing and score', () => {
   });
 });
 
-describe('mastery run: mistakes end the round and halve the score', () => {
+describe('timed run: mistakes end the round and halve the score', () => {
   it('a mistake fails the round, resets the puzzle, and the line comes back', () => {
     const c = clock();
-    const run = new MasteryRun(XXQJ1(), { now: c.now });
+    const run = new TimedRun(XXQJ1(), { now: c.now });
     run.start();
     assert.equal(run.rounds, 1);
     assert.equal(run.play(pt('aa')), 'wrong');
@@ -244,7 +244,7 @@ describe('mastery run: mistakes end the round and halve the score', () => {
 
   it('counts correct clicks made before the mistake', () => {
     const c = clock();
-    const run = new MasteryRun(XXQJ1(), { now: c.now });
+    const run = new TimedRun(XXQJ1(), { now: c.now });
     run.start();
     run.play(pt('jj'));
     run.play(pt('ik'));
@@ -260,7 +260,7 @@ describe('mastery run: mistakes end the round and halve the score', () => {
 
   it('every mistake halves again', () => {
     const c = clock();
-    const run = new MasteryRun(XXQJ1(), { now: c.now });
+    const run = new TimedRun(XXQJ1(), { now: c.now });
     run.start();
     for (let i = 0; i < 3; i++) {
       run.play(pt('aa'));
@@ -273,16 +273,16 @@ describe('mastery run: mistakes end the round and halve the score', () => {
   });
 
   it('a tap that is not a legal move is ignored, not a mistake', () => {
-    const run = new MasteryRun(XXQJ1());
+    const run = new TimedRun(XXQJ1());
     run.start();
     assert.equal(run.play(pt('jk')), 'illegal', 'occupied by a stone');
     assert.equal(run.mistakes, 0);
   });
 });
 
-describe('mastery run: all the lines, in random order', () => {
+describe('timed run: all the lines, in random order', () => {
   it('needs every line of a branching puzzle (3), then finishes', () => {
-    const run = new MasteryRun(BRANCHY, { rng: seeded(3) });
+    const run = new TimedRun(BRANCHY, { rng: seeded(3) });
     assert.equal(run.totalLines, 3);
     playRun(run);
     assert.equal(run.solvedLines, 3);
@@ -293,7 +293,7 @@ describe('mastery run: all the lines, in random order', () => {
 
   it('the opponent steers toward lines you have not solved yet', () => {
     for (let seed = 1; seed <= 25; seed++) {
-      const run = new MasteryRun(BRANCHY, { rng: seeded(seed) });
+      const run = new TimedRun(BRANCHY, { rng: seeded(seed) });
       run.start();
       const replies: string[] = [];
       for (let round = 0; round < 2; round++) {
@@ -307,7 +307,7 @@ describe('mastery run: all the lines, in random order', () => {
   });
 
   it('refuses a correct move into already-solved lines, without penalty, so the rest get found', () => {
-    const run = new MasteryRun(BRANCHY, { rng: seeded(5) });
+    const run = new TimedRun(BRANCHY, { rng: seeded(5) });
     run.start();
     for (let round = 0; round < 2; round++) {
       run.play(pt('cc'));
@@ -329,7 +329,7 @@ describe('mastery run: all the lines, in random order', () => {
   it('presents the lines in a random order', () => {
     const firstLines = new Set<string>();
     for (let seed = 1; seed <= 40; seed++) {
-      const run = new MasteryRun(BRANCHY, { rng: seeded(seed) });
+      const run = new TimedRun(BRANCHY, { rng: seeded(seed) });
       run.start();
       playRound(run);
       firstLines.add(
@@ -341,7 +341,7 @@ describe('mastery run: all the lines, in random order', () => {
 
   it('is deterministic for a given seed', () => {
     const record = (seed: number) => {
-      const run = new MasteryRun(BRANCHY, { rng: seeded(seed) });
+      const run = new TimedRun(BRANCHY, { rng: seeded(seed) });
       const log: string[] = [];
       run.start();
       for (let rounds = 0; run.phase !== 'done'; rounds++) {
@@ -356,7 +356,7 @@ describe('mastery run: all the lines, in random order', () => {
   });
 
   it('does nothing until started, and nothing after finishing', () => {
-    const run = new MasteryRun(XXQJ1());
+    const run = new TimedRun(XXQJ1());
     assert.equal(run.play(pt('jj')), 'illegal');
     playRun(run);
     assert.equal(run.play(pt('jj')), 'illegal');
@@ -369,7 +369,7 @@ describe('mastery run: all the lines, in random order', () => {
       { length: 250 },
       (_, i) => `(;B[${String.fromCharCode(97 + (i % 19))}${String.fromCharCode(99 + ((i / 19) | 0))}]TE[1])`,
     ).join('');
-    const run = new MasteryRun(`(;SZ[19]PL[B]AB[aa]${many})`);
+    const run = new TimedRun(`(;SZ[19]PL[B]AB[aa]${many})`);
     assert.equal(run.truncated, true);
     assert.equal(run.totalLines, 200);
     playRun(run);
@@ -380,7 +380,7 @@ describe('mastery run: all the lines, in random order', () => {
     let total = 0;
     for (const file of ['qjzm-a.sgf.gz', 'xxqj.sgf.gz']) {
       for (const sgf of validProblems(file)) {
-        const run = new MasteryRun(sgf, { rng: seeded(total + 1) });
+        const run = new TimedRun(sgf, { rng: seeded(total + 1) });
         playRun(run);
         assert.equal(run.solvedLines, run.totalLines);
         assert.equal(run.mistakes, 0);
@@ -391,18 +391,18 @@ describe('mastery run: all the lines, in random order', () => {
   });
 });
 
-describe('the whole journey: add, guided stages, unlock, mastery', () => {
+describe('the whole journey: add, guided stages, unlock, learning', () => {
   const sgf = XXQJ1(); // 6 learner moves: guided stages 5, 3, 1, 0
   const day = (n: number) => localDay(new Date(2026, 10, 22 + n));
 
-  it('takes four clean guided runs over two days, then unlocks mastery', () => {
-    let s = setCategory(emptyMasteryState(), 'mastery', 'p', true);
+  it('takes four clean guided runs over two days, then unlocks learning', () => {
+    let s = setCategory(emptyLearningState(), 'learning', 'p', true);
     const L = learnerDepth(sgf);
     const log: string[] = [];
 
     for (let d = 0; !guidedStatus(s, 'p', L).cleared; d++) {
       assert.ok(d < 5, 'did not finish');
-      assert.equal(masteryUnlocked(s, 'p'), false);
+      assert.equal(timedUnlocked(s, 'p'), false);
       for (let a = 0; attemptsLeft(s, 'p', day(d)) > 0 && !guidedStatus(s, 'p', L).cleared; a++) {
         s = recordAttemptStart(s, 'p', day(d));
         const free = guidedStatus(s, 'p', L).free;
@@ -415,21 +415,21 @@ describe('the whole journey: add, guided stages, unlock, mastery', () => {
       assert.equal(attemptsLeft(s, 'p', day(d)), guidedStatus(s, 'p', L).cleared && log.length === 3 ? 1 : 0);
     }
     assert.deepEqual(log, ['day0:5', 'day0:3', 'day1:1', 'day1:0'], 'two attempts a day');
-    assert.equal(masteryUnlocked(s, 'p'), true);
+    assert.equal(timedUnlocked(s, 'p'), true);
 
-    // a mastery run, 12 moves/min -> gold
+    // a timed run, 12 moves/min -> gold
     const c = clock();
-    const run = new MasteryRun(sgf, { now: c.now });
+    const run = new TimedRun(sgf, { now: c.now });
     s = recordAttemptStart(s, 'p', day(2));
     playRun(run, c, 5000);
-    s = recordMasteryResult(s, 'p', run.result());
+    s = recordTimedResult(s, 'p', run.result());
     assert.equal(run.result().moves, 6);
-    assert.equal(puzzleMasteryLevel(s, 'p'), 'gold');
+    assert.equal(puzzleTimedLevel(s, 'p'), 'gold');
     assert.equal(attemptsLeft(s, 'p', day(2)), 1);
   });
 
   it('a failed guided run costs the attempt but not the progress', () => {
-    let s = setCategory(emptyMasteryState(), 'mastery', 'p', true);
+    let s = setCategory(emptyLearningState(), 'learning', 'p', true);
     const L = learnerDepth(sgf);
     s = recordAttemptStart(s, 'p', day(0));
     const e = new StudyEngine(sgf, 'unguided', { freeMoves: guidedStatus(s, 'p', L).free });

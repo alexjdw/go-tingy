@@ -42,9 +42,9 @@ export interface EngineOptions {
   freeMoves?: number;
   /** With `freeMoves`: the player clicks through the given moves, for both sides, instead of watching them. */
   follow?: boolean;
-  /** Mastery runs: choose the opponent's reply from the candidates (instead of at random). */
+  /** Timed runs: choose the opponent's reply from the candidates (instead of at random). */
   chooseReply?: (node: SgfNode, candidates: SgfNode[]) => SgfNode | null;
-  /** Mastery runs: refuse a correct move that leads only to lines already solved. */
+  /** Timed runs: refuse a correct move that leads only to lines already solved. */
   acceptMove?: (child: SgfNode) => boolean;
   /**
    * Joseki mode: which side the player takes. 'first' (the default) plays the puzzle's first color. 'second' plays
@@ -408,7 +408,7 @@ export class StudyEngine {
   }
 
   /**
-   * Play at a point. Returns 'illegal' | 'wrong' | 'ok' | 'solved', or 'redundant' when a mastery run
+   * Play at a point. Returns 'illegal' | 'wrong' | 'ok' | 'solved', or 'redundant' when a timed run
    * refuses a correct move that only leads to lines already solved (no mistake, nothing played).
    */
   play(p: Point): 'illegal' | 'wrong' | 'ok' | 'solved' | 'redundant' {
@@ -495,7 +495,7 @@ export class StudyEngine {
 
   /**
    * Only plain unguided attempts count toward skill; guided and explore are free practice, and guided learning
-   * runs (which set `freeMoves`) are scored by the mastery system instead.
+   * runs (which set `freeMoves`) are scored by the learning system instead.
    */
   get tracksSkill() {
     return this.mode === 'unguided' && this.opts.freeMoves === undefined;

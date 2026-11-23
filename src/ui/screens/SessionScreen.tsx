@@ -1,7 +1,7 @@
 import { useMemo, useReducer, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Problem } from '../../data/samples';
-import { type MasteryState, inCategory, isDueNow } from '../../progress/mastery';
+import { type LearningState, inCategory, isDueNow } from '../../progress/learning';
 import type { Attempt, ProgressMap } from '../../progress/skill';
 import { SessionQueue, pickSessionIds } from '../../study/session';
 import type { Settings } from '../../storage/settings';
@@ -11,7 +11,7 @@ import { Study } from './Study';
 
 interface Props {
   problems: Problem[];
-  mastery: MasteryState;
+  learning: LearningState;
   progress: ProgressMap;
   settings: Settings;
   /** save an attempt (this is what schedules the puzzle's next review) */
@@ -30,7 +30,7 @@ interface Props {
  */
 export function SessionScreen({
   problems,
-  mastery,
+  learning,
   progress,
   settings,
   record,
@@ -41,7 +41,7 @@ export function SessionScreen({
   onDone,
 }: Props) {
   const byId = useMemo(() => new Map(problems.map((p) => [p.id, p])), [problems]);
-  const dueIds = () => problems.filter((p) => isDueNow(mastery, p.id, progress[p.id])).map((p) => p.id);
+  const dueIds = () => problems.filter((p) => isDueNow(learning, p.id, progress[p.id])).map((p) => p.id);
   const [queue, setQueue] = useState(() => new SessionQueue(pickSessionIds(dueIds())));
   const [batch, setBatch] = useState(0);
   const [, force] = useReducer((n: number) => n + 1, 0);
@@ -83,7 +83,7 @@ export function SessionScreen({
 
   const stats = queue.stats();
   const dueNow = dueIds().length;
-  const spacedCount = problems.filter((p) => inCategory(mastery, 'spaced', p.id)).length;
+  const spacedCount = problems.filter((p) => inCategory(learning, 'spaced', p.id)).length;
   const nothing = queue.results.length === 0;
 
   return (

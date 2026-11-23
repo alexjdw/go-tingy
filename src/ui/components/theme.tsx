@@ -55,8 +55,8 @@ const styles = StyleSheet.create({
   btnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });
 
-/** Colors for the mastery levels (guided learning runs). */
-export const MASTERY_COLORS = {
+/** Colors for the levels (guided learning runs). */
+export const TIMED_COLORS = {
   none: '#8a8f98',
   green: '#30a46c',
   gold: '#e5a50a',

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { KeyValue } from './mastery';
+import type { KeyValue } from './learning';
 
 /** AsyncStorage as a KeyValue (localStorage on web, native storage on devices). */
 export const asyncKv: KeyValue = {

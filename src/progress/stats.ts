@@ -4,13 +4,13 @@
  */
 import {
   DAILY_LIMIT,
-  type MasteryState,
+  type LearningState,
   attemptsLeft,
   guidedStages,
   guidedStatus,
   inCategory,
-  puzzleMasteryLevel,
-} from './mastery';
+  puzzleTimedLevel,
+} from './learning';
 import { type Attempt, REVIEW_DAYS, computeSkill } from './skill';
 
 export interface StatRow {
@@ -26,7 +26,7 @@ export interface StatSection {
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-const MASTERY_NAMES = { none: 'No level yet', green: 'Green', gold: 'Gold', diamond: 'Diamond' } as const;
+const TIMED_NAMES = { none: 'No level yet', green: 'Green', gold: 'Gold', diamond: 'Diamond' } as const;
 
 /** "now", or how long until the puzzle is due again. */
 export function dueText(history: Attempt[] | undefined, now = Date.now()): string {
@@ -40,7 +40,7 @@ export function dueText(history: Attempt[] | undefined, now = Date.now()): strin
 export interface StatsInput {
   id: string;
   history: Attempt[] | undefined;
-  mastery: MasteryState;
+  learning: LearningState;
   /** how many moves the learner makes in the puzzle's longest line */
   learnerMoves: number;
   joseki: boolean;
@@ -49,12 +49,12 @@ export interface StatsInput {
   now?: number;
 }
 
-/** Spaced repetition, mastery and joseki, whether or not the puzzle is in them. */
+/** Spaced repetition, learning and joseki, whether or not the puzzle is in them. */
 export function tileStats(i: StatsInput): StatSection[] {
   const skill = computeSkill(i.history);
 
   const spaced: StatSection = { title: 'Spaced repetition', rows: [] };
-  if (!inCategory(i.mastery, 'spaced', i.id)) spaced.rows.push({ label: 'Status', value: 'Not added' });
+  if (!inCategory(i.learning, 'spaced', i.id)) spaced.rows.push({ label: 'Status', value: 'Not added' });
   else spaced.rows.push({ label: 'Status', value: 'In your reviews' });
   if (i.history?.length) {
     spaced.rows.push(
@@ -67,27 +67,27 @@ export function tileStats(i: StatsInput): StatSection[] {
     );
   } else spaced.rows.push({ label: 'Reviews', value: 'None yet' });
 
-  const mastery: StatSection = { title: 'Guided learning', rows: [] };
-  if (!inCategory(i.mastery, 'mastery', i.id)) mastery.rows.push({ label: 'Status', value: 'Not added' });
+  const learning: StatSection = { title: 'Guided learning', rows: [] };
+  if (!inCategory(i.learning, 'learning', i.id)) learning.rows.push({ label: 'Status', value: 'Not added' });
   else {
-    const g = guidedStatus(i.mastery, i.id, i.learnerMoves);
+    const g = guidedStatus(i.learning, i.id, i.learnerMoves);
     const stages = guidedStages(i.learnerMoves);
     const step = g.cleared ? stages.length : Math.max(0, stages.indexOf(g.free));
-    const best = i.mastery.scores[i.id]?.best;
-    mastery.rows.push(
+    const best = i.learning.scores[i.id]?.best;
+    learning.rows.push(
       {
         label: 'Guided',
         value: g.cleared ? 'Cleared' : `Stage ${step + 1} of ${stages.length} (${plural(g.free, 'free move')})`,
       },
       {
         label: 'Best run',
-        value: best ? `${best.score.toFixed(1)} · ${MASTERY_NAMES[puzzleMasteryLevel(i.mastery, i.id)]}` : 'None yet',
+        value: best ? `${best.score.toFixed(1)} · ${TIMED_NAMES[puzzleTimedLevel(i.learning, i.id)]}` : 'None yet',
       },
-      { label: 'Runs', value: String(i.mastery.scores[i.id]?.runs ?? 0) },
-      { label: 'Today', value: `${attemptsLeft(i.mastery, i.id, i.day)} of ${DAILY_LIMIT} attempts left` },
+      { label: 'Runs', value: String(i.learning.scores[i.id]?.runs ?? 0) },
+      { label: 'Today', value: `${attemptsLeft(i.learning, i.id, i.day)} of ${DAILY_LIMIT} attempts left` },
     );
   }
 
   const joseki: StatSection = { title: 'Joseki mode', rows: [{ label: 'Both sides', value: i.joseki ? 'On' : 'Off' }] };
-  return [spaced, mastery, joseki];
+  return [spaced, learning, joseki];
 }

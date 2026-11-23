@@ -1,5 +1,5 @@
 /**
- * A mastery run: solve every line of a puzzle, in random order, as fast as you can.
+ * A timed run: solve every line of a puzzle, in random order, as fast as you can.
  *
  *  - A "line" is one complete solution path (see lines.ts). Each round presents the puzzle from the start,
  *    aimed at a random line that hasn't been solved yet; the opponent's replies steer toward it.
@@ -10,7 +10,7 @@
  *  - If a puzzle has several correct first moves (or other learner choices), any correct move is accepted, but
  *    one that only leads into already-solved lines is refused without penalty so the other lines get found.
  */
-import { type MasteryResult, masteryLevel, masteryScore } from '../progress/mastery';
+import { type TimedResult, timedLevel, timedScore } from '../progress/learning';
 import { type Point, type SgfNode, boardDims, firstMoveColor, parseSgf } from '../sgf/parser';
 import { StudyEngine, hasSecondSide } from './engine';
 import { enumerateLines, isUnder, nodeKey } from './lines';
@@ -18,7 +18,7 @@ import { enumerateLines, isUnder, nodeKey } from './lines';
 export type RunPhase = 'ready' | 'playing' | 'between' | 'done';
 export type RoundOutcome = 'success' | 'fail';
 
-export interface MasteryRunOptions {
+export interface TimedRunOptions {
   rng?: () => number;
   /** clock, in ms; injectable for tests */
   now?: () => number;
@@ -26,7 +26,7 @@ export interface MasteryRunOptions {
   joseki?: boolean;
 }
 
-export class MasteryRun {
+export class TimedRun {
   /** lines that must be solved */
   readonly totalLines: number;
   /** the puzzle had more lines than are tracked */
@@ -54,7 +54,7 @@ export class MasteryRun {
 
   constructor(
     private sgf: string,
-    opts: MasteryRunOptions = {},
+    opts: TimedRunOptions = {},
   ) {
     this.rng = opts.rng ?? Math.random;
     this.now = opts.now ?? Date.now;
@@ -117,14 +117,14 @@ export class MasteryRun {
 
   /** The score so far (final once the run is done). */
   score(): number {
-    return masteryScore({ moves: this.moves, ms: this.elapsedMs(), mistakes: this.mistakes });
+    return timedScore({ moves: this.moves, ms: this.elapsedMs(), mistakes: this.mistakes });
   }
 
-  result(): MasteryResult {
+  result(): TimedResult {
     const score = this.score();
     return {
       score,
-      level: masteryLevel(score),
+      level: timedLevel(score),
       moves: this.moves,
       mistakes: this.mistakes,
       ms: this.elapsedMs(),

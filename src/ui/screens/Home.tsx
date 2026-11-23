@@ -6,12 +6,12 @@ interface Props {
   dueCount: number;
   /** puzzles in spaced repetition, due or not */
   spacedCount: number;
-  /** puzzles in mastery */
-  masteryCount: number;
-  /** mastery puzzles that can be played today (they have an attempt left) */
-  masteryReady: number;
+  /** puzzles in learning */
+  learningCount: number;
+  /** learning puzzles that can be played today (they have an attempt left) */
+  learningReady: number;
   puzzleCount: number;
-  onMastery: () => void;
+  onLearning: () => void;
   onSpaced: () => void;
   onBrowse: () => void;
   onSettings: () => void;
@@ -23,10 +23,10 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export function Home({
   dueCount,
   spacedCount,
-  masteryCount,
-  masteryReady,
+  learningCount,
+  learningReady,
   puzzleCount,
-  onMastery,
+  onLearning,
   onSpaced,
   onBrowse,
   onSettings,
@@ -60,9 +60,11 @@ export function Home({
         title="Guided Learning"
         blurb="Work a puzzle up from guided moves to solving every line, fast."
         status={
-          masteryCount ? `${plural(masteryCount, 'puzzle')} · ${masteryReady} ready today` : 'No puzzles yet. Add some.'
+          learningCount
+            ? `${plural(learningCount, 'puzzle')} · ${learningReady} ready today`
+            : 'No puzzles yet. Add some.'
         }
-        onPress={onMastery}
+        onPress={onLearning}
       />
       <ModeCard
         title="Browse"

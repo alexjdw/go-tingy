@@ -24,10 +24,10 @@ const LIBRARY = Array.from({ length: 300 }, (_, i) => ({
   collection: i < 150 ? 'xxqj' : 'gzp1',
   sgf: '(;GM[1]SZ[19]PL[B]AB[aa][ba]AW[ab];B[ac](;W[bb];B[ad]TE[1])(;W[bc];B[bd]TE[1]))',
 }));
-const MASTERY_STATE = {
+const LEARNING_STATE = {
   version: 1,
   spaced: { 'c-1': true, 'c-2': true, 'sample-capture-1': true },
-  mastery: { 'c-1': true, 'sample-capture-1': true, 'c-3': true },
+  learning: { 'c-1': true, 'sample-capture-1': true, 'c-3': true },
   scores: {
     'sample-capture-1': { guided: { free: 0, cleared: true } },
     'c-1': {
@@ -101,13 +101,13 @@ const STEPS: [string, string | null][] = [
   ['browse: new from game', 'New from game'],
   ['back to browse from new from game', '‹ Cancel'],
   ['back to home', '‹ Back'],
-  ['mastery', 'Guided Learning'],
-  ['mastery: add puzzles', 'Add puzzles'],
-  ['mastery: back from add puzzles', '‹ Back'],
-  ['mastery: play (run)', 'Play'],
-  ['mastery run: playing', 'Start'],
-  ['mastery: back from run', '‹ Back'],
-  ['back to home from mastery', '‹ Back'],
+  ['learning', 'Guided Learning'],
+  ['learning: add puzzles', 'Add puzzles'],
+  ['learning: back from add puzzles', '‹ Back'],
+  ['learning: play (run)', 'Play'],
+  ['timed run: playing', 'Start'],
+  ['learning: back from run', '‹ Back'],
+  ['back to home from learning', '‹ Back'],
   ['settings', 'Settings'],
   ['back to home from settings', '‹ Back'],
   ['spaced repetition: session starts', 'Spaced repetition'],
@@ -157,12 +157,12 @@ describe('web layout', { skip: chromePath ? false : 'Chrome not found (set CHROM
       page.on('pageerror', (e) => errors.push(String(e)));
       await page.setViewport({ width, height });
       await page.evaluateOnNewDocument(
-        (lib, mastery) => {
+        (lib, learning) => {
           localStorage.setItem('library.v1', JSON.stringify(lib));
-          localStorage.setItem('mastery.v1', JSON.stringify(mastery));
+          localStorage.setItem('learning.v1', JSON.stringify(learning));
         },
         LIBRARY,
-        MASTERY_STATE,
+        LEARNING_STATE,
       );
       await page.goto(site.url, { waitUntil: 'networkidle0' });
       await sleep(800);

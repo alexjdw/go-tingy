@@ -1,22 +1,22 @@
 /**
- * The mastery engine's data and rules. Everything here is pure: state in, new state out.
+ * The learning engine's data and rules. Everything here is pure: state in, new state out.
  *
  * Two categories a puzzle can be added to (and removed from):
  *  - spaced repetition: only these puzzles ever come "due"
  *  - guided learning: the puzzle is trained in two special modes
  *      guided run   the player is given N "free" moves along a correct line, then solves the rest. Each clean
  *                   run reduces N, until a clean run with 0 free moves clears the guided stage.
- *      mastery run  unlocked once guided is cleared: solve every line, scored in moves per minute.
+ *      timed run  unlocked once guided is cleared: solve every line, scored in moves per minute.
  *    Both modes are limited to DAILY_LIMIT attempts per puzzle per day.
  */
 import { type Attempt, type SkillBar, barColor, isDue } from './skill';
 
-export type Category = 'spaced' | 'mastery';
-export type MasteryLevel = 'none' | 'green' | 'gold' | 'diamond';
+export type Category = 'spaced' | 'learning';
+export type TimedLevel = 'none' | 'green' | 'gold' | 'diamond';
 
 export const DAILY_LIMIT = 2;
 export const MAX_BACKUPS = 15;
-/** Mastery score thresholds (moves per minute): strictly above. */
+/** Timed score thresholds (moves per minute): strictly above. */
 export const GREEN_ABOVE = 5;
 export const GOLD_ABOVE = 10;
 export const DIAMOND_ABOVE = 15;
@@ -28,10 +28,10 @@ export interface GuidedScore {
   cleared: boolean;
 }
 
-export interface MasteryResult {
+export interface TimedResult {
   /** correct moves per minute, halved for every mistake */
   score: number;
-  level: MasteryLevel;
+  level: TimedLevel;
   /** correct clicks across the whole run */
   moves: number;
   mistakes: number;
@@ -41,37 +41,37 @@ export interface MasteryResult {
   at: number;
 }
 
-export interface PuzzleMastery {
+export interface PuzzleLearning {
   guided?: GuidedScore;
-  /** highest-scoring mastery run; the mastery level shown comes from this */
-  best?: MasteryResult;
-  last?: MasteryResult;
+  /** highest-scoring timed run; the level shown comes from this */
+  best?: TimedResult;
+  last?: TimedResult;
   runs?: number;
 }
 
-export interface MasteryState {
+export interface LearningState {
   version: 1;
   spaced: Record<string, true>;
-  mastery: Record<string, true>;
-  scores: Record<string, PuzzleMastery>;
-  /** guided/mastery attempts started per puzzle on a given local day */
+  learning: Record<string, true>;
+  scores: Record<string, PuzzleLearning>;
+  /** guided/timed attempts started per puzzle on a given local day */
   attempts: Record<string, { day: string; count: number }>;
 }
 
-export const emptyMasteryState = (): MasteryState => ({
+export const emptyLearningState = (): LearningState => ({
   version: 1,
   spaced: {},
-  mastery: {},
+  learning: {},
   scores: {},
   attempts: {},
 });
 
 // ---------- categories ----------
 
-export const inCategory = (s: MasteryState, cat: Category, id: string) => s[cat][id] === true;
+export const inCategory = (s: LearningState, cat: Category, id: string) => s[cat][id] === true;
 
 /** Add or remove a puzzle from a category. Removing keeps its scores, so re-adding resumes where it left off. */
-export function setCategory(s: MasteryState, cat: Category, id: string, on: boolean): MasteryState {
+export function setCategory(s: LearningState, cat: Category, id: string, on: boolean): LearningState {
   if (inCategory(s, cat, id) === on) return s;
   const next = { ...s[cat] };
   if (on) next[id] = true;
@@ -80,15 +80,15 @@ export function setCategory(s: MasteryState, cat: Category, id: string, on: bool
 }
 
 /** Spaced repetition is the only way a puzzle comes due. */
-export const isDueNow = (s: MasteryState, id: string, history: Attempt[] | undefined, now = Date.now()) =>
+export const isDueNow = (s: LearningState, id: string, history: Attempt[] | undefined, now = Date.now()) =>
   inCategory(s, 'spaced', id) && isDue(history, now);
 
-export type LibraryFilter = 'all' | 'due' | 'spaced' | 'mastery';
+export type LibraryFilter = 'all' | 'due' | 'spaced' | 'learning';
 
 export function visibleIds(
   ids: string[],
   filter: LibraryFilter,
-  s: MasteryState,
+  s: LearningState,
   progress: Record<string, Attempt[]>,
   now = Date.now(),
 ): string[] {
@@ -99,8 +99,8 @@ export function visibleIds(
       return ids.filter((id) => isDueNow(s, id, progress[id], now));
     case 'spaced':
       return ids.filter((id) => inCategory(s, 'spaced', id));
-    case 'mastery':
-      return ids.filter((id) => inCategory(s, 'mastery', id));
+    case 'learning':
+      return ids.filter((id) => inCategory(s, 'learning', id));
   }
 }
 
@@ -120,7 +120,7 @@ export function guidedStages(learnerMoves: number): number[] {
 }
 
 /** Current guided progress. `learnerMoves` is the puzzle's length (see learnerDepth); it clamps stale data. */
-export function guidedStatus(s: MasteryState, id: string, learnerMoves: number): GuidedScore {
+export function guidedStatus(s: LearningState, id: string, learnerMoves: number): GuidedScore {
   const start = initialFree(learnerMoves);
   const g = s.scores[id]?.guided;
   return g ? { free: Math.min(g.free, start), cleared: g.cleared } : { free: start, cleared: false };
@@ -130,7 +130,12 @@ export function guidedStatus(s: MasteryState, id: string, learnerMoves: number):
  * Record a finished guided run. A clean run steps the free moves down (a clean run at 0 clears the stage); a
  * run with any mistake changes nothing.
  */
-export function recordGuidedResult(s: MasteryState, id: string, learnerMoves: number, correct: boolean): MasteryState {
+export function recordGuidedResult(
+  s: LearningState,
+  id: string,
+  learnerMoves: number,
+  correct: boolean,
+): LearningState {
   if (!correct) return s;
   const cur = guidedStatus(s, id, learnerMoves);
   if (cur.cleared) return s;
@@ -141,38 +146,38 @@ export function recordGuidedResult(s: MasteryState, id: string, learnerMoves: nu
   return { ...s, scores: { ...s.scores, [id]: { ...s.scores[id], guided } } };
 }
 
-/** Mastery runs unlock when the guided stage is cleared. */
-export const masteryUnlocked = (s: MasteryState, id: string) => s.scores[id]?.guided?.cleared === true;
+/** Timed runs unlock when the guided stage is cleared. */
+export const timedUnlocked = (s: LearningState, id: string) => s.scores[id]?.guided?.cleared === true;
 
-// ---------- mastery score ----------
+// ---------- timed score ----------
 
 /** Correct moves per minute, halved for each mistake. */
-export function masteryScore(r: { moves: number; ms: number; mistakes: number }): number {
+export function timedScore(r: { moves: number; ms: number; mistakes: number }): number {
   if (r.ms <= 0 || r.moves <= 0) return 0;
   return (r.moves / (r.ms / 60000)) * Math.pow(0.5, r.mistakes);
 }
 
-export function masteryLevel(score: number): MasteryLevel {
+export function timedLevel(score: number): TimedLevel {
   if (score > DIAMOND_ABOVE) return 'diamond';
   if (score > GOLD_ABOVE) return 'gold';
   if (score > GREEN_ABOVE) return 'green';
   return 'none';
 }
 
-export function recordMasteryResult(s: MasteryState, id: string, r: MasteryResult): MasteryState {
+export function recordTimedResult(s: LearningState, id: string, r: TimedResult): LearningState {
   const cur = s.scores[id];
   const best = cur?.best && cur.best.score >= r.score ? cur.best : r;
   return { ...s, scores: { ...s.scores, [id]: { ...cur, best, last: r, runs: (cur?.runs ?? 0) + 1 } } };
 }
 
 /** How full a level's badge is, 0 to 1: empty until a level is earned, full at diamond. */
-export const levelFill = (l: MasteryLevel): number => ({ none: 0, green: 1 / 3, gold: 2 / 3, diamond: 1 })[l];
+export const levelFill = (l: TimedLevel): number => ({ none: 0, green: 1 / 3, gold: 2 / 3, diamond: 1 })[l];
 
 /**
- * A mastery puzzle's progress as a bar: the first half fills as clean guided runs step the free moves down to zero,
- * the second half as the best mastery score climbs to diamond. No numbers are shown.
+ * A learning puzzle's progress as a bar: the first half fills as clean guided runs step the free moves down to zero,
+ * the second half as the best timed score climbs to diamond. No numbers are shown.
  */
-export function masteryProgress(s: MasteryState, id: string, learnerMoves: number): SkillBar {
+export function learningProgress(s: LearningState, id: string, learnerMoves: number): SkillBar {
   const g = guidedStatus(s, id, learnerMoves);
   const stages = guidedStages(learnerMoves);
   const done = g.cleared ? stages.length : Math.max(0, stages.indexOf(g.free));
@@ -182,7 +187,7 @@ export function masteryProgress(s: MasteryState, id: string, learnerMoves: numbe
 }
 
 /** The level a puzzle has earned (its best run). */
-export const puzzleMasteryLevel = (s: MasteryState, id: string): MasteryLevel => s.scores[id]?.best?.level ?? 'none';
+export const puzzleTimedLevel = (s: LearningState, id: string): TimedLevel => s.scores[id]?.best?.level ?? 'none';
 
 // ---------- daily attempts ----------
 
@@ -190,58 +195,58 @@ export const puzzleMasteryLevel = (s: MasteryState, id: string): MasteryLevel =>
 export const localDay = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-export function attemptsToday(s: MasteryState, id: string, day: string): number {
+export function attemptsToday(s: LearningState, id: string, day: string): number {
   const a = s.attempts[id];
   return a && a.day === day ? a.count : 0;
 }
 
-export const attemptsLeft = (s: MasteryState, id: string, day: string) =>
+export const attemptsLeft = (s: LearningState, id: string, day: string) =>
   Math.max(0, DAILY_LIMIT - attemptsToday(s, id, day));
 
-/** Use one of today's attempts (guided and mastery runs share the same two). */
-export function recordAttemptStart(s: MasteryState, id: string, day: string): MasteryState {
+/** Use one of today's attempts (guided and timed runs share the same two). */
+export function recordAttemptStart(s: LearningState, id: string, day: string): LearningState {
   return { ...s, attempts: { ...s.attempts, [id]: { day, count: attemptsToday(s, id, day) + 1 } } };
 }
 
 // ---------- persistence: validation and backups ----------
 
-export interface MasteryBackup {
+export interface LearningBackup {
   at: number;
-  state: MasteryState;
+  state: LearningState;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Validate stored data. Returns null if it can't be used. Missing maps are filled in. */
-export function parseMasteryState(raw: unknown): MasteryState | null {
+export function parseLearningState(raw: unknown): LearningState | null {
   if (!isRecord(raw) || raw.version !== 1) return null;
   const map = (v: unknown): Record<string, never> | null =>
     v === undefined ? {} : isRecord(v) ? (v as Record<string, never>) : null;
   const spaced = map(raw.spaced);
-  const mastery = map(raw.mastery);
+  const learning = map(raw.learning);
   const scores = map(raw.scores);
   const attempts = map(raw.attempts);
-  if (!spaced || !mastery || !scores || !attempts) return null;
-  return { version: 1, spaced, mastery, scores, attempts } as unknown as MasteryState;
+  if (!spaced || !learning || !scores || !attempts) return null;
+  return { version: 1, spaced, learning, scores, attempts } as unknown as LearningState;
 }
 
 /** Add a backup, keeping only the most recent `keep` (oldest first in the list). */
 export function pushBackup(
-  backups: MasteryBackup[],
-  state: MasteryState,
+  backups: LearningBackup[],
+  state: LearningState,
   at: number,
   keep = MAX_BACKUPS,
-): MasteryBackup[] {
+): LearningBackup[] {
   return [...backups, { at, state }].slice(-keep);
 }
 
 /** Usable backups from raw stored data, oldest first. Entries that fail validation are skipped. */
-export function parseBackups(raw: unknown): MasteryBackup[] {
+export function parseBackups(raw: unknown): LearningBackup[] {
   if (!Array.isArray(raw)) return [];
-  const out: MasteryBackup[] = [];
+  const out: LearningBackup[] = [];
   for (const e of raw) {
     if (!isRecord(e) || typeof e.at !== 'number') continue;
-    const state = parseMasteryState(e.state);
+    const state = parseLearningState(e.state);
     if (state) out.push({ at: e.at, state });
   }
   return out.sort((a, b) => a.at - b.at).slice(-MAX_BACKUPS);
@@ -250,10 +255,10 @@ export function parseBackups(raw: unknown): MasteryBackup[] {
 /** What to load at startup: the saved state, or if that's missing or damaged, the newest usable backup. */
 export function chooseStartupState(
   primary: unknown,
-  backups: MasteryBackup[],
-): { state: MasteryState; source: 'primary' | 'backup' | 'empty' } {
-  const p = parseMasteryState(primary);
+  backups: LearningBackup[],
+): { state: LearningState; source: 'primary' | 'backup' | 'empty' } {
+  const p = parseLearningState(primary);
   if (p) return { state: p, source: 'primary' };
   const newest = backups[backups.length - 1];
-  return newest ? { state: newest.state, source: 'backup' } : { state: emptyMasteryState(), source: 'empty' };
+  return newest ? { state: newest.state, source: 'backup' } : { state: emptyLearningState(), source: 'empty' };
 }

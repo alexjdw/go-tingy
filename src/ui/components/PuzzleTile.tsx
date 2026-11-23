@@ -23,9 +23,9 @@ interface Props {
   problem: Problem;
   /** the tile's width in points */
   width: number;
-  /** a mastery puzzle's progress, drawn as a bar under the picture */
+  /** a learning puzzle's progress, drawn as a bar under the picture */
   bar?: SkillBarData;
-  /** a small badge in the picture's top-left corner (the mastery level) */
+  /** a small badge in the picture's top-left corner (the level) */
   badge?: ReactNode;
   /** a short line under the title */
   caption?: string;

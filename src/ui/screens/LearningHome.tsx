@@ -3,17 +3,17 @@ import { View } from 'react-native';
 import type { Problem } from '../../data/samples';
 import {
   type Category,
-  type MasteryState,
+  type LearningState,
   inCategory,
   localDay,
-  masteryProgress,
-  puzzleMasteryLevel,
-} from '../../progress/mastery';
-import { type RunKind, masteryAction } from '../../progress/practice';
+  learningProgress,
+  puzzleTimedLevel,
+} from '../../progress/learning';
+import { type RunKind, learningAction } from '../../progress/practice';
 import { cachedLearnerDepth } from '../../study/lines';
 import type { ProgressMap } from '../../progress/skill';
 import { tileStats } from '../../progress/stats';
-import { MasteryBadge } from '../components/MasteryBadge';
+import { LearningBadge } from '../components/LearningBadge';
 import { PlusMenu } from '../components/PlusMenu';
 import { PuzzleGrid } from '../components/PuzzleGrid';
 import { PuzzleTile } from '../components/PuzzleTile';
@@ -23,7 +23,7 @@ import { Btn } from '../components/theme';
 interface Props {
   problems: Problem[];
   progress: ProgressMap;
-  mastery: MasteryState;
+  learning: LearningState;
   /** ids of the puzzles in joseki mode */
   joseki: string[];
   onJosekiChange: (id: string, on: boolean) => void;
@@ -34,13 +34,13 @@ interface Props {
 }
 
 /**
- * The puzzles in mastery, as tiles like Browse. Play does the puzzle's next training step (a guided run until the
- * guided stage is cleared, then a mastery run); "Add puzzles" is at the top.
+ * The puzzles in learning, as tiles like Browse. Play does the puzzle's next training step (a guided run until the
+ * guided stage is cleared, then a timed run); "Add puzzles" is at the top.
  */
-export function MasteryHome({
+export function LearningHome({
   problems,
   progress,
-  mastery,
+  learning,
   joseki,
   onJosekiChange,
   onBack,
@@ -50,10 +50,10 @@ export function MasteryHome({
 }: Props) {
   const [menu, setMenu] = useState<Problem | null>(null);
   const day = localDay(new Date());
-  const members = useMemo(() => problems.filter((p) => inCategory(mastery, 'mastery', p.id)), [problems, mastery]);
+  const members = useMemo(() => problems.filter((p) => inCategory(learning, 'learning', p.id)), [problems, learning]);
   const actions = useMemo(
-    () => new Map(members.map((p) => [p.id, masteryAction(mastery, p.id, cachedLearnerDepth(p.sgf), day)])),
-    [members, mastery, day],
+    () => new Map(members.map((p) => [p.id, learningAction(learning, p.id, cachedLearnerDepth(p.sgf), day)])),
+    [members, learning, day],
   );
   const ready = members.filter((p) => actions.get(p.id)?.enabled).length;
 
@@ -81,15 +81,15 @@ export function MasteryHome({
             <PuzzleTile
               problem={p}
               width={width}
-              bar={masteryProgress(mastery, p.id, cachedLearnerDepth(p.sgf))}
-              badge={<MasteryBadge level={puzzleMasteryLevel(mastery, p.id)} />}
+              bar={learningProgress(learning, p.id, cachedLearnerDepth(p.sgf))}
+              badge={<LearningBadge level={puzzleTimedLevel(learning, p.id)} />}
               caption={a.caption}
               tags={joseki.includes(p.id) ? ['Joseki'] : []}
               stats={() =>
                 tileStats({
                   id: p.id,
                   history: progress[p.id],
-                  mastery,
+                  learning,
                   learnerMoves: cachedLearnerDepth(p.sgf),
                   joseki: joseki.includes(p.id),
                   day,
@@ -111,14 +111,14 @@ export function MasteryHome({
       />
       <PlusMenu
         title={menu?.title ?? null}
-        spaced={menu ? inCategory(mastery, 'spaced', menu.id) : false}
-        mastery={menu ? inCategory(mastery, 'mastery', menu.id) : false}
+        spaced={menu ? inCategory(learning, 'spaced', menu.id) : false}
+        learning={menu ? inCategory(learning, 'learning', menu.id) : false}
         joseki={menu ? joseki.includes(menu.id) : false}
         onJosekiChange={(on) => menu && onJosekiChange(menu.id, on)}
         onToggle={(category, on) => {
           if (!menu) return;
           onToggleCategory(menu.id, category, on);
-          if (category === 'mastery' && !on) setMenu(null); // it just left this list
+          if (category === 'learning' && !on) setMenu(null); // it just left this list
         }}
         onClose={() => setMenu(null)}
       />

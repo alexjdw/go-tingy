@@ -68,7 +68,7 @@ export function computeSkill(history: Attempt[] | undefined): Skill {
   else if (score < 0.95) level = 'silver';
   else level = 'gold';
 
-  // Mastery tiers need enough evidence and recent perfection.
+  // Learning tiers need enough evidence and recent perfection.
   const lastThree = h.slice(-3);
   const recentPerfect = lastThree.length === 3 && lastThree.every((a) => a.correct);
   if (level === 'gold' && !(h.length >= 5 && accuracy >= 0.9 && recentPerfect)) level = 'silver';

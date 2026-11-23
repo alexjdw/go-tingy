@@ -3,15 +3,15 @@ import { View } from 'react-native';
 import type { Problem } from '../../data/samples';
 import {
   type Category,
-  type MasteryState,
+  type LearningState,
   inCategory,
   localDay,
-  masteryProgress,
-  puzzleMasteryLevel,
-} from '../../progress/mastery';
+  learningProgress,
+  puzzleTimedLevel,
+} from '../../progress/learning';
 import type { ProgressMap } from '../../progress/skill';
 import { tileStats } from '../../progress/stats';
-import { MasteryBadge } from '../components/MasteryBadge';
+import { LearningBadge } from '../components/LearningBadge';
 import { cachedLearnerDepth } from '../../study/lines';
 import { CollectionBar, useCollectionFilter } from '../components/CollectionBar';
 import { PlusMenu } from '../components/PlusMenu';
@@ -23,7 +23,7 @@ import { Btn } from '../components/theme';
 interface Props {
   problems: Problem[];
   progress: ProgressMap;
-  mastery: MasteryState;
+  learning: LearningState;
   /** ids of the puzzles in joseki mode */
   joseki: string[];
   onJosekiChange: (id: string, on: boolean) => void;
@@ -42,7 +42,7 @@ interface Props {
 export function Browse({
   problems,
   progress,
-  mastery,
+  learning,
   joseki,
   onJosekiChange,
   onBack,
@@ -85,20 +85,20 @@ export function Browse({
         header={header}
         empty="No puzzles here. Create one, or import SGF files."
         renderTile={(p, width) => {
-          const spaced = inCategory(mastery, 'spaced', p.id);
-          const inMastery = inCategory(mastery, 'mastery', p.id);
+          const spaced = inCategory(learning, 'spaced', p.id);
+          const inLearning = inCategory(learning, 'learning', p.id);
           return (
             <PuzzleTile
               problem={p}
               width={width}
-              bar={inMastery ? masteryProgress(mastery, p.id, cachedLearnerDepth(p.sgf)) : undefined}
+              bar={inLearning ? learningProgress(learning, p.id, cachedLearnerDepth(p.sgf)) : undefined}
               caption={p.collection}
-              badge={inMastery ? <MasteryBadge level={puzzleMasteryLevel(mastery, p.id)} /> : undefined}
+              badge={inLearning ? <LearningBadge level={puzzleTimedLevel(learning, p.id)} /> : undefined}
               stats={() =>
                 tileStats({
                   id: p.id,
                   history: progress[p.id],
-                  mastery,
+                  learning,
                   learnerMoves: cachedLearnerDepth(p.sgf),
                   joseki: joseki.includes(p.id),
                   day: localDay(new Date()),
@@ -121,8 +121,8 @@ export function Browse({
       />
       <PlusMenu
         title={menu?.title ?? null}
-        spaced={menu ? inCategory(mastery, 'spaced', menu.id) : false}
-        mastery={menu ? inCategory(mastery, 'mastery', menu.id) : false}
+        spaced={menu ? inCategory(learning, 'spaced', menu.id) : false}
+        learning={menu ? inCategory(learning, 'learning', menu.id) : false}
         joseki={menu ? joseki.includes(menu.id) : false}
         onJosekiChange={(on) => menu && onJosekiChange(menu.id, on)}
         onToggle={(category, on) => menu && onToggleCategory(menu.id, category, on)}

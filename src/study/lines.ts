@@ -9,7 +9,7 @@ import {
   parseSgf,
 } from '../sgf/parser';
 
-/** Upper bound on the lines tracked for one puzzle (a runaway tree shouldn't make a mastery run endless). */
+/** Upper bound on the lines tracked for one puzzle (a runaway tree shouldn't make a timed run endless). */
 export const MAX_LINES = 200;
 
 /**
@@ -82,7 +82,7 @@ export function linesOf(sgf: string): LineSet {
 
 /**
  * How many moves the learner makes along the longest line. This is the "length" that sizes the guided
- * mastery steps. 0 for a puzzle with no solution line.
+ * learning steps. 0 for a puzzle with no solution line.
  */
 export const learnerDepth = (sgf: string) => linesOf(sgf).maxLearnerMoves;
 

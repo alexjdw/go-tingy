@@ -6,33 +6,33 @@ import {
   DIAMOND_ABOVE,
   GOLD_ABOVE,
   GREEN_ABOVE,
-  type MasteryLevel,
-  type MasteryResult,
-  masteryLevel,
-} from '../../progress/mastery';
+  type TimedLevel,
+  type TimedResult,
+  timedLevel,
+} from '../../progress/learning';
 import type { SkillBar as SkillBarData } from '../../progress/skill';
 import { SolvedStamp } from '../components/SolvedStamp';
 import { SkillBar } from '../components/SkillBar';
 import { allPoints, type Point } from '../../sgf/parser';
-import { MasteryRun } from '../../study/mastery';
+import { TimedRun } from '../../study/timed';
 import { BoardView } from '../components/Board';
-import { Btn, MASTERY_COLORS, theme } from '../components/theme';
+import { Btn, TIMED_COLORS, theme } from '../components/theme';
 import { playStone } from '../sound';
 import { useZoom, zoomedTap } from '../zoom';
 
 interface Props {
   problem: Problem;
   /** best result so far, to compare against */
-  best?: MasteryResult;
+  best?: TimedResult;
   /** joseki mode for this puzzle: every line is solved from both sides */
   joseki?: boolean;
-  /** the puzzle's mastery progress */
+  /** the puzzle's learning progress */
   bar?: SkillBarData;
   onExit: () => void;
   /** Called once, on the first move: uses up one of today's attempts. */
   onFirstMove: () => void;
   /** Called once, when every line has been solved. */
-  onFinish: (r: MasteryResult) => void;
+  onFinish: (r: TimedResult) => void;
 }
 
 const mmss = (ms: number) => {
@@ -40,17 +40,17 @@ const mmss = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
-const LEVEL_NAME: Record<MasteryLevel, string> = {
+const LEVEL_NAME: Record<TimedLevel, string> = {
   none: 'No level yet',
   green: 'Green',
   gold: 'Gold',
   diamond: 'Diamond',
 };
 
-export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove, onFinish }: Props) {
+export function TimedScreen({ problem, best, joseki, bar, onExit, onFirstMove, onFinish }: Props) {
   const { width } = useWindowDimensions();
   const boardW = Math.min(width - 24, 560);
-  const run = useMemo(() => new MasteryRun(problem.sgf, { joseki }), [problem.sgf, joseki]);
+  const run = useMemo(() => new TimedRun(problem.sgf, { joseki }), [problem.sgf, joseki]);
   const [, force] = useReducer((n: number) => n + 1, 0);
   const [flash, setFlash] = useState<'wrong' | 'right' | null>(null);
   const started = useRef(false);
@@ -108,7 +108,7 @@ export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove,
 
   const s = run.engine.snap;
   const score = run.score();
-  const level = masteryLevel(score);
+  const level = timedLevel(score);
   const result = run.phase === 'done' ? run.result() : null;
 
   return (
@@ -119,7 +119,7 @@ export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove,
           <Text style={styles.title} numberOfLines={1}>
             {problem.title}
           </Text>
-          <Text style={styles.sub}>Mastery run</Text>
+          <Text style={styles.sub}>Timed run</Text>
         </View>
         {zoom.canZoom && run.phase !== 'ready' ? (
           <Btn
@@ -156,7 +156,7 @@ export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove,
               Your best: {best.score.toFixed(1)} ({LEVEL_NAME[best.level]})
             </Text>
           ) : null}
-          {bar ? <SkillBar bar={bar} height={10} label="Mastery progress" /> : null}
+          {bar ? <SkillBar bar={bar} height={10} label="Learning progress" /> : null}
           <Text style={styles.text}>The clock starts when you press Start.</Text>
           <Btn
             label="Start"
@@ -199,7 +199,7 @@ export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove,
             <Stat label="Time" value={mmss(run.elapsedMs())} />
             <Stat label="Moves" value={String(run.moves)} />
             <Stat label="Mistakes" value={String(run.mistakes)} />
-            <Stat label="Score" value={score.toFixed(1)} color={MASTERY_COLORS[level]} />
+            <Stat label="Score" value={score.toFixed(1)} color={TIMED_COLORS[level]} />
           </View>
 
           {run.phase === 'playing' ? (
@@ -208,7 +208,7 @@ export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove,
             </Text>
           ) : null}
           {run.phase === 'between' ? (
-            <Text style={[styles.status, { color: run.lastOutcome === 'success' ? MASTERY_COLORS.green : '#e5484d' }]}>
+            <Text style={[styles.status, { color: run.lastOutcome === 'success' ? TIMED_COLORS.green : '#e5484d' }]}>
               {run.lastOutcome === 'success' ? 'Line solved — next line…' : 'Mistake — next line…'}
             </Text>
           ) : null}
@@ -220,7 +220,7 @@ export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove,
           <Text style={styles.cardTitle}>
             All {result.lines} line{result.lines === 1 ? '' : 's'} solved
           </Text>
-          <View style={[styles.badge, { backgroundColor: MASTERY_COLORS[result.level] }]}>
+          <View style={[styles.badge, { backgroundColor: TIMED_COLORS[result.level] }]}>
             <Text style={styles.badgeText}>{LEVEL_NAME[result.level]}</Text>
           </View>
           <Text style={styles.text}>
@@ -232,7 +232,7 @@ export function MasteryScreen({ problem, best, joseki, bar, onExit, onFirstMove,
           ) : (
             <Text style={styles.text}>New best!</Text>
           )}
-          {bar ? <SkillBar bar={bar} height={10} label="Mastery progress" /> : null}
+          {bar ? <SkillBar bar={bar} height={10} label="Learning progress" /> : null}
           <Btn label="Done" onPress={onExit} />
         </View>
       ) : null}
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   sub: { color: theme.muted, fontSize: 13 },
   boardBox: { borderRadius: 8, borderWidth: 3, borderColor: 'transparent' },
   wrong: { borderColor: '#e5484d' },
-  right: { borderColor: MASTERY_COLORS.green },
+  right: { borderColor: TIMED_COLORS.green },
   armed: { borderColor: theme.accent },
   card: { backgroundColor: theme.card, borderRadius: 10, padding: 16, gap: 10, width: '100%', maxWidth: 560 },
   cardTitle: { color: theme.text, fontSize: 18, fontWeight: '700' },

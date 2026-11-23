@@ -115,7 +115,7 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     assert.equal(
       (t.match(/No puzzles yet/g) ?? []).length,
       2,
-      'a fresh install has nothing in mastery or spaced repetition',
+      'a fresh install has nothing in learning or spaced repetition',
     );
     assert.ok(!t.includes('New puzzle'), 'New puzzle is under Browse, not on Home');
   });
@@ -141,11 +141,11 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     assert.equal(
       await count(page, `document.querySelectorAll('[aria-label="Skill"]').length`),
       0,
-      'no bar outside mastery',
+      'no bar outside learning',
     );
   });
 
-  it('+ pops up the choice to add to mastery and spaced repetition', async () => {
+  it('+ pops up the choice to add to learning and spaced repetition', async () => {
     await clickAria(page, `Add ${CORNER.title} to a study mode`);
     await expectText(page, 'Add to spaced repetition');
     await expectText(page, 'Add to guided learning');
@@ -156,11 +156,11 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     await click(page, 'Close');
     await expectText(page, 'Spaced repetition');
     assert.equal(
-      await count(page, `document.querySelectorAll('[aria-label="Mastery level: not started"]').length`),
+      await count(page, `document.querySelectorAll('[aria-label="Level: not started"]').length`),
       1,
-      'a GM badge on the mastery puzzle, not the word Mastery',
+      'a GM badge on the learning puzzle, not the word Learning',
     );
-    assert.ok(!(await bodyText(page)).includes('Spaced repetition · Mastery'));
+    assert.ok(!(await bodyText(page)).includes('Spaced repetition · Learning'));
   });
 
   it('Home shows what is due and what is ready', async () => {
@@ -186,7 +186,7 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
     await expectText(page, 'Solved — no mistakes!');
     assert.equal(
-      await count(page, `document.querySelectorAll('[aria-label="Skill"], [aria-label="Mastery progress"]').length`),
+      await count(page, `document.querySelectorAll('[aria-label="Skill"], [aria-label="Learning progress"]').length`),
       0,
       'spaced repetition shows no skill bar',
     );
@@ -230,7 +230,7 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     await expectText(page, '1 due now');
   });
 
-  it('Mastery lists its puzzles as tiles with Add puzzles near the top', async () => {
+  it('Learning lists its puzzles as tiles with Add puzzles near the top', async () => {
     await click(page, 'Guided Learning');
     await expectText(page, '1 puzzle · 1 ready today');
     await expectText(page, 'Guided: stage 1 of 1 · 0 free moves');
@@ -245,9 +245,9 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     await expectText(page, EDGE.title);
   });
 
-  it('Play does the next step: a guided run, then a mastery run, two attempts a day', async () => {
+  it('Play does the next step: a guided run, then a timed run, two attempts a day', async () => {
     const barBefore = (await page.evaluate(BARS)) as string;
-    assert.ok(barBefore, 'a mastery tile has a progress bar');
+    assert.ok(barBefore, 'a learning tile has a progress bar');
     await click(page, 'Play'); // Corner capture's tile is first
     await expectText(page, 'Guided learning · 0 free moves');
     // the first time, a short tutorial explains the mode
@@ -259,27 +259,27 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     await click(page, 'Got it');
     assert.ok(!(await bodyText(page)).includes('Then finish it yourself'), 'the tutorial closed');
     await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
-    await expectText(page, 'Guided stage cleared! Mastery runs are unlocked.');
+    await expectText(page, 'Guided stage cleared! Timed runs are unlocked.');
     assert.equal(
       await count(page, `document.querySelectorAll('[aria-label="Solved"]').length`),
       1,
       'a checkmark stamp on the board says it is solved',
     );
     assert.equal(
-      await count(page, `document.querySelectorAll('[aria-label="Mastery progress"]').length`),
+      await count(page, `document.querySelectorAll('[aria-label="Learning progress"]').length`),
       1,
       'the run shows how far along the puzzle is',
     );
     await click(page, '‹ Back');
     assert.notEqual(await page.evaluate(BARS), barBefore, 'the bar filled as the guided stage was cleared');
-    await expectText(page, 'Guided cleared · ready for mastery');
+    await expectText(page, 'Guided cleared · ready for timed runs');
     await click(page, 'Play');
     await expectText(page, '1 line to solve');
     await click(page, 'Start');
     await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
     await expectText(page, 'All 1 line solved');
     await click(page, 'Done');
-    await expectText(page, /Mastery: \w+ · \d/);
+    await expectText(page, /Best: \w+ · \d/);
     await expectText(page, 'Tomorrow');
     await expectText(page, 'no attempts left today');
   });
@@ -289,7 +289,7 @@ describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_
     await click(page, 'Browse');
     await expectText(page, 'New puzzle');
     const before = (await page.evaluate(BARS)) as string;
-    assert.ok(before, 'the puzzle in mastery has a progress bar');
+    assert.ok(before, 'the puzzle in learning has a progress bar');
     await click(page, 'Play'); // Corner capture's tile is first
     await tapBoard(page, CORNER.sgf, WRONG);
     await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);

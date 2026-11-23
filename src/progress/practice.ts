@@ -1,12 +1,12 @@
 /**
  * What the study modes offer for a puzzle, decided from its progress: pure helpers behind the tile buttons.
  */
-import { type MasteryState, attemptsLeft, guidedStages, guidedStatus, puzzleMasteryLevel } from './mastery';
+import { type LearningState, attemptsLeft, guidedStages, guidedStatus, puzzleTimedLevel } from './learning';
 import { type Attempt, type Level, computeSkill } from './skill';
 
-export type RunKind = 'guided' | 'mastery';
+export type RunKind = 'guided' | 'learning';
 
-export interface MasteryAction {
+export interface LearningAction {
   /** which run Play starts; null when none is available right now */
   kind: RunKind | null;
   /** the text for the Play button */
@@ -17,10 +17,10 @@ export interface MasteryAction {
 }
 
 /**
- * What "Play" does for a puzzle in mastery mode: the next step of its training. A puzzle whose guided stage is not
- * cleared gets a guided run; once it is cleared, Play starts a mastery run. Two attempts a day, shared.
+ * What "Play" does for a puzzle in learning mode: the next step of its training. A puzzle whose guided stage is not
+ * cleared gets a guided run; once it is cleared, Play starts a timed run. Two attempts a day, shared.
  */
-export function masteryAction(s: MasteryState, id: string, learnerMoves: number, day: string): MasteryAction {
+export function learningAction(s: LearningState, id: string, learnerMoves: number, day: string): LearningAction {
   if (learnerMoves <= 0) return { kind: null, label: 'Play', caption: 'No solution line', enabled: false };
   const g = guidedStatus(s, id, learnerMoves);
   const best = s.scores[id]?.best;
@@ -29,13 +29,13 @@ export function masteryAction(s: MasteryState, id: string, learnerMoves: number,
   const stage = Math.max(0, stages.indexOf(g.free)) + 1;
   const caption = g.cleared
     ? best
-      ? `Mastery: ${puzzleMasteryLevel(s, id)} · ${best.score.toFixed(1)}`
-      : 'Guided cleared · ready for mastery'
+      ? `Best: ${puzzleTimedLevel(s, id)} · ${best.score.toFixed(1)}`
+      : 'Guided cleared · ready for timed runs'
     : `Guided: stage ${stage} of ${stages.length} · ${g.free} free move${g.free === 1 ? '' : 's'}`;
   if (left === 0)
     return { kind: null, label: 'Tomorrow', caption: `${caption} · no attempts left today`, enabled: false };
   return g.cleared
-    ? { kind: 'mastery', label: 'Play', caption, enabled: true }
+    ? { kind: 'learning', label: 'Play', caption, enabled: true }
     : { kind: 'guided', label: 'Play', caption, enabled: true };
 }
 

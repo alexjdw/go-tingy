@@ -4,21 +4,21 @@ import { StatusBar } from 'expo-status-bar';
 import { SAMPLES, type Problem } from './data/samples';
 import {
   type Category,
-  type MasteryResult,
-  type MasteryState,
+  type TimedResult,
+  type LearningState,
   attemptsLeft,
-  emptyMasteryState,
+  emptyLearningState,
   guidedStatus,
   inCategory,
   isDueNow,
   localDay,
-  masteryProgress,
+  learningProgress,
   recordAttemptStart,
   recordGuidedResult,
-  recordMasteryResult,
+  recordTimedResult,
   setCategory,
-} from './progress/mastery';
-import { type RunKind, masteryAction } from './progress/practice';
+} from './progress/learning';
+import { type RunKind, learningAction } from './progress/practice';
 import { type Attempt, type ProgressMap, recordAttempt } from './progress/skill';
 import { depthOf, toDepth } from './nav/history';
 import { canGoBack, current, pop, push, replace, reset, type Stack } from './nav/stack';
@@ -33,7 +33,7 @@ import {
   saveSeen,
 } from './storage/persistence';
 import { asyncKv } from './storage/asyncKv';
-import { createMasteryStore } from './storage/mastery';
+import { createLearningStore } from './storage/learning';
 import { DEFAULT_SETTINGS, type Settings, loadSettings, saveSettings } from './storage/settings';
 import { cachedLearnerDepth } from './study/lines';
 import type { Mode } from './study/engine';
@@ -43,8 +43,8 @@ import { Editor } from './ui/screens/Editor';
 import { FromGame } from './ui/screens/FromGame';
 import { Home } from './ui/screens/Home';
 import { ImportScreen } from './ui/screens/ImportScreen';
-import { MasteryHome } from './ui/screens/MasteryHome';
-import { MasteryScreen } from './ui/screens/MasteryScreen';
+import { LearningHome } from './ui/screens/LearningHome';
+import { TimedScreen } from './ui/screens/TimedScreen';
 import { Picker } from './ui/screens/Picker';
 import { Prune } from './ui/screens/Prune';
 import { SessionScreen } from './ui/screens/SessionScreen';
@@ -54,7 +54,7 @@ import { Study } from './ui/screens/Study';
 type Screen =
   | { name: 'home' }
   | { name: 'browse' }
-  | { name: 'mastery' }
+  | { name: 'learning' }
   | { name: 'session' }
   | { name: 'picker'; category: Category }
   | { name: 'prune' }
@@ -63,9 +63,9 @@ type Screen =
   | { name: 'fromGame' }
   | { name: 'editor'; problem?: Problem }
   | { name: 'study'; problem: Problem; mode: Mode; run?: { freeMoves: number; learnerMoves: number } }
-  | { name: 'masteryRun'; problem: Problem };
+  | { name: 'timedRun'; problem: Problem };
 
-const masteryStore = createMasteryStore(asyncKv);
+const learningStore = createLearningStore(asyncKv);
 
 export default function App() {
   const [stack, setStack] = useState<Stack<Screen>>(() => reset<Screen>({ name: 'home' }));
@@ -78,12 +78,12 @@ export default function App() {
   const [custom, setCustom] = useState<Problem[]>([]);
   const [progress, setProgress] = useState<ProgressMap>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [mastery, setMastery] = useState<MasteryState>(emptyMasteryState());
+  const [learning, setLearning] = useState<LearningState>(emptyLearningState());
   const [joseki, setJoseki] = useState<string[]>([]);
   const [seen, setSeen] = useState<string[] | null>(null);
   const [ready, setReady] = useState(false);
-  // the latest mastery state, so several updates in one event see each other
-  const masteryRef = useRef(mastery);
+  // the latest learning state, so several updates in one event see each other
+  const learningRef = useRef(learning);
 
   const go = useCallback((s: Screen) => setStack((st) => push(st, s)), []);
   // On the web the browser's history mirrors the stack, so Back is the browser's Back.
@@ -111,24 +111,24 @@ export default function App() {
     void loadJoseki().then(setJoseki);
     void loadSeen().then(setSeen);
     // the saved state, or the newest backup if it is missing or damaged
-    void masteryStore.load().then(({ state }) => {
-      masteryRef.current = state;
-      setMastery(state);
+    void learningStore.load().then(({ state }) => {
+      learningRef.current = state;
+      setLearning(state);
       setReady(true);
     });
   }, []);
 
-  /** Change the mastery state and save it. Returns the new state. */
-  const updateMastery = useCallback((fn: (s: MasteryState) => MasteryState) => {
-    const next = fn(masteryRef.current);
-    masteryRef.current = next;
-    setMastery(next);
-    void masteryStore.save(next);
+  /** Change the learning state and save it. Returns the new state. */
+  const updateLearning = useCallback((fn: (s: LearningState) => LearningState) => {
+    const next = fn(learningRef.current);
+    learningRef.current = next;
+    setLearning(next);
+    void learningStore.save(next);
     return next;
   }, []);
 
-  /** Snapshot the scores; done whenever a guided or mastery run is left. */
-  const backupMastery = useCallback(() => void masteryStore.backup(masteryRef.current), []);
+  /** Snapshot the scores; done whenever a guided or timed run is left. */
+  const backupLearning = useCallback(() => void learningStore.backup(learningRef.current), []);
 
   // Web: one history entry per screen; the browser's Back and Forward buttons move along the stack.
   const forwardRef = useRef<Screen[]>([]);
@@ -144,13 +144,13 @@ export default function App() {
       histDepth.current = next.stack.length;
       if (depthOf(e.state) !== next.stack.length) window.history.replaceState({ depth: next.stack.length }, '');
       const left = current(before);
-      if (next.stack.length < before.length && (left.name === 'masteryRun' || (left.name === 'study' && left.run)))
-        backupMastery();
+      if (next.stack.length < before.length && (left.name === 'timedRun' || (left.name === 'study' && left.run)))
+        backupLearning();
       setStack(next.stack);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [backupMastery]);
+  }, [backupLearning]);
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     if (stack.length > histDepth.current) {
@@ -206,36 +206,36 @@ export default function App() {
     void saveJoseki(next);
   };
 
-  const toggleCategory = (id: string, cat: Category, on: boolean) => updateMastery((s) => setCategory(s, cat, id, on));
+  const toggleCategory = (id: string, cat: Category, on: boolean) => updateLearning((s) => setCategory(s, cat, id, on));
 
-  /** Start the next training step of a mastery puzzle: a guided run, or a mastery run. */
+  /** Start the next training step of a learning puzzle: a guided run, or a timed run. */
   const startRun = (problem: Problem, kind: RunKind) => {
-    const s = masteryRef.current;
+    const s = learningRef.current;
     if (attemptsLeft(s, problem.id, localDay(new Date())) <= 0) return; // two a day
-    if (kind === 'mastery') return go({ name: 'masteryRun', problem });
+    if (kind === 'learning') return go({ name: 'timedRun', problem });
     const learnerMoves = cachedLearnerDepth(problem.sgf);
     const { free } = guidedStatus(s, problem.id, learnerMoves);
     go({ name: 'study', problem, mode: 'unguided', run: { freeMoves: free, learnerMoves } });
   };
 
   const leaveRun = () => {
-    backupMastery();
+    backupLearning();
     back();
   };
 
   /** What to tell the player after a guided run. */
   const guidedMessage = (id: string, learnerMoves: number, correct: boolean) => {
-    const now = guidedStatus(masteryRef.current, id, learnerMoves);
+    const now = guidedStatus(learningRef.current, id, learnerMoves);
     if (!correct) return `Not clean this time, so you'll get ${now.free} free move${now.free === 1 ? '' : 's'} again.`;
-    if (now.cleared) return 'Guided stage cleared! Mastery runs are unlocked.';
+    if (now.cleared) return 'Guided stage cleared! Timed runs are unlocked.';
     return `Clean run! Next time you get ${now.free} free move${now.free === 1 ? '' : 's'}.`;
   };
 
   if (!ready) return <SafeAreaView style={styles.root} />;
 
   const day = localDay(new Date());
-  const masteryMembers = problems.filter((p) => inCategory(mastery, 'mastery', p.id));
-  const spacedMembers = problems.filter((p) => inCategory(mastery, 'spaced', p.id));
+  const learningMembers = problems.filter((p) => inCategory(learning, 'learning', p.id));
+  const spacedMembers = problems.filter((p) => inCategory(learning, 'spaced', p.id));
 
   return (
     <SafeAreaView style={styles.root}>
@@ -243,14 +243,14 @@ export default function App() {
 
       {screen.name === 'home' && (
         <Home
-          dueCount={problems.filter((p) => isDueNow(mastery, p.id, progress[p.id])).length}
+          dueCount={problems.filter((p) => isDueNow(learning, p.id, progress[p.id])).length}
           spacedCount={spacedMembers.length}
-          masteryCount={masteryMembers.length}
-          masteryReady={
-            masteryMembers.filter((p) => masteryAction(mastery, p.id, cachedLearnerDepth(p.sgf), day).enabled).length
+          learningCount={learningMembers.length}
+          learningReady={
+            learningMembers.filter((p) => learningAction(learning, p.id, cachedLearnerDepth(p.sgf), day).enabled).length
           }
           puzzleCount={problems.length}
-          onMastery={() => go({ name: 'mastery' })}
+          onLearning={() => go({ name: 'learning' })}
           onSpaced={() => go({ name: 'session' })}
           onBrowse={() => go({ name: 'browse' })}
           onSettings={() => go({ name: 'settings' })}
@@ -261,7 +261,7 @@ export default function App() {
         <Browse
           problems={problems}
           progress={progress}
-          mastery={mastery}
+          learning={learning}
           joseki={joseki}
           onJosekiChange={setJosekiMode}
           onBack={back}
@@ -276,15 +276,15 @@ export default function App() {
         />
       )}
 
-      {screen.name === 'mastery' && (
-        <MasteryHome
+      {screen.name === 'learning' && (
+        <LearningHome
           problems={problems}
           progress={progress}
-          mastery={mastery}
+          learning={learning}
           joseki={joseki}
           onJosekiChange={setJosekiMode}
           onBack={back}
-          onAddPuzzles={() => go({ name: 'picker', category: 'mastery' })}
+          onAddPuzzles={() => go({ name: 'picker', category: 'learning' })}
           onPlay={startRun}
           onToggleCategory={toggleCategory}
         />
@@ -293,7 +293,7 @@ export default function App() {
       {screen.name === 'session' && (
         <SessionScreen
           problems={problems}
-          mastery={mastery}
+          learning={learning}
           progress={progress}
           settings={settings}
           record={record}
@@ -310,7 +310,7 @@ export default function App() {
         <Picker
           category={screen.category}
           problems={problems}
-          mastery={mastery}
+          learning={learning}
           onToggle={(id, on) => toggleCategory(id, screen.category, on)}
           onBack={back}
         />
@@ -337,28 +337,28 @@ export default function App() {
           onJosekiChange={screen.run ? undefined : (on) => setJosekiMode(screen.problem.id, on)}
           tutorial={screen.run && seen && !seen.includes('guided-run') ? 'guided-run' : undefined}
           onTutorialDone={() => markSeen('guided-run')}
-          runBar={screen.run ? masteryProgress(mastery, screen.problem.id, screen.run.learnerMoves) : undefined}
+          runBar={screen.run ? learningProgress(learning, screen.problem.id, screen.run.learnerMoves) : undefined}
           onExit={screen.run ? leaveRun : back}
-          onRunStart={() => updateMastery((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
+          onRunStart={() => updateLearning((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
           onRunResult={({ correct }) => {
             const id = screen.problem.id;
             const L = screen.run?.learnerMoves ?? 0;
-            updateMastery((s) => recordGuidedResult(s, id, L, correct));
+            updateLearning((s) => recordGuidedResult(s, id, L, correct));
             return guidedMessage(id, L, correct);
           }}
         />
       )}
 
-      {screen.name === 'masteryRun' && (
-        <MasteryScreen
+      {screen.name === 'timedRun' && (
+        <TimedScreen
           key={screen.problem.id}
           problem={screen.problem}
           joseki={joseki.includes(screen.problem.id)}
-          bar={masteryProgress(mastery, screen.problem.id, cachedLearnerDepth(screen.problem.sgf))}
-          best={mastery.scores[screen.problem.id]?.best}
+          bar={learningProgress(learning, screen.problem.id, cachedLearnerDepth(screen.problem.sgf))}
+          best={learning.scores[screen.problem.id]?.best}
           onExit={leaveRun}
-          onFirstMove={() => updateMastery((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
-          onFinish={(r: MasteryResult) => updateMastery((s) => recordMasteryResult(s, screen.problem.id, r))}
+          onFirstMove={() => updateLearning((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
+          onFinish={(r: TimedResult) => updateLearning((s) => recordTimedResult(s, screen.problem.id, r))}
         />
       )}
 

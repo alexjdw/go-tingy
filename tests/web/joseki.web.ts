@@ -149,7 +149,7 @@ describe('joseki mode in the browser', { skip: chromePath ? false : 'Chrome not 
     await expectText(page, 'Joseki');
   });
 
-  it('applies in mastery too: a guided run is played from both sides', async () => {
+  it('applies in learning too: a guided run is played from both sides', async () => {
     await click(page, '‹ Back');
     await click(page, 'Guided Learning');
     await expectText(page, 'Joseki');

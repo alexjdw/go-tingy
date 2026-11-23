@@ -45,7 +45,7 @@ interface Props {
    */
   joseki?: boolean;
   onJosekiChange?: (on: boolean) => void;
-  /** A guided learning run: the puzzle's mastery progress, shown once the run is solved. */
+  /** A guided learning run: the puzzle's learning progress, shown once the run is solved. */
   runBar?: SkillBarData;
   /** Show the first-time introduction to guided runs, until onTutorialDone. */
   tutorial?: string;
@@ -320,7 +320,7 @@ export function Study({
       </Text>
       {run && s.status === 'solved' && !sidePending && runBar ? (
         <View style={styles.skill}>
-          <SkillBar bar={runBar} height={10} label="Mastery progress" />
+          <SkillBar bar={runBar} height={10} label="Learning progress" />
         </View>
       ) : null}
       {runMessage ? <Text style={styles.status}>{runMessage}</Text> : null}

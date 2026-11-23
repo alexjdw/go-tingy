@@ -1,12 +1,12 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import type { Category } from '../../progress/mastery';
+import type { Category } from '../../progress/learning';
 import { Btn, theme } from './theme';
 
 interface Props {
   /** the puzzle's name; the menu is closed when null */
   title: string | null;
   spaced: boolean;
-  mastery: boolean;
+  learning: boolean;
   /** joseki mode: the puzzle is played from both sides, wherever it is studied */
   joseki?: boolean;
   onJosekiChange?: (on: boolean) => void;
@@ -17,11 +17,11 @@ interface Props {
   onClose: () => void;
 }
 
-/** The "+" menu: add the puzzle to (or remove it from) spaced repetition and mastery. */
+/** The "+" menu: add the puzzle to (or remove it from) spaced repetition and learning. */
 export function PlusMenu({
   title,
   spaced,
-  mastery,
+  learning,
   joseki,
   onJosekiChange,
   onToggle,
@@ -43,9 +43,9 @@ export function PlusMenu({
             onPress={() => onToggle('spaced', !spaced)}
           />
           <Btn
-            label={mastery ? '✓ Guided learning (tap to remove)' : 'Add to guided learning'}
-            kind={mastery ? 'solid' : 'ghost'}
-            onPress={() => onToggle('mastery', !mastery)}
+            label={learning ? '✓ Guided learning (tap to remove)' : 'Add to guided learning'}
+            kind={learning ? 'solid' : 'ghost'}
+            onPress={() => onToggle('learning', !learning)}
           />
           {onJosekiChange ? (
             <Btn

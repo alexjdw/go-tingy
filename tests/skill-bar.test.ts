@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   DIAMOND_ABOVE,
-  emptyMasteryState,
+  emptyLearningState,
   guidedStages,
-  masteryProgress,
+  learningProgress,
   recordGuidedResult,
-  recordMasteryResult,
-} from '../src/progress/mastery';
+  recordTimedResult,
+} from '../src/progress/learning';
 import { barColor } from '../src/progress/skill';
 
 const L = 6; // learner moves: guided stages 5, 4, 3, ... 0 in steps of 2
@@ -21,31 +21,31 @@ const result = (score: number) => ({
   at: 0,
 });
 
-describe('the mastery progress bar', () => {
+describe('the learning progress bar', () => {
   it('is empty before any run', () => {
-    assert.equal(masteryProgress(emptyMasteryState(), 'p', L).fill, 0);
+    assert.equal(learningProgress(emptyLearningState(), 'p', L).fill, 0);
   });
 
   it('fills up through the guided stages, to half when they are cleared', () => {
-    let s = emptyMasteryState();
-    const fills = [masteryProgress(s, 'p', L).fill];
+    let s = emptyLearningState();
+    const fills = [learningProgress(s, 'p', L).fill];
     for (let i = 0; i < guidedStages(L).length; i++) {
       s = recordGuidedResult(s, 'p', L, true);
-      fills.push(masteryProgress(s, 'p', L).fill);
+      fills.push(learningProgress(s, 'p', L).fill);
     }
     for (let i = 1; i < fills.length; i++) assert.ok(fills[i] > fills[i - 1], `step ${i}`);
     assert.equal(fills[fills.length - 1], 0.5);
   });
 
   it('a run with a mistake changes nothing', () => {
-    const s = recordGuidedResult(emptyMasteryState(), 'p', L, false);
-    assert.equal(masteryProgress(s, 'p', L).fill, 0);
+    const s = recordGuidedResult(emptyLearningState(), 'p', L, false);
+    assert.equal(learningProgress(s, 'p', L).fill, 0);
   });
 
-  it('then fills with the best mastery score, and is full at diamond', () => {
-    let s = emptyMasteryState();
+  it('then fills with the best timed score, and is full at diamond', () => {
+    let s = emptyLearningState();
     for (let i = 0; i < guidedStages(L).length; i++) s = recordGuidedResult(s, 'p', L, true);
-    const at = (score: number) => masteryProgress(recordMasteryResult(s, 'p', result(score)), 'p', L).fill;
+    const at = (score: number) => learningProgress(recordTimedResult(s, 'p', result(score)), 'p', L).fill;
     assert.ok(at(5) > 0.5 && at(10) > at(5) && at(DIAMOND_ABOVE) === 1);
     assert.equal(at(100), 1, 'never past full');
   });

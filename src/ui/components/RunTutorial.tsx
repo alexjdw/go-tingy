@@ -13,7 +13,7 @@ const STEPS = [
   },
   {
     title: 'Fewer given moves each time',
-    text: 'Every clean run gives you fewer moves, until you play the whole puzzle yourself. Then the timed mastery runs begin.',
+    text: 'Every clean run gives you fewer moves, until you play the whole puzzle yourself. Then the timed timed runs begin.',
   },
 ];
 

@@ -46,20 +46,20 @@ src/go/thumbnail.ts       the 7x7 window a puzzle tile draws                    
 src/go/setup.ts           a puzzle's starting position from its SGF                              (pure TS)
 src/study/engine.ts       guided / unguided / explore engine, choice modes, color flipping       (pure TS)
 src/study/lines.ts        a puzzle's solution lines (root-to-leaf paths) and their length        (pure TS)
-src/study/mastery.ts      MasteryRun: all lines in random order, clock, score                    (pure TS)
+src/study/timed.ts         TimedRun: all lines in random order, clock, score                    (pure TS)
 src/study/session.ts      SessionQueue: a spaced-repetition session, missed puzzles retried once (pure TS)
 src/nav/stack.ts          the navigation stack                                                   (pure TS)
 src/nav/history.ts        browser Back/Forward <-> stack depth (web history entries)             (pure TS)
 src/progress/skill.ts     attempt history -> skill level, bar colors, spaced-repetition due dates            (pure TS)
-src/progress/mastery.ts   categories, guided stages, mastery score/levels, daily limit, backups  (pure TS)
+src/progress/learning.ts   categories, guided stages, timed score/levels, daily limit, backups  (pure TS)
 src/progress/stats.ts     the stats a tile shows on hover / long press, all modes                (pure TS)
-src/progress/practice.ts  what Play does in mastery mode; which puzzles look easy (pruning)      (pure TS)
-src/storage/              AsyncStorage persistence for library, progress, settings, mastery (+15 backups)
+src/progress/practice.ts  what Play does in learning mode; which puzzles look easy (pruning)      (pure TS)
+src/storage/              AsyncStorage persistence for library, progress, settings, learning (+15 backups)
 src/data/samples.ts       built-in demo problems and the Problem type
-src/ui/screens/           Home, Browse, MasteryHome, SessionScreen, Picker, Prune, Study, MasteryScreen (a mastery
+src/ui/screens/           Home, Browse, LearningHome, SessionScreen, Picker, Prune, Study, TimedScreen (a learning
                           run), Editor, FromGame (New from game), ImportScreen, SettingsScreen
 src/ui/components/        Board (SVG), PuzzleTile/PuzzleGrid/PlusMenu/CollectionBar,
-                          MasteryBadge (GM, fills with the mastery level), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
+                          LearningBadge (GM, fills with the level), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
 src/ui/batch.ts           tile batch rules: 10 at a time (pure TS, tested)
 src/ui/zoom.ts, sound.ts  zoom hook, stone sound
 tests/                    node:test suites + tests/fixtures (real SGF collections)
@@ -72,16 +72,16 @@ stays testable in plain Node.
 
 ## Progress bar and joseki
 
-The progress bar (`SkillBar`, no numbers, red -> yellow -> green -> gold) is for **mastery** puzzles only: the first half
-fills as clean guided runs step the free moves down, the second half as the best mastery score climbs to diamond
-(`masteryProgress` in `src/progress/mastery.ts`). It shows on tiles of puzzles in mastery, on the mastery screens and after a
+The progress bar (`SkillBar`, no numbers, red -> yellow -> green -> gold) is for **guided learning** puzzles only: the first half
+fills as clean guided runs step the free moves down, the second half as the best timed score climbs to diamond
+(`learningProgress` in `src/progress/learning.ts`). It shows on tiles of puzzles in learning, on the learning screens and after a
 guided run. Spaced repetition, joseki mode and normal Browse play never show or change it (spaced sessions still record
 attempts for due dates).
 
 Joseki mode is a per-puzzle toggle, remembered in `joseki.v1`, set from Study or the + menu of any tile. It applies in
-every mode (Browse, sessions, guided and mastery runs, not free exploration): the puzzle is played from the first side,
+every mode (Browse, sessions, guided and timed runs, not free exploration): the puzzle is played from the first side,
 then from the second (`StudyEngine` option `side: 'second'` plays move 1 for you, with the same colors). A session or
-guided run counts both sides as one attempt; a mastery run needs every line from both sides.
+guided run counts both sides as one attempt; a timed run needs every line from both sides.
 
 ## Browser history
 
@@ -104,7 +104,7 @@ the rest, and show a cheap placeholder instead of making the player wait. Check 
 ## Testing
 
 `npm run check` runs the typecheck, ESLint, the Prettier check and the tests (`node:test` via `tsx`, no device needed). `npm run test:native` is another opt-in test: it runs `expo prebuild` into `.native-test/` (git-ignored, excluded from Metro) and checks the generated iOS and Android projects. It cannot compile or run the app (no Xcode here). On Windows the iOS step reports the platform as Linux, because Expo's CLI otherwise refuses to generate the iOS project. After adding a native dependency, run `npm run privacy:sync` and `npm run test:native`. Never put a symlink or junction to `node_modules` in a scratch project: Expo's Android generation hangs on it.
-`npm run test:web` is a separate, slower browser test (needs Chrome, builds the web app): it walks every screen at several sizes with a large library and fails on covered, clipped or collapsed buttons. Run it after layout changes; unit tests can't see layout bugs. It also runs `tests/web/journeys.web.ts` (the Home, Browse, Mastery and spaced-repetition session flows, end to end) and `tests/web/batching.web.ts` (tiles load 10 at a time) `tests/web/from-game.web.ts` (New from game, end to end) and `tests/web/joseki.web.ts` (joseki mode) and `tests/web/stats.web.ts` (tile stats) and `tests/web/follow.web.ts` (guided runs and their tutorial). Change a flow or a button label and these tell you what broke.
+`npm run test:web` is a separate, slower browser test (needs Chrome, builds the web app): it walks every screen at several sizes with a large library and fails on covered, clipped or collapsed buttons. Run it after layout changes; unit tests can't see layout bugs. It also runs `tests/web/journeys.web.ts` (the Home, Browse, Learning and spaced-repetition session flows, end to end) and `tests/web/batching.web.ts` (tiles load 10 at a time) `tests/web/from-game.web.ts` (New from game, end to end) and `tests/web/joseki.web.ts` (joseki mode) and `tests/web/stats.web.ts` (tile stats) and `tests/web/follow.web.ts` (guided runs and their tutorial). Change a flow or a button label and these tell you what broke.
 
 Puzzle tiles (`PuzzleGrid`) are drawn in batches of `BATCH_SIZE` (10): more load on scroll or from a "Show N more" button. A screen whose list changes (a filter) must give the grid a new `key` so it restarts at the first batch. FlatList unmounts tiles far off screen, so tests must not expect every loaded tile to be in the DOM. In React Native Web a bare horizontal `ScrollView` shrinks when a long list is below it, so use `ChipRow` for rows of buttons.
 `tests/fixtures/` holds real

@@ -28,10 +28,10 @@ const PROGRESS = {
   'sample-capture-2': [attempt(false, 3 * DAY), attempt(true, 2 * DAY), attempt(true, DAY)],
   'sample-capture-3': [attempt(false, DAY), attempt(false, DAY / 2)],
 };
-const MASTERY = {
+const LEARNING = {
   version: 1,
   spaced: { 'sample-capture-1': true, 'sample-capture-2': true, 'sample-capture-3': true },
-  mastery: { 'sample-capture-4': true, 'sample-capture-1': true },
+  learning: { 'sample-capture-4': true, 'sample-capture-1': true },
   scores: {
     'sample-capture-4': { guided: { free: 0, cleared: true } },
     'sample-capture-1': {
@@ -47,8 +47,8 @@ const SHOTS: [string, string[]][] = [
   ['01-home', []],
   ['02-browse', ['Browse']],
   ['03-add-to-modes', ['Browse', '+']],
-  ['04-mastery', ['Mastery']],
-  ['05-add-puzzles', ['Mastery', 'Add puzzles']],
+  ['04-learning', ['Guided Learning']],
+  ['05-add-puzzles', ['Guided Learning', 'Add puzzles']],
   ['06-review-session', ['Spaced repetition']],
   ['07-prune', ['Spaced repetition', '‹ End', 'Prune puzzles']],
   ['08-play', ['Browse', 'Play']],
@@ -70,12 +70,12 @@ async function main() {
       const page = await browser.newPage();
       await page.setViewport({ width: w, height: h, deviceScaleFactor: scale });
       await page.evaluateOnNewDocument(
-        (progress, mastery) => {
+        (progress, learning) => {
           localStorage.setItem('progress.v1', JSON.stringify(progress));
-          localStorage.setItem('mastery.v1', JSON.stringify(mastery));
+          localStorage.setItem('learning.v1', JSON.stringify(learning));
         },
         PROGRESS,
-        MASTERY,
+        LEARNING,
       );
       for (const [name, clicks] of SHOTS) {
         // every shot starts from the home screen
