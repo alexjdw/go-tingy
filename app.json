@@ -52,7 +52,8 @@
         "android.permission.VIBRATE"
       ],
       "predictiveBackGestureEnabled": false,
-      "package": "com.weiqioverstudy.app"
+      "package": "com.weiqioverstudy.app",
+      "permissions": ["android.permission.MODIFY_AUDIO_SETTINGS"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -76,6 +77,12 @@
           "backgroundColor": "#14161a"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d3e9281f-9eb8-4407-b52a-d407f7f2a8a6"
+      }
+    },
+    "owner": "ajdw3"
   }
 }

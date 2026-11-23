@@ -108,3 +108,7 @@ commercially or redistribute it or anything derived from it. Third-party compone
 listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (regenerate with `npm run licenses`, which also fails
 if a package that ships in the app has a license that is not clearly fine for a closed-source app). The puzzle
 collections in `tests/fixtures/` are third-party and are not covered by this license.
+
+## Support
+
+Questions, bug reports and requests: <https://github.com/alexjdw/go-tingy/issues>.

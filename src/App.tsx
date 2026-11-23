@@ -48,6 +48,7 @@ import { TimedScreen } from './ui/screens/TimedScreen';
 import { Picker } from './ui/screens/Picker';
 import { Prune } from './ui/screens/Prune';
 import { SessionScreen } from './ui/screens/SessionScreen';
+import { AboutScreen } from './ui/screens/AboutScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
 import { Study } from './ui/screens/Study';
 
@@ -59,6 +60,7 @@ type Screen =
   | { name: 'picker'; category: Category }
   | { name: 'prune' }
   | { name: 'settings' }
+  | { name: 'about' }
   | { name: 'import' }
   | { name: 'fromGame' }
   | { name: 'editor'; problem?: Problem }
@@ -370,8 +372,11 @@ export default function App() {
             void saveSettings(s);
           }}
           onBack={back}
+          onAbout={() => go({ name: 'about' })}
         />
       )}
+
+      {screen.name === 'about' && <AboutScreen onBack={back} />}
 
       {screen.name === 'editor' && <Editor initial={screen.problem} onCancel={back} onSave={saveProblem} />}
 

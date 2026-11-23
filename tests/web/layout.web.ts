@@ -109,6 +109,8 @@ const STEPS: [string, string | null][] = [
   ['learning: back from run', '‹ Back'],
   ['back to home from learning', '‹ Back'],
   ['settings', 'Settings'],
+  ['about', 'About and licenses'],
+  ['back to settings from about', '‹ Back'],
   ['back to home from settings', '‹ Back'],
   ['spaced repetition: session starts', 'Spaced repetition'],
   ['spaced repetition: end session', '‹ End'],

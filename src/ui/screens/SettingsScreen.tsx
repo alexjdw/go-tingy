@@ -21,10 +21,12 @@ export function SettingsScreen({
   settings,
   onChange,
   onBack,
+  onAbout,
 }: {
   settings: Settings;
   onChange: (s: Settings) => void;
   onBack: () => void;
+  onAbout?: () => void;
 }) {
   return (
     <View style={styles.wrap}>
@@ -48,6 +50,7 @@ export function SettingsScreen({
           </View>
         </View>
       ))}
+      {onAbout ? <Btn label="About and licenses" kind="ghost" onPress={onAbout} /> : null}
     </View>
   );
 }

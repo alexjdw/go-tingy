@@ -36,7 +36,7 @@ This list is what is left, in order. Store policies change often: where a step d
    governing-law clause.
    Third-party notices: `npm run licenses` audits the 29 packages that ship in the app (all MIT, ISC or
    Unlicense/Apache-2.0, no copyleft) and writes `THIRD_PARTY_NOTICES.md`. Those licenses ask that their notices
-   travel with copies of the app, so consider showing that file in an About screen (not built yet).
+   travel with copies of the app, the About screen (Settings > About and licenses) shows them, from `src/data/notices.ts`, which `npm run licenses` regenerates.
 5. **Test fixtures.** `tests/fixtures/` holds problem collections from u-go.net whose license is unclear. They are
    not in the app, but do not publish the repository publicly with them included unless you have checked.
 

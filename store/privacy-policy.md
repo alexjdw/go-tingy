@@ -5,7 +5,7 @@ address (a static page, a GitHub Pages site or a document you host). Both stores
 `store.config.json` (`privacyPolicyUrl`) and in the Play Console._
 
 **Effective date:** TODO
-**Contact:** Alex Weavers, https://github.com/alexjdw
+**Contact:** Alex Weavers, https://github.com/alexjdw/go-tingy/issues
 
 ## Summary
 

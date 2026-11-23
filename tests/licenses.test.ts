@@ -1,3 +1,4 @@
+import { NOTICES } from '../src/data/notices';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -187,5 +188,10 @@ describe('the real LICENSE', () => {
     for (const name of ['react@', 'react-native@', 'fflate@', '@zxing/text-encoding@'])
       assert.ok(md.includes(name), name);
     assert.doesNotMatch(md, /^## .*(GPL|MPL|EPL)/m);
+  });
+
+  it('the About screen shows the same notices as the file (run npm run licenses after a change)', () => {
+    const md = fs.readFileSync(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8');
+    assert.equal(NOTICES, md, 'src/data/notices.ts is out of date');
   });
 });
