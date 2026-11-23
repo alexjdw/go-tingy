@@ -52,3 +52,6 @@ store/screenshots/
 
 # scratch projects for npm run test:native
 .native-test/
+
+# personal store details (copy store.config.example.json to store.config.json and fill it in)
+store.config.json

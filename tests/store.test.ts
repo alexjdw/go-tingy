@@ -351,7 +351,10 @@ describe('store readiness: the real repository', () => {
     appJson: json('app.json'),
     packageJson: json('package.json'),
     easJson: json('eas.json'),
-    storeConfig: json('store.config.json'),
+    // store.config.json is git-ignored (personal details); a clean checkout has only the example
+    storeConfig: fs.existsSync(path.join(root, 'store.config.json'))
+      ? json('store.config.json')
+      : json('store.config.example.json'),
     playListing: json('store/play-listing.json'),
     readFile: (rel) => {
       try {

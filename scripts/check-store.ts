@@ -17,7 +17,8 @@ const findings = checkStoreReadiness({
   appJson: json('app.json'),
   packageJson: json('package.json'),
   easJson: json('eas.json'),
-  storeConfig: json('store.config.json'),
+  // the real file is git-ignored (it holds personal details); without it, check the example, which is all TODOs
+  storeConfig: json('store.config.json') ?? json('store.config.example.json'),
   playListing: json('store/play-listing.json'),
   requiredPrivacy: collectInstalledReasons().reasons,
   readFile: (rel) => {

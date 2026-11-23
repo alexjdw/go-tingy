@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "copyright": "2026 Alex Weavers",
+    "copyright": "TODO: 2026 Your Name",
     "categories": [["GAMES", "GAMES_BOARD"], "EDUCATION"],
     "advisory": {
       "alcoholTobaccoOrDrugUseOrReferences": "NONE",
@@ -42,7 +42,7 @@
           "study"
         ],
         "releaseNotes": "First release.",
-        "supportUrl": "https://github.com/alexjdw",
+        "supportUrl": "TODO: https://example.com/support",
         "privacyPolicyUrl": "TODO: https://example.com/privacy"
       }
     },
@@ -51,8 +51,8 @@
       "phasedRelease": false
     },
     "review": {
-      "firstName": "Alex",
-      "lastName": "Weavers",
+      "firstName": "TODO: First",
+      "lastName": "TODO: Last",
       "email": "TODO: you@example.com",
       "phone": "TODO: +1 555 555 5555",
       "demoRequired": false,

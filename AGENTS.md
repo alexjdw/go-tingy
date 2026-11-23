@@ -91,7 +91,7 @@ is opened). Android uses the hardware back handler. `tests/web/history.web.ts` c
 
 ## Guided runs
 
-In a guided mastery run the given (free) moves are not replayed: the player clicks through them, for both colors, on the
+In a guided learning run the given (free) moves are not replayed: the player clicks through them, for both colors, on the
 green dot (engine phase `follow`, option `follow`; wrong clicks are ignored), then solves the rest alone. The first time,
 `RunTutorial` explains this; `seen.v1` remembers which tutorials were shown.
 

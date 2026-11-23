@@ -24,7 +24,8 @@ This list is what is left, in order. Store policies change often: where a step d
    `expo.android.package`. It cannot be changed once the app exists in a store.
    - Do not run `npx expo prebuild` and commit the result: it writes a made-up `com.anonymous...` package into
      `app.json`. A test fails if that happens.
-2. **Owner details** in `store.config.json`: `copyright` (e.g. `2026 Your Name`), the review contact (name, email,
+2. **Owner details** in `store.config.json` (git-ignored, so your name, email and phone are never committed: copy
+   `store.config.example.json` to `store.config.json` first): `copyright` (e.g. `2026 Your Name`), the review contact (name, email,
    phone with country code), and the two URLs below.
 3. **Two public web pages**: a **support** page (an email address or contact form is enough) and the **privacy
    policy** (`store/privacy-policy.md`, after you fill in its `TODO`s). A free GitHub Pages site works. Put the
