@@ -115,6 +115,12 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   assert.equal(splitCollection('(;C[a)b(c];B[aa])').length, 1, 'parens inside values ignored');
   assert.equal(splitCollection('').length, 0);
   assert.equal(splitCollection('not sgf').length, 1);
+  // properties written after a node's variations belong to that node (MultiGo files, read the same way by Sabaki)
+  const late = parseSgf('(;B[aa](;W[bb])LB[cc:a]C[note](;W[dd]))');
+  assert.equal(late.children.length, 2);
+  assert.deepEqual(late.props.C, ['note']);
+  assert.deepEqual(late.props.LB, ['cc:a']);
+  assert.equal(late.children[0].props.C, undefined, 'the variation itself is untouched');
   // parse errors show about 10 characters of the text around the problem
   const msg = (t: string) => {
     try {

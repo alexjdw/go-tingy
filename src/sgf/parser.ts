@@ -120,6 +120,10 @@ export function parseSgf(text: string): SgfNode {
       } else if (c === '(') {
         if (!cur) throw new Error(`SGF: variation before any node${near(i)}`);
         parseTree(cur);
+      } else if (first && /[A-Za-z]/.test(c)) {
+        // Strictly a node's properties come right after its ";", but some editors (MultiGo) write the rest of them
+        // after the variations: `;B[ar](;W[bq])C[note]`. Like Sabaki, attach them to the node the variations hang from.
+        for (const [k, v] of Object.entries(parseNodeProps())) (cur!.props[k] ??= []).push(...v);
       } else if (c === ')') {
         i++;
         break;
