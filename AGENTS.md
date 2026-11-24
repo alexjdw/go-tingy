@@ -127,8 +127,9 @@ in `tests/sgf/folders.test.ts` and `tests/web/collections.web.ts`.
 ## Desktop
 
 `desktop/` is an Electron shell (its own `package.json` and node_modules) around `expo export --platform web`;
-`npm run desktop:prepare` fills `desktop/web`. Metro, ESLint and tsc ignore it. `.github/workflows/desktop.yml` builds the
-Windows and Mac installers when a version tag is pushed. Phone builds stay on EAS.
+`npm run desktop:prepare` fills `desktop/web`. Metro, ESLint and tsc ignore it. `.github/workflows/release.yml` builds the
+Windows and Mac installers, an Android APK and an iOS simulator app when a version tag is pushed, at most one run per 24 hours
+(a `gate` job skips the rest; "force" on a manual run overrides it). Store builds (.aab, .ipa) stay on EAS.
 
 ## Responsiveness
 

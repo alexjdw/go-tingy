@@ -143,8 +143,9 @@ phone app.
 - **Windows, on this machine:** `npm run desktop:prepare`, then in `desktop/`: `npm install` and `npm run dist:win`.
   The installer is `desktop/dist/go-flashcards-<version>-windows-x64-setup.exe`. `npm start` in `desktop/` runs the app
   without packaging it.
-- **Windows and Mac, on GitHub:** `.github/workflows/desktop.yml` builds the Windows installer and the Mac `.dmg`
-  files (Intel and Apple Silicon) when a version tag is pushed, and attaches them to that tag's release:
+- **All four platforms, on GitHub:** `.github/workflows/release.yml` builds the Windows installer, the Mac `.dmg`
+  files (Intel and Apple Silicon), an Android APK and an iOS simulator build (unsigned, for testing; the store builds
+  come from EAS) at most once per 24 hours (a manual run with "force" ticked overrides that) when a version tag is pushed, and attaches them to that tag's release:
   `git tag v1.0.0 && git push origin v1.0.0`. It can also be started by hand from the Actions tab, which keeps the
   files as workflow artifacts only.
 - **Not signed.** Windows shows "Windows protected your PC" (More info, then Run anyway). On a Mac, right-click the app
