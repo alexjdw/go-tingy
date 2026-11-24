@@ -121,6 +121,11 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   assert.deepEqual(late.props.C, ['note']);
   assert.deepEqual(late.props.LB, ['cc:a']);
   assert.equal(late.children[0].props.C, undefined, 'the variation itself is untouched');
+  // lenient like Sabaki: empty variations "()" are ignored and a missing final ")" is forgiven
+  const sloppy = parseSgf('(;B[aa](;W[bb])()(;W[cc]');
+  assert.equal(sloppy.children.length, 2);
+  assert.equal(sloppy.children[1].props.W[0], 'cc');
+  assert.throws(() => parseSgf('()'), /empty game tree/);
   // parse errors show about 10 characters of the text around the problem
   const msg = (t: string) => {
     try {
@@ -131,7 +136,8 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
     return '';
   };
   assert.equal(msg('(;B[aa] ? ;W[bb];B[cc])'), 'SGF: unexpected "?" at 8 near "a] ? ;W[bb"');
-  assert.equal(msg('(;B[aa];W[bb]'), 'SGF: unexpected end of input near "[aa];W[bb]"');
+  assert.equal(msg('(;B[aa];W[bb'), 'SGF: unterminated value near "B[aa];W[bb"');
+  assert.equal(msg('('), 'SGF: unexpected end of input near "("');
   assert.equal(msg('hello world, no tree'), 'SGF: no game tree found near "hello worl"');
   assert.match(msg('()'), /^SGF: empty game tree near "\(\)"$/);
   assert.match(msg('(;B[aa]\n\n\n;W[bb] #)'), /near ";W\[bb\] #\)"/, 'line breaks collapse to one space');

@@ -92,6 +92,7 @@ export function parseSgf(text: string): SgfNode {
           }
           v += text[i++];
         }
+        if (i >= n) throw new Error(`SGF: unterminated value${near(n)}`);
         i++; // ]
         values.push(v);
       }
@@ -101,7 +102,7 @@ export function parseSgf(text: string): SgfNode {
   }
 
   /** Parses one "( ... )" game tree, returning its first node. */
-  function parseTree(parent: SgfNode | null): SgfNode {
+  function parseTree(parent: SgfNode | null): SgfNode | null {
     skipWs();
     if (text[i] !== '(') throw new Error(`SGF: expected "(" at ${i}${near(i)}`);
     i++;
@@ -109,7 +110,11 @@ export function parseSgf(text: string): SgfNode {
     let cur: SgfNode | null = parent;
     for (;;) {
       skipWs();
-      if (i >= n) throw new Error(`SGF: unexpected end of input${near(n)}`);
+      if (i >= n) {
+        // a file cut off before its closing ")"s: keep what was read, like Sabaki
+        if (!first) throw new Error(`SGF: unexpected end of input${near(n)}`);
+        break;
+      }
       const c = text[i];
       if (c === ';') {
         i++;
@@ -131,7 +136,10 @@ export function parseSgf(text: string): SgfNode {
         throw new Error(`SGF: unexpected "${c}" at ${i}${near(i)}`);
       }
     }
-    if (!first) throw new Error(`SGF: empty game tree${near(i - 1)}`);
+    if (!first) {
+      if (!parent) throw new Error(`SGF: empty game tree${near(i - 1)}`);
+      return null; // an empty variation "()" is ignored
+    }
     return first;
   }
 
@@ -139,7 +147,7 @@ export function parseSgf(text: string): SgfNode {
   const start = text.indexOf('(', i);
   if (start < 0) throw new Error(`SGF: no game tree found${near(0)}`);
   i = start;
-  return parseTree(null);
+  return parseTree(null)!;
 }
 
 export function sgfToPoint(s: string, dims: Dims): Point | null {
