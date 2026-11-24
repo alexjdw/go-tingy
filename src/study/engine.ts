@@ -1,6 +1,6 @@
 import { type Board } from '../go/board';
 import { initialBoard } from '../go/setup';
-import { solutionKids } from './lines';
+import { preferredChild, solutionKids } from './lines';
 import type { Attempt } from '../progress/skill';
 import type { Tri } from '../storage/settings';
 import {
@@ -344,17 +344,75 @@ export class StudyEngine {
   // ---------- history ----------
 
   get canUndo() {
+    if (this.mode === 'explore') return this.canBack;
     return this.phase === 'play' && this.history.length > 0;
   }
 
   undo() {
     if (!this.canUndo) return;
-    let prev = this.history.pop()!;
-    if (this.mode !== 'explore') {
-      // rewind to before the learner's last move, skipping the opponent's reply
-      while (prev.toPlay !== this.playerColor && this.history.length) prev = this.history.pop()!;
+    if (this.mode === 'explore') {
+      this.back();
+      return;
     }
+    let prev = this.history.pop()!;
+    // rewind to before the learner's last move, skipping the opponent's reply
+    while (prev.toPlay !== this.playerColor && this.history.length) prev = this.history.pop()!;
     this.snap = prev;
+  }
+
+  // ---------- walking the tree (explore) ----------
+
+  /** Is there a position before this one? On the tree that is the parent; off the tree, the move before. */
+  get canBack(): boolean {
+    if (this.mode !== 'explore' || this.phase !== 'play') return false;
+    return this.snap.node ? this.snap.node.parent !== null : this.history.length > 0;
+  }
+
+  /** Is there a move to step forward to? Only along the tree. */
+  get canForward(): boolean {
+    return this.mode === 'explore' && this.phase === 'play' && !!this.snap.node && this.snap.node.children.length > 0;
+  }
+
+  /** One step back: to the parent in the tree, or, after leaving the tree, to the previous position. */
+  back(): boolean {
+    if (!this.canBack) return false;
+    const n = this.snap.node;
+    if (n?.parent) return this.jumpTo(n.parent);
+    this.snap = this.history.pop()!;
+    return true;
+  }
+
+  /** One step forward along the preferred branch (see `preferredChild`). */
+  forward(): boolean {
+    const child = this.snap.node && this.canForward ? preferredChild(this.snap.node) : null;
+    if (!child || !this.jumpTo(child)) return false;
+    if (this.snap.last) this.placed++;
+    return true;
+  }
+
+  /** Go to any node of the puzzle's tree (explore only). Returns false for a node that is not in this tree. */
+  jumpTo(node: SgfNode): boolean {
+    if (this.mode !== 'explore' || this.phase !== 'play') return false;
+    const path: SgfNode[] = [];
+    let top: SgfNode = node;
+    for (let n: SgfNode | null = node; n; n = n.parent) {
+      top = n;
+      if (n.parent) path.unshift(n);
+    }
+    if (top !== this.root) return false;
+    let board = initialBoard(this.root, this.dims);
+    let toPlay = this.firstColor;
+    let last: Point | null = null;
+    for (const n of path) {
+      const m = nodeMove(n, this.dims);
+      if (!m) continue;
+      board = board.play(m.point, m.color)?.board ?? board;
+      toPlay = other(m.color);
+      last = m.point;
+    }
+    this.history = [];
+    this.snap = { board, node, toPlay, last, status: 'playing', message: comment(node) };
+    return true;
   }
 
   private commit(next: Snapshot) {

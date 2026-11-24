@@ -49,6 +49,7 @@ src/analysis/             KataGo second opinion: position -> engine query, proto
                           suggestions for one position, the desktop bridge (pure TS; engine runs behind `Analyzer`)
 src/study/engine.ts       guided / unguided / explore engine, choice modes, color flipping       (pure TS)
 src/study/lines.ts        a puzzle's solution lines (root-to-leaf paths) and their length        (pure TS)
+src/study/treeLayout.ts    the game tree on a grid (rows = lines of play) for the tree picture                    (pure TS)
 src/study/timed.ts         TimedRun: all lines in random order, clock, score                    (pure TS)
 src/study/session.ts      SessionQueue: a spaced-repetition session, missed puzzles retried once (pure TS)
 src/nav/stack.ts          the navigation stack                                                   (pure TS)
@@ -98,6 +99,15 @@ failed, so the puzzle returns once). A guided run passes it to `recordGuidedResu
 back; the rating of the run that clears the stage at 0 free moves sets `GuidedScore.quality`, which scales the guided half
 of the bar. Browse records nothing. A joseki counts the worse of its two sides. Tests: `tests/progress/paper.test.ts`.
 
+## Explore mode and the tree
+
+In explore mode `StudyEngine` walks the tree: `back()` (the parent; after leaving the book, the previous position),
+`forward()` (`preferredChild` in `src/study/lines.ts`: a branch leading to a correct move, else one not leading only to
+failure, else the first) and `jumpTo(node)`. The left/right arrow keys (`useArrowKeys`, web only) and the tree picture
+(`TreeView`, tap a move) use them; the Editor's move tree has the same picture and keys. `TreeView` redraws only when
+its `layout` changes, so callers memoize the layout (`treeSignature` tells an in-place edited tree apart) and pass a
+stable `onSelect`. Tests: `tests/study/explore-walk.test.ts`, `tests/web/tree.web.ts`.
+
 ## Browser history
 
 On the web each screen is a history entry (`{depth}` state, kept in step in `App.tsx`): in-app Back calls `history.back()`, and the
@@ -133,6 +143,15 @@ the page `window.katago` (status/query) and `katago.js` pipes JSON lines to a us
 "Ask KataGo", `src/ui/engine.ts`; tested in `tests/tooling/desktop-katago.test.ts` and `tests/web/engine.web.ts`);
 `npm run desktop:prepare` fills `desktop/web`. Metro, ESLint and tsc ignore it. `.github/workflows/desktop.yml` builds the
 Windows and Mac installers when a version tag is pushed. Phone builds stay on EAS.
+
+## Copyrighted and scraped puzzles
+
+Never put copyrighted or scraped puzzles (anything downloaded from a website or taken from a book or app without a licence
+that allows redistribution, such as the `scraped/` folder) in the repo, and never include them in any build: not the
+phone apps, the web export, the desktop installers, the store graphics or screenshots, nor test fixtures or built-in samples.
+`scraped/` is git-ignored and for personal use only; keep it that way, and keep it out of Metro, `tsc`, ESLint, the Electron
+bundle and EAS uploads. Only puzzles we wrote, or whose licence allows it (see `tests/fixtures/README.md`), may ship. If
+unsure whether a puzzle may be redistributed, leave it out and ask.
 
 ## Responsiveness
 

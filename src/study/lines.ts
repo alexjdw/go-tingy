@@ -3,7 +3,9 @@ import {
   type Dims,
   type SgfNode,
   boardDims,
+  containsCorrect,
   firstMoveColor,
+  isWrongNode,
   leadsOnlyToFailure,
   nodeMove,
   parseSgf,
@@ -100,4 +102,18 @@ export function cachedLearnerDepth(sgf: string): number {
     depthCache.set(sgf, d);
   }
   return d;
+}
+
+/**
+ * The branch to follow when stepping forward through a tree: one that leads to a move marked correct, else one that
+ * does not lead only to failure, else the first. Null where the tree ends.
+ */
+export function preferredChild(node: SgfNode): SgfNode | null {
+  const kids = node.children;
+  return (
+    kids.find((c) => !isWrongNode(c) && containsCorrect(c)) ??
+    kids.find((c) => !leadsOnlyToFailure(c)) ??
+    kids[0] ??
+    null
+  );
 }

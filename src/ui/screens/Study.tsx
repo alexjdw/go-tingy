@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { Problem } from '../../data/samples';
 import { StudyEngine, chooseFlip, hasSecondSide, rollTri, type Mode } from '../../study/engine';
-import { allPoints, type Point } from '../../sgf/parser';
+import { allPoints, boardDims, type Point, type SgfNode } from '../../sgf/parser';
+import { layoutTree } from '../../study/treeLayout';
 import type { Settings } from '../../storage/settings';
 import { BoardView } from '../components/Board';
 import { initialViewport } from '../../go/viewport';
@@ -18,7 +19,9 @@ import { RatingPrompt } from '../components/RatingPrompt';
 import { RunTutorial } from '../components/RunTutorial';
 import { SolvedStamp } from '../components/SolvedStamp';
 import { SkillBar } from '../components/SkillBar';
+import { TreeView } from '../components/TreeView';
 import { Btn, theme } from '../components/theme';
+import { useArrowKeys } from '../keys';
 import { playStone } from '../sound';
 import { useZoom, zoomedTap } from '../zoom';
 
@@ -127,6 +130,24 @@ export function Study({
   const base = useMemo(() => initialViewport(allPoints(engine.root), engine.dims, engine.open), [engine]);
   const zoom = useZoom(base);
   const [, force] = useReducer((n: number) => n + 1, 0);
+  // Explore mode walks the tree: the arrow keys (and the tree picture) step along it.
+  const stepBack = useCallback(() => {
+    if (engine.back()) force();
+  }, [engine]);
+  const stepForward = useCallback(() => {
+    if (engine.forward()) force();
+  }, [engine]);
+  const jumpTo = useCallback(
+    (node: SgfNode) => {
+      if (engine.jumpTo(node)) force();
+    },
+    [engine],
+  );
+  useArrowKeys(mode === 'explore' ? { onLeft: stepBack, onRight: stepForward } : null);
+  const treeLayout = useMemo(
+    () => (mode === 'explore' ? layoutTree(engine.root, boardDims(engine.root)) : null),
+    [engine, mode],
+  );
   const [flash, setFlash] = useState<'wrong' | null>(null);
   const [showBook, setShowBook] = useState(false);
   const [runMessage, setRunMessage] = useState('');
@@ -404,6 +425,15 @@ export function Study({
       {runMessage ? <Text style={styles.status}>{runMessage}</Text> : null}
       {s.message || engine.comment() ? <Text style={styles.comment}>{s.message || engine.comment()}</Text> : null}
 
+      {treeLayout ? (
+        <>
+          <TreeView layout={treeLayout} current={s.node} onSelect={jumpTo} />
+          {Platform.OS === 'web' ? (
+            <Text style={styles.sub}>← → step through the moves; tap a move to go there.</Text>
+          ) : null}
+        </>
+      ) : null}
+
       <View style={styles.row}>
         {looking && !asking && rating === null ? <Btn label="Done" onPress={paperDone} /> : null}
         {phase === 'mark' ? <Btn label="Submit choices" onPress={submit} disabled={engine.marks.length === 0} /> : null}
@@ -436,6 +466,7 @@ export function Study({
         {sidePending ? <Btn label="Other side ›" onPress={otherSide} /> : null}
         {mode === 'explore' ? (
           <>
+            <Btn label="Forward ›" onPress={stepForward} disabled={!engine.canForward} />
             <Btn
               label="Pass"
               onPress={() => {

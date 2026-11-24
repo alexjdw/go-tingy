@@ -2,7 +2,7 @@
  * The puzzle being edited is a mutable SgfNode tree held in state, and every edit mutates it and then calls
  * force() to re-render. Making this immutable (copy-on-write nodes) is a worthwhile refactor, but until then
  * the compiler-oriented immutability rule can't apply here. */
-import { useMemo, useReducer, useState } from 'react';
+import { useCallback, useMemo, useReducer, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import type { Problem } from '../../data/samples';
 import { Board } from '../../go/board';
@@ -32,8 +32,12 @@ import { BOARD_PRESETS, resizeSetup, writeBoardProps } from '../../sgf/editing';
 import { suggestMoves } from '../../analysis/suggest';
 import { BoardView } from '../components/Board';
 import { EnginePanel } from '../components/EnginePanel';
+import { TreeView } from '../components/TreeView';
 import { Btn, theme } from '../components/theme';
 import { useEngine } from '../engine';
+import { useArrowKeys } from '../keys';
+import { preferredChild } from '../../study/lines';
+import { layoutTree, treeSignature } from '../../study/treeLayout';
 import { useZoom, zoomedTap } from '../zoom';
 
 type Step = 'size' | 'black' | 'white' | 'tree';
@@ -112,6 +116,18 @@ export function Editor({ initial, onCancel, onSave }: Props) {
   const lastColor = cursor !== root ? nodeMove(cursor, dims)?.color : undefined;
   const natural: Color = lastColor ? other(lastColor) : first;
   const nextColor: Color = swap ? other(natural) : natural;
+
+  // The picture of the tree is laid out again only when its moves or marks change (the tree is edited in place).
+  const signature = treeSignature(root);
+  const treeLayout = useMemo(() => layoutTree(root, dims), [signature, dims]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stepBack = useCallback(() => {
+    if (cursor.parent) setCursor(cursor.parent);
+  }, [cursor]);
+  const stepForward = useCallback(() => {
+    const next = preferredChild(cursor);
+    if (next) setCursor(next);
+  }, [cursor]);
+  useArrowKeys(step === 'tree' ? { onLeft: stepBack, onRight: stepForward } : null);
 
   const engine = useEngine([cursor, nextColor, step]);
   const suggestions = engine.state.kind === 'done' ? engine.state.moves : [];
@@ -395,6 +411,7 @@ export function Editor({ initial, onCancel, onSave }: Props) {
             incorrect or neutral.
           </Text>
           <Text style={styles.crumbs}>{crumbs.length ? crumbs.join('  →  ') : 'Start position'}</Text>
+          <TreeView layout={treeLayout} current={cursor} onSelect={setCursor} />
 
           <View style={styles.row}>
             <Btn label="Move" kind={tool === 'move' ? 'solid' : 'ghost'} onPress={() => setTool('move')} />
