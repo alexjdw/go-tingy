@@ -172,7 +172,7 @@ describe('Import SGF → "Add pasted text"', () => {
     const [illegal] = paste('(;SZ[9]AB[ba][ab];W[aa])');
     assert.match(illegal.v.errors[0], /Illegal white move at A9/);
 
-    const [offBoard] = paste('(;SZ[9];B[zz])');
+    const [offBoard] = paste('(;SZ[9];B[jj])');
     assert.match(offBoard.v.errors[0], /outside the 9×9 board/);
 
     const [noMoves] = paste('(;SZ[9]AB[aa])');

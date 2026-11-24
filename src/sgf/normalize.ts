@@ -16,6 +16,7 @@ const PLAYER: Record<string, 'B' | 'W'> = { '1': 'B', b: 'B', black: 'B', '2': '
  *
  *  - Setup in a later node (FF[3] style: `(;SZ[19];AW[..]AB[..]PL[2];W[..]...)`) is merged into the root.
  *  - `PL[1]` / `PL[2]` (and lowercase / words) become `PL[B]` / `PL[W]`.
+ *  - A pass written as `zz` / `ZZ` (some Chinese collections) becomes a real pass, `B[]`.
  *  - A move carrying a triangle on its own point (`;B[br]TR[br]`) is how uliGo-style problem files mark
  *    wrong answers, so those branches get `BM[1]`.
  */
@@ -77,6 +78,24 @@ export function prepareSgf(text: string): Prepared {
     notes.push(
       `${wrong} branch${wrong > 1 ? 'es' : ''} with a triangle on the move treated as wrong (uliGo convention)`,
     );
+  }
+
+  // 4. Passes written as "zz": a point that is outside every board up to 25x25 (a legal point on a 26+ board is never used).
+  let passes = 0;
+  const fixPasses = (n: SgfNode) => {
+    for (const color of ['B', 'W'] as const) {
+      const v = n.props[color];
+      if (v && v.length === 1 && v[0].trim().toLowerCase() === 'zz' && dims.cols <= 25 && dims.rows <= 25) {
+        n.props[color] = [''];
+        passes++;
+      }
+    }
+    n.children.forEach(fixPasses);
+  };
+  fixPasses(root);
+  if (passes) {
+    changed = true;
+    notes.push(`${passes} pass${passes > 1 ? 'es' : ''} written as "zz" converted to real passes`);
   }
 
   return { sgf: changed ? toSgf(root) : text, notes };

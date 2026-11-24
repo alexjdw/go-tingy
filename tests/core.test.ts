@@ -196,6 +196,13 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   assert.equal(oe.play({ x: 18, y: 1 }), 'wrong', 'triangle branch is wrong');
   assert.equal(oe.play({ x: 18, y: 0 }), 'solved');
   assert.equal(prepareSgf(SAMPLES[0].sgf).sgf, SAMPLES[0].sgf, 'untouched when nothing to fix');
+  // passes written as zz / ZZ (Chinese collections) become real passes, and the puzzle then validates
+  const zz = prepareSgf('(;GM[1]SZ[19]PL[B]AB[pd]AW[qd];B[qc];W[zz];B[ZZ];W[pc])');
+  assert.ok(zz.sgf.includes('W[];B[]'), zz.sgf);
+  assert.ok(zz.notes.some((n) => /2 passes/.test(n)));
+  assert.deepEqual(validateSgf(zz.sgf).errors, []);
+  assert.ok(validateSgf(zz.sgf).warnings.includes('Contains passes'));
+  assert.equal(prepareSgf('(;GM[1]SZ[19];B[aa];W[bb])').notes.length, 0, 'ordinary moves are left alone');
   // empty node between root and setup
   assert.deepEqual(validateSgf(prepareSgf('(;GM[1]SZ[9];;AB[aa]PL[B];B[bb])').sgf).errors, []);
 
