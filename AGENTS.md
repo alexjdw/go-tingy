@@ -131,6 +131,15 @@ in `tests/sgf/folders.test.ts` and `tests/web/collections.web.ts`.
 Windows and Mac installers, an Android APK and an iOS simulator app when a version tag is pushed, at most one run per 24 hours
 (a `gate` job skips the rest; "force" on a manual run overrides it). Store builds (.aab, .ipa) stay on EAS.
 
+## Copyrighted and scraped puzzles
+
+Never put copyrighted or scraped puzzles (anything downloaded from a website or taken from a book or app without a licence
+that allows redistribution, such as the `scraped/` folder) in the repo, and never include them in any build: not the
+phone apps, the web export, the desktop installers, the store graphics or screenshots, nor test fixtures or built-in samples.
+`scraped/` is git-ignored and for personal use only; keep it that way, and keep it out of Metro, `tsc`, ESLint, the Electron
+bundle and EAS uploads. Only puzzles we wrote, or whose licence allows it (see `tests/fixtures/README.md`), may ship. If
+unsure whether a puzzle may be redistributed, leave it out and ask.
+
 ## Responsiveness
 
 The app must feel super responsive. Scrolling, taps and screen changes must never stall or visibly lag, whatever the size
