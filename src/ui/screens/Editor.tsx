@@ -16,6 +16,7 @@ import {
   MAX_DIM,
   MIN_DIM,
   NO_OPEN_EDGES,
+  allPoints,
   boardDims,
   coordName,
   firstMoveColor,
@@ -28,8 +29,11 @@ import {
 } from '../../sgf/parser';
 import { fullViewport } from '../../go/viewport';
 import { BOARD_PRESETS, resizeSetup, writeBoardProps } from '../../sgf/editing';
+import { suggestMoves } from '../../analysis/suggest';
 import { BoardView } from '../components/Board';
+import { EnginePanel } from '../components/EnginePanel';
 import { Btn, theme } from '../components/theme';
+import { useEngine } from '../engine';
 import { useZoom, zoomedTap } from '../zoom';
 
 type Step = 'size' | 'black' | 'white' | 'tree';
@@ -108,6 +112,23 @@ export function Editor({ initial, onCancel, onSave }: Props) {
   const lastColor = cursor !== root ? nodeMove(cursor, dims)?.color : undefined;
   const natural: Color = lastColor ? other(lastColor) : first;
   const nextColor: Color = swap ? other(natural) : natural;
+
+  const engine = useEngine([cursor, nextColor, step]);
+  const suggestions = engine.state.kind === 'done' ? engine.state.moves : [];
+  const askEngine = (maxVisits: number) =>
+    engine.ask((analyzer) =>
+      suggestMoves(
+        analyzer,
+        { dims, open, black, white, player: first },
+        path.flatMap((n) => {
+          const m = nodeMove(n, dims);
+          return m ? [m] : [];
+        }),
+        nextColor,
+        allPoints(root),
+        { maxVisits },
+      ),
+    );
 
   const labels = (cursor.props.LB ?? []).map((v) => {
     const [pt, label] = v.split(':');
@@ -276,7 +297,16 @@ export function Editor({ initial, onCancel, onSave }: Props) {
           hints={[]}
           markup={
             step === 'tree'
-              ? labels.filter((l) => l.point).map((l) => ({ kind: 'LB' as const, point: l.point, label: l.label }))
+              ? [
+                  ...labels
+                    .filter((l) => l.point)
+                    .map((l) => ({ kind: 'LB' as const, point: l.point, label: l.label })),
+                  ...suggestions.flatMap((m, i) =>
+                    m.point && !board.get(m.point)
+                      ? [{ kind: 'LB' as const, point: m.point, label: String(i + 1) }]
+                      : [],
+                  ),
+                ]
               : []
           }
           onPlay={onTap}
@@ -395,6 +425,15 @@ export function Editor({ initial, onCancel, onSave }: Props) {
               ))}
             </View>
           ) : null}
+
+          <EnginePanel
+            available={engine.available}
+            status={engine.status}
+            state={engine.state}
+            toMove={nextColor}
+            dims={dims}
+            onAsk={askEngine}
+          />
 
           <TextInput
             value={cursor.props.C?.[0] ?? ''}

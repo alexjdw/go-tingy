@@ -45,6 +45,8 @@ src/go/board.ts           board rules (cols x rows): captures, suicide, simple k
 src/go/viewport.ts        what part of the board is shown, and where the grid lines go           (pure TS)
 src/go/thumbnail.ts       the 7x7 window a puzzle tile draws                                     (pure TS)
 src/go/setup.ts           a puzzle's starting position from its SGF                              (pure TS)
+src/analysis/             KataGo second opinion: position -> engine query, protocol, review of a puzzle's tree,
+                          suggestions for one position, the desktop bridge (pure TS; engine runs behind `Analyzer`)
 src/study/engine.ts       guided / unguided / explore engine, choice modes, color flipping       (pure TS)
 src/study/lines.ts        a puzzle's solution lines (root-to-leaf paths) and their length        (pure TS)
 src/study/timed.ts         TimedRun: all lines in random order, clock, score                    (pure TS)
@@ -126,7 +128,9 @@ in `tests/sgf/folders.test.ts` and `tests/web/collections.web.ts`.
 
 ## Desktop
 
-`desktop/` is an Electron shell (its own `package.json` and node_modules) around `expo export --platform web`;
+`desktop/` is an Electron shell (its own `package.json` and node_modules) around `expo export --platform web`; `preload.js` gives
+the page `window.katago` (status/query) and `katago.js` pipes JSON lines to a user-installed `katago analysis` (the Editor's
+"Ask KataGo", `src/ui/engine.ts`; tested in `tests/tooling/desktop-katago.test.ts` and `tests/web/engine.web.ts`);
 `npm run desktop:prepare` fills `desktop/web`. Metro, ESLint and tsc ignore it. `.github/workflows/desktop.yml` builds the
 Windows and Mac installers when a version tag is pushed. Phone builds stay on EAS.
 

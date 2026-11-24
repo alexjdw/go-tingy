@@ -147,6 +147,13 @@ phone app.
   files (Intel and Apple Silicon) when a version tag is pushed, and attaches them to that tag's release:
   `git tag v1.0.0 && git push origin v1.0.0`. It can also be started by hand from the Actions tab, which keeps the
   files as workflow artifacts only.
+- **KataGo second opinions (desktop only).** In the Editor's move tree, **Ask KataGo** shows the engine's favorite moves
+  for the position on the board, numbered on the board and listed with win chance, score lead and its line of play.
+  The engine is not bundled: download a KataGo release (the OpenCL build runs on any GPU) and a network, then put a
+  `katago.json` with `exe`, `model` and `config` paths (use forward slashes) in the app's data folder
+  (`%APPDATA%\go-flashcards-desktop` when run from `desktop/`; the panel names the folder if the file is missing), or set
+  `KATAGO_EXE`, `KATAGO_MODEL` and `KATAGO_CONFIG`. The first question after installing takes a few minutes while
+  KataGo tunes itself for the GPU. `scripts/katago-review.ts` runs the same engine over SGF files from the command line.
 - **Not signed.** Windows shows "Windows protected your PC" (More info, then Run anyway). On a Mac, right-click the app
   and choose Open the first time. Removing the warnings needs a Windows code-signing certificate and an Apple Developer
   account.
