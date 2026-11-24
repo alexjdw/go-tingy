@@ -65,7 +65,14 @@ type Screen =
   | { name: 'import' }
   | { name: 'fromGame' }
   | { name: 'editor'; problem?: Problem }
-  | { name: 'study'; problem: Problem; mode: Mode; run?: { freeMoves: number; learnerMoves: number } }
+  | {
+      name: 'study';
+      problem: Problem;
+      mode: Mode;
+      run?: { freeMoves: number; learnerMoves: number };
+      /** the color flip chosen when the puzzle opened, kept while its mode changes */
+      flipped?: boolean;
+    }
   | { name: 'timedRun'; problem: Problem };
 
 const learningStore = createLearningStore(asyncKv);
@@ -77,7 +84,6 @@ export default function App() {
     stackRef.current = stack;
   }, [stack]);
   const screen = current(stack);
-
   const [custom, setCustom] = useState<Problem[]>([]);
   const [progress, setProgress] = useState<ProgressMap>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -343,6 +349,10 @@ export default function App() {
           settings={settings}
           run={screen.run ? { freeMoves: screen.run.freeMoves } : undefined}
           onModeChange={screen.run ? undefined : (mode) => swap({ ...screen, mode })}
+          flipLock={screen.flipped}
+          onFlipLock={(flipped) => {
+            if (screen.flipped !== flipped) swap({ ...screen, flipped });
+          }}
           joseki={joseki.includes(screen.problem.id)}
           onJosekiChange={screen.run ? undefined : (on) => setJosekiMode(screen.problem.id, on)}
           tutorial={screen.run && seen && !seen.includes('guided-run') ? 'guided-run' : undefined}

@@ -74,6 +74,11 @@ export interface Snapshot {
 const same = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 const other = (c: Color): Color => (c === 'B' ? 'W' : 'B');
 
+/** Decide whether this puzzle is shown with the colors flipped, from the setting ("random" is a coin toss). */
+export function chooseFlip(setting: Tri | undefined, rng: () => number = Math.random): boolean {
+  return setting === 'on' ? true : setting === 'random' ? rng() < 0.5 : false;
+}
+
 export class StudyEngine {
   root!: SgfNode;
   dims!: Dims;
@@ -99,6 +104,8 @@ export class StudyEngine {
   private plan: SgfNode[] = [];
   private planIdx = 0;
   private anyExplicit = false;
+  /** The color flip chosen when the puzzle first loaded; a restart keeps it. */
+  private lockedFlip: boolean | undefined;
   private rng: () => number;
 
   constructor(
@@ -116,7 +123,9 @@ export class StudyEngine {
 
   private setup() {
     this.root = parseSgf(this.sgf);
-    this.flipped = this.mode !== 'explore' && (this.opts.flipped ?? this.resolve(this.opts.flipColors));
+    this.flipped =
+      this.opts.flipped ?? this.lockedFlip ?? (this.mode !== 'explore' && this.resolve(this.opts.flipColors));
+    this.lockedFlip = this.flipped;
     if (this.flipped) flipColors(this.root);
     this.dims = boardDims(this.root);
     this.open = openEdges(this.root);

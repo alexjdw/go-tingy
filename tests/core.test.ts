@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { StudyEngine } from '../src/study/engine';
+import { StudyEngine, chooseFlip } from '../src/study/engine';
 import { Board } from '../src/go/board';
 import { SAMPLES } from '../src/data/samples';
 import { JOSEKI_DEMO } from './fixtures/joseki-demo';
@@ -63,6 +63,31 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   assert.equal(fe.playerColor, 'W');
   assert.equal(fe.play({ x: 0, y: 2 }), 'solved');
   assert.equal(new StudyEngine(SAMPLES[0].sgf, 'explore', { flipColors: 'on' }).playerColor, 'B', 'no flip in explore');
+
+  // the flip is chosen once: a reset keeps it, and a given flip applies in every mode, explore included
+  let roll = 0.1;
+  const rolled = new StudyEngine(SAMPLES[0].sgf, 'unguided', { flipColors: 'random', rng: () => roll });
+  assert.equal(rolled.flipped, true);
+  roll = 0.9;
+  rolled.reset();
+  assert.equal(rolled.flipped, true, 'a new random draw does not undo the flip');
+  const calm = new StudyEngine(SAMPLES[0].sgf, 'unguided', { flipColors: 'random', rng: () => 0.9 });
+  roll = 0.1;
+  calm.reset();
+  assert.equal(calm.flipped, false);
+  const seen = new StudyEngine(SAMPLES[0].sgf, 'explore', { flipColors: 'random', flipped: true });
+  assert.equal(seen.flipped, true);
+  assert.equal(seen.snap.board.get({ x: 0, y: 0 }), 'W', 'explore shows the same flipped colors as solving');
+  assert.equal(chooseFlip('on'), true);
+  assert.equal(chooseFlip('off'), false);
+  assert.equal(
+    chooseFlip('random', () => 0.2),
+    true,
+  );
+  assert.equal(
+    chooseFlip('random', () => 0.7),
+    false,
+  );
 
   // multiple choice (A/B/C labels): only lettered points tappable in unguided mode
   const mc = `(;SZ[19]PL[B]AB[aa]AW[ab]LB[cc:A][dd:B][ee:C]

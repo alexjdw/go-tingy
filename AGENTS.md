@@ -96,6 +96,13 @@ In a guided learning run the given (free) moves are not replayed: the player cli
 green dot (engine phase `follow`, option `follow`; wrong clicks are ignored), then solves the rest alone. The first time,
 `RunTutorial` explains this; `seen.v1` remembers which tutorials were shown.
 
+## Color flip
+
+Whether a puzzle is shown with its colors flipped is decided once, when it opens (`chooseFlip` in `src/study/engine.ts`), and then
+kept: the engine remembers it across a reset, and the study screen (`Screen.flipped` in `App.tsx`) carries it across
+Hints / Solve / Explore (Study is remounted when the mode changes). Explore shows the same colors as solving. A puzzle
+opened again gets a new draw. `tests/web/flip.web.ts` covers it.
+
 ## Collections
 
 A collection is a named folder of puzzles: `Problem.collection` is its name and `Problem.folder` a path below it

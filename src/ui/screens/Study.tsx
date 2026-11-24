@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { Problem } from '../../data/samples';
-import { StudyEngine, hasSecondSide, type Mode } from '../../study/engine';
+import { StudyEngine, chooseFlip, hasSecondSide, type Mode } from '../../study/engine';
 import { allPoints, type Point } from '../../sgf/parser';
 import type { Settings } from '../../storage/settings';
 import { BoardView } from '../components/Board';
@@ -40,6 +40,12 @@ interface Props {
   /** Browse: lets the player switch between hints, solving and free exploration. */
   onModeChange?: (mode: Mode) => void;
   /**
+   * The color flip chosen when this puzzle was first opened (the app remembers it while the puzzle stays open, so
+   * switching between hints, solving and exploring does not change the colors), and a way to report a new choice.
+   */
+  flipLock?: boolean;
+  onFlipLock?: (flipped: boolean) => void;
+  /**
    * Joseki mode for this puzzle: solve it from the first side, then again from the second. The player's choice is
    * remembered by the app. Not offered in guided learning runs or free exploration.
    */
@@ -71,6 +77,8 @@ export function Study({
   onNext,
   onSkip,
   onModeChange,
+  flipLock,
+  onFlipLock,
   joseki = false,
   onJosekiChange,
   runBar,
@@ -85,7 +93,9 @@ export function Study({
     [joseki, mode, problem.sgf],
   );
   const [side, setSide] = useState<'first' | 'second'>('first');
-  const [flipLock, setFlipLock] = useState<boolean | undefined>(undefined);
+  // Chosen once when the puzzle loads, then kept: for every mode, restart and joseki side.
+  const [flip] = useState(() => flipLock ?? chooseFlip(settings.flipColors));
+  useEffect(() => onFlipLock?.(flip), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [carry, setCarry] = useState<{ mistakes: number; ms: number; parMs: number } | null>(null);
   const activeSide = twoSided ? side : 'first';
   const engine = useMemo(
@@ -96,9 +106,9 @@ export function Study({
         freeMoves: run?.freeMoves,
         follow: !!run,
         side: activeSide,
-        flipped: activeSide === 'second' ? flipLock : undefined,
+        flipped: flip,
       }),
-    [problem.sgf, mode, settings, run?.freeMoves, activeSide, flipLock], // eslint-disable-line react-hooks/exhaustive-deps
+    [problem.sgf, mode, settings, run?.freeMoves, activeSide, flip], // eslint-disable-line react-hooks/exhaustive-deps
   );
   /** The first side of a joseki is done, and the other side is still to play. */
   const sidePending = twoSided && side === 'first' && engine.snap.status === 'solved';
@@ -207,7 +217,6 @@ export function Study({
   /** Go back to the first side, e.g. after joseki mode is switched on or off. */
   const resetSides = () => {
     setSide('first');
-    setFlipLock(undefined);
     setCarry(null);
     startRef.current = null;
     setElapsed(0);
@@ -216,7 +225,6 @@ export function Study({
   };
 
   const otherSide = () => {
-    setFlipLock(engine.flipped);
     setSide('second');
     startRef.current = null;
     setElapsed(0);
