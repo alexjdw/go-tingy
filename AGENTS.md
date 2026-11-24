@@ -49,6 +49,7 @@ src/study/engine.ts       guided / unguided / explore engine, choice modes, colo
 src/study/lines.ts        a puzzle's solution lines (root-to-leaf paths) and their length        (pure TS)
 src/study/timed.ts         TimedRun: all lines in random order, clock, score                    (pure TS)
 src/study/session.ts      SessionQueue: a spaced-repetition session, missed puzzles retried once (pure TS)
+src/sync/                 cloud sync: snapshot + merge of two devices' data, the sync step, a Google Drive provider  (pure TS)
 src/nav/stack.ts          the navigation stack                                                   (pure TS)
 src/nav/history.ts        browser Back/Forward <-> stack depth (web history entries)             (pure TS)
 src/progress/skill.ts     attempt history -> skill level, bar colors, spaced-repetition due dates            (pure TS)
@@ -70,7 +71,7 @@ store/                    store listing text, privacy policy/answers, graphics, 
 scripts/                  asset generation (icons, screenshots) and the store-readiness checks
 ```
 
-Keep everything under `src/sgf`, `src/go`, `src/study`, `src/progress` and `src/nav` free of React and React Native imports so it
+Keep everything under `src/sgf`, `src/go`, `src/study`, `src/progress`, `src/sync` and `src/nav` free of React and React Native imports so it
 stays testable in plain Node.
 
 ## Progress bar and joseki
