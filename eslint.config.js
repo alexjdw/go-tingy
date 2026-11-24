@@ -22,6 +22,7 @@ module.exports = defineConfig([
     'tests/fixtures/',
     '.native-test/',
     'desktop/',
+    'scraped/',
   ]),
 
   js.configs.recommended,
