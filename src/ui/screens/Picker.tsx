@@ -1,6 +1,7 @@
 import type { Problem } from '../../data/samples';
 import { type Category, type LearningState, inCategory } from '../../progress/learning';
 import { CollectionBar, useCollectionFilter } from '../components/CollectionBar';
+import { captionOf } from '../../sgf/folders';
 import { PuzzleGrid } from '../components/PuzzleGrid';
 import { PuzzleTile } from '../components/PuzzleTile';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -18,19 +19,26 @@ interface Props {
 
 /** "Add puzzles": the library as tiles, each with one button that adds it to (or takes it out of) a study mode. */
 export function Picker({ category, problems, learning, onToggle, onBack }: Props) {
-  const { collections, active, setSelected, shown } = useCollectionFilter(problems);
+  const { collections, active, setSelected, folders, folder, setFolder, shown } = useCollectionFilter(problems);
   const added = problems.filter((p) => inCategory(learning, category, p.id)).length;
 
   const header = (
     <View style={{ gap: 12 }}>
       <ScreenHeader title="Add puzzles" subtitle={`to ${NAMES[category]} · ${added} added so far`} onBack={onBack} />
-      <CollectionBar collections={collections} active={active} onSelect={setSelected} />
+      <CollectionBar
+        collections={collections}
+        active={active}
+        onSelect={setSelected}
+        folders={folders}
+        folder={folder}
+        onFolder={setFolder}
+      />
     </View>
   );
 
   return (
     <PuzzleGrid
-      key={active ?? 'all'}
+      key={`${active ?? 'all'}/${folder ?? ''}`}
       data={shown}
       keyExtractor={(p) => p.id}
       header={header}
@@ -41,7 +49,7 @@ export function Picker({ category, problems, learning, onToggle, onBack }: Props
           <PuzzleTile
             problem={p}
             width={width}
-            caption={p.collection}
+            caption={captionOf(p)}
             actions={[
               {
                 label: on ? '✓ Added' : 'Add',

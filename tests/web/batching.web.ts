@@ -147,7 +147,7 @@ describe('tile batches in the browser', { skip: chromePath ? false : 'Chrome not
     await expectTiles(page, 10);
     const t = await bodyText(page);
     assert.doesNotMatch(t, /Show \d+ more/, 'exactly one batch: nothing more to load');
-    await click(page, 'All files');
+    await click(page, 'All puzzles');
     await expectTiles(page, 10);
     await expectText(page, `Showing 10 of ${TOTAL}`);
   });

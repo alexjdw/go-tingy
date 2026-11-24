@@ -16,6 +16,7 @@ import { cachedLearnerDepth } from '../../study/lines';
 import { CollectionBar, useCollectionFilter } from '../components/CollectionBar';
 import { PlusMenu } from '../components/PlusMenu';
 import { PuzzleGrid } from '../components/PuzzleGrid';
+import { captionOf } from '../../sgf/folders';
 import { PuzzleTile } from '../components/PuzzleTile';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Btn } from '../components/theme';
@@ -36,6 +37,7 @@ interface Props {
   onEdit: (p: Problem) => void;
   onDelete: (p: Problem) => void;
   onDeleteMany: (ids: string[]) => void;
+  onRenameCollection: (collection: string, name: string) => void;
 }
 
 /** Every puzzle as a tile, with Play and "+" under each. New and Import live here too. */
@@ -54,8 +56,9 @@ export function Browse({
   onEdit,
   onDelete,
   onDeleteMany,
+  onRenameCollection,
 }: Props) {
-  const { collections, active, setSelected, shown } = useCollectionFilter(problems);
+  const { collections, active, setSelected, folders, folder, setFolder, shown } = useCollectionFilter(problems);
   const [menu, setMenu] = useState<Problem | null>(null);
 
   const header = (
@@ -70,7 +73,11 @@ export function Browse({
         collections={collections}
         active={active}
         onSelect={setSelected}
-        deleteCount={shown.length}
+        folders={folders}
+        folder={folder}
+        onFolder={setFolder}
+        onRenameCollection={onRenameCollection}
+        deleteCount={collections.find(([c]) => c === active)?.[1] ?? 0}
         onDeleteCollection={(c) => onDeleteMany(problems.filter((p) => p.collection === c).map((p) => p.id))}
       />
     </View>
@@ -79,7 +86,7 @@ export function Browse({
   return (
     <>
       <PuzzleGrid
-        key={active ?? 'all'}
+        key={`${active ?? 'all'}/${folder ?? ''}`}
         data={shown}
         keyExtractor={(p) => p.id}
         header={header}
@@ -92,7 +99,7 @@ export function Browse({
               problem={p}
               width={width}
               bar={inLearning ? learningProgress(learning, p.id, cachedLearnerDepth(p.sgf)) : undefined}
-              caption={p.collection}
+              caption={captionOf(p)}
               badge={inLearning ? <LearningBadge level={puzzleTimedLevel(learning, p.id)} /> : undefined}
               stats={() =>
                 tileStats({

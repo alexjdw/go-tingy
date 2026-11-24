@@ -61,3 +61,6 @@ store.config.json
 /desktop/web/
 /desktop/build/
 /desktop/dist/
+
+# downloaded third-party collections (copyright: not for the repo without the authors' permission)
+/scraped/

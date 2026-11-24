@@ -42,6 +42,7 @@ import { Browse } from './ui/screens/Browse';
 import { Editor } from './ui/screens/Editor';
 import { FromGame } from './ui/screens/FromGame';
 import { Home } from './ui/screens/Home';
+import { collectionsOf, renameCollection as renameCollectionIn } from './sgf/folders';
 import { ImportScreen } from './ui/screens/ImportScreen';
 import { LearningHome } from './ui/screens/LearningHome';
 import { TimedScreen } from './ui/screens/TimedScreen';
@@ -187,6 +188,12 @@ export default function App() {
     back();
   };
 
+  const renameCollection = async (from: string, to: string) => {
+    const next = renameCollectionIn(custom, from, to);
+    setCustom(next);
+    await saveLibrary(next);
+  };
+
   const removeMany = async (ids: string[]) => {
     const drop = new Set(ids);
     const next = custom.filter((c) => !drop.has(c.id));
@@ -275,6 +282,7 @@ export default function App() {
           onEdit={(problem) => go({ name: 'editor', problem })}
           onDelete={(p) => void removeMany([p.id])}
           onDeleteMany={(ids) => void removeMany(ids)}
+          onRenameCollection={(from, to) => void renameCollection(from, to)}
         />
       )}
 
@@ -383,7 +391,12 @@ export default function App() {
       {screen.name === 'fromGame' && <FromGame onCancel={back} onSave={saveProblem} />}
 
       {screen.name === 'import' && (
-        <ImportScreen existing={problems.map((p) => p.sgf)} onCancel={back} onImport={addMany} />
+        <ImportScreen
+          existing={problems.map((p) => p.sgf)}
+          collectionNames={collectionsOf(problems).map(([c]) => c)}
+          onCancel={back}
+          onImport={addMany}
+        />
       )}
     </SafeAreaView>
   );

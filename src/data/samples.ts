@@ -2,8 +2,10 @@ export interface Problem {
   id: string;
   title: string;
   sgf: string;
-  /** Source collection (file name) for puzzles imported from a multi-puzzle file. */
+  /** The collection (a named folder of puzzles) this puzzle is in, chosen when it was imported. */
   collection?: string;
+  /** Folders below the collection, "Part 1/Peep". */
+  folder?: string;
   builtin?: boolean;
 }
 
