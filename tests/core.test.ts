@@ -115,6 +115,20 @@ test('core: engine, board, parser, validation, encoding, archives, skill', () =>
   assert.equal(splitCollection('(;C[a)b(c];B[aa])').length, 1, 'parens inside values ignored');
   assert.equal(splitCollection('').length, 0);
   assert.equal(splitCollection('not sgf').length, 1);
+  // parse errors show about 10 characters of the text around the problem
+  const msg = (t: string) => {
+    try {
+      parseSgf(t);
+    } catch (e) {
+      return (e as Error).message;
+    }
+    return '';
+  };
+  assert.equal(msg('(;B[aa] ? ;W[bb];B[cc])'), 'SGF: unexpected "?" at 8 near "a] ? ;W[bb"');
+  assert.equal(msg('(;B[aa];W[bb]'), 'SGF: unexpected end of input near "[aa];W[bb]"');
+  assert.equal(msg('hello world, no tree'), 'SGF: no game tree found near "hello worl"');
+  assert.match(msg('()'), /^SGF: empty game tree near "\(\)"$/);
+  assert.match(msg('(;B[aa]\n\n\n;W[bb] #)'), /near ";W\[bb\] #\)"/, 'line breaks collapse to one space');
   for (const sm of SAMPLES) assert.deepEqual(validateSgf(sm.sgf).errors, [], sm.title);
   assert.ok(validateSgf('not sgf').errors.length);
   assert.ok(validateSgf('(;SZ[19]AB[aa]AW[aa];B[bb])').errors[0].includes('overlap'));

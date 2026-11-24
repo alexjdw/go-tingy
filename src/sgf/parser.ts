@@ -52,6 +52,15 @@ export function parseSgf(text: string): SgfNode {
   let i = 0;
   const n = text.length;
 
+  /** about 10 characters around position `at`, to show where a parse error is */
+  const near = (at: number) => {
+    const from = Math.max(0, Math.min(at - 3, n - 10));
+    return ` near "${text
+      .slice(from, from + 10)
+      .replace(/\s+/g, ' ')
+      .trim()}"`;
+  };
+
   const skipWs = () => {
     while (i < n && /\s/.test(text[i])) i++;
   };
@@ -94,13 +103,13 @@ export function parseSgf(text: string): SgfNode {
   /** Parses one "( ... )" game tree, returning its first node. */
   function parseTree(parent: SgfNode | null): SgfNode {
     skipWs();
-    if (text[i] !== '(') throw new Error(`SGF: expected "(" at ${i}`);
+    if (text[i] !== '(') throw new Error(`SGF: expected "(" at ${i}${near(i)}`);
     i++;
     let first: SgfNode | null = null;
     let cur: SgfNode | null = parent;
     for (;;) {
       skipWs();
-      if (i >= n) throw new Error('SGF: unexpected end of input');
+      if (i >= n) throw new Error(`SGF: unexpected end of input${near(n)}`);
       const c = text[i];
       if (c === ';') {
         i++;
@@ -109,22 +118,22 @@ export function parseSgf(text: string): SgfNode {
         first ??= node;
         cur = node;
       } else if (c === '(') {
-        if (!cur) throw new Error('SGF: variation before any node');
+        if (!cur) throw new Error(`SGF: variation before any node${near(i)}`);
         parseTree(cur);
       } else if (c === ')') {
         i++;
         break;
       } else {
-        throw new Error(`SGF: unexpected "${c}" at ${i}`);
+        throw new Error(`SGF: unexpected "${c}" at ${i}${near(i)}`);
       }
     }
-    if (!first) throw new Error('SGF: empty game tree');
+    if (!first) throw new Error(`SGF: empty game tree${near(i - 1)}`);
     return first;
   }
 
   skipWs();
   const start = text.indexOf('(', i);
-  if (start < 0) throw new Error('SGF: no game tree found');
+  if (start < 0) throw new Error(`SGF: no game tree found${near(0)}`);
   i = start;
   return parseTree(null);
 }
