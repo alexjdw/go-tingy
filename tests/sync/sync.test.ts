@@ -227,3 +227,46 @@ describe('Google Drive', () => {
     await assert.rejects(drive.read(), /500/);
   });
 });
+
+describe('syncing the device', () => {
+  const { updatedAt: _u, ...content } = snap({ library: [puzzle('a')] });
+  void _u;
+
+  it('stamps changes with the time they are noticed, and unchanged data with the old time', async () => {
+    const { emptyMeta, runSync, stampLocal, hasUnsyncedChanges } = await import('../../src/sync/run');
+    const first = emptyMeta();
+    assert.equal(stampLocal(content, first, 500).updatedAt, 500);
+    assert.equal(hasUnsyncedChanges(content, first), true);
+    const cloud = new Memory();
+    const done = await runSync(cloud, content, first, 500);
+    assert.equal(done.meta.updatedAt, 500);
+    assert.equal(done.meta.lastSyncedAt, 500);
+    assert.equal(hasUnsyncedChanges(content, done.meta), false);
+    assert.equal(stampLocal(content, done.meta, 9000).updatedAt, 500, 'nothing changed: still the old time');
+    const changed = { ...content, joseki: ['a'] };
+    assert.equal(stampLocal(changed, done.meta, 9000).updatedAt, 9000);
+    assert.equal(hasUnsyncedChanges(changed, done.meta), true);
+  });
+
+  it('a damaged cloud file leaves the saved state alone', async () => {
+    const { emptyMeta, runSync } = await import('../../src/sync/run');
+    const meta = emptyMeta();
+    const r = await runSync(new Memory('{ broken'), content, meta, 5);
+    assert.equal(r.result.remoteDamaged, true);
+    assert.deepEqual(r.meta, meta);
+  });
+
+  it("a second device picks up the first one's puzzles and then has nothing left to upload", async () => {
+    const { emptyMeta, runSync, hasUnsyncedChanges } = await import('../../src/sync/run');
+    const cloud = new Memory();
+    await runSync(cloud, content, emptyMeta(), 100);
+    const { updatedAt: _t, ...other } = snap({ library: [puzzle('b')] });
+    void _t;
+    const r = await runSync(cloud, other, emptyMeta(), 200);
+    assert.deepEqual(r.result.merged.library.map((p) => p.id).sort(), ['a', 'b']);
+    assert.equal(r.result.changedLocal, true);
+    const { updatedAt: _m, ...mergedContent } = r.result.merged;
+    void _m;
+    assert.equal(hasUnsyncedChanges(mergedContent, r.meta), false);
+  });
+});

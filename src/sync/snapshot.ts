@@ -54,10 +54,11 @@ export function parseSnapshot(text: string): Snapshot | null {
 
 export const stringifySnapshot = (s: Snapshot) => JSON.stringify(s);
 
-/** Same content, ignoring the order puzzles and ids were listed in (and `updatedAt`). */
-export function sameContent(a: Snapshot, b: Snapshot): boolean {
-  return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
-}
+/** The content as text, ignoring updatedAt and the order of lists: two snapshots with the same key are the same data. */
+export const contentKey = (s: Snapshot): string => JSON.stringify(canonical(s));
+
+/** Same content, ignoring the order puzzles and ids were listed in (and updatedAt). */
+export const sameContent = (a: Snapshot, b: Snapshot): boolean => contentKey(a) === contentKey(b);
 
 function canonical(s: Snapshot): unknown {
   const sortKeys = (o: Record<string, unknown>) =>

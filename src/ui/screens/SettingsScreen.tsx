@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { Settings, Tri } from '../../storage/settings';
 import { Btn, theme } from '../components/theme';
+import type { SyncApi } from '../useSync';
 
 const ROWS: { key: keyof Settings; title: string; desc: string }[] = [
   {
@@ -27,11 +28,13 @@ export function SettingsScreen({
   onChange,
   onBack,
   onAbout,
+  sync,
 }: {
   settings: Settings;
   onChange: (s: Settings) => void;
   onBack: () => void;
   onAbout?: () => void;
+  sync?: SyncApi;
 }) {
   return (
     <View style={styles.wrap}>
@@ -55,7 +58,48 @@ export function SettingsScreen({
           </View>
         </View>
       ))}
+      {sync?.available ? <SyncCard sync={sync} /> : null}
       {onAbout ? <Btn label="About and licenses" kind="ghost" onPress={onAbout} /> : null}
+    </View>
+  );
+}
+
+const when = (t: number | null) => (t ? new Date(t).toLocaleString() : 'not yet');
+
+/** Keep puzzles and progress in the player's own Google Drive, so every device they sign in on has them. */
+function SyncCard({ sync }: { sync: SyncApi }) {
+  const busy = sync.status === 'syncing';
+  return (
+    <View style={styles.card}>
+      <Text style={styles.title}>Sync with Google Drive</Text>
+      <Text style={styles.desc}>
+        Keeps your puzzles, progress and settings in a private, hidden folder of your own Google Drive, so every device
+        you sign in on has them. The app can see only that folder, nothing else in your Drive.
+      </Text>
+      {sync.connected ? (
+        <Text style={styles.desc}>
+          {busy ? 'Syncing…' : `Last synced: ${when(sync.lastSyncedAt)}`}
+          {sync.message ? `\n${sync.message}` : ''}
+        </Text>
+      ) : sync.message ? (
+        <Text style={styles.desc}>{sync.message}</Text>
+      ) : null}
+      <View style={styles.seg}>
+        {!sync.connected ? (
+          <Btn label="Sign in with Google" onPress={() => void sync.connect()} />
+        ) : (
+          <>
+            {sync.status === 'signin' ? (
+              <Btn label="Sign in again" onPress={() => void sync.connect()} />
+            ) : sync.status === 'damaged' ? (
+              <Btn label="Replace the damaged copy" onPress={() => void sync.syncNow({ replaceDamaged: true })} />
+            ) : (
+              <Btn label={busy ? 'Syncing…' : 'Sync now'} kind="solid" onPress={() => void sync.syncNow()} />
+            )}
+            <Btn label="Sign out" kind="ghost" onPress={() => void sync.disconnect()} />
+          </>
+        )}
+      </View>
     </View>
   );
 }
