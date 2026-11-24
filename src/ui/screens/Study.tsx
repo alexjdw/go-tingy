@@ -3,6 +3,7 @@ import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } fro
 import type { Problem } from '../../data/samples';
 import { StudyEngine, chooseFlip, hasSecondSide, rollTri, type Mode } from '../../study/engine';
 import { allPoints, boardDims, type Point, type SgfNode } from '../../sgf/parser';
+import { canSplitAt, splitAt } from '../../sgf/split';
 import { layoutTree } from '../../study/treeLayout';
 import type { Settings } from '../../storage/settings';
 import { BoardView } from '../components/Board';
@@ -48,6 +49,11 @@ interface Props {
   session?: { position: number; total: number; isLast: boolean };
   onNext?: () => void;
   onSkip?: () => void;
+  /**
+   * Desktop app only: in free exploration, lets the player split off the position at the current move, and what
+   * follows it, as a puzzle of its own, opened in the editor (it is saved only if the player saves it).
+   */
+  onSplit?: (p: Problem) => void;
   /** Browse: lets the player switch between hints, solving and free exploration. */
   onModeChange?: (mode: Mode) => void;
   /**
@@ -87,6 +93,7 @@ export function Study({
   session,
   onNext,
   onSkip,
+  onSplit,
   onModeChange,
   flipLock,
   onFlipLock,
@@ -143,6 +150,18 @@ export function Study({
     },
     [engine],
   );
+  const split = () => {
+    const node = engine.snap.node;
+    const sgf = node && onSplit ? splitAt(engine.root, node, engine.flipped) : null;
+    if (!sgf || !onSplit) return;
+    onSplit({
+      ...problem,
+      id: `c-${Date.now()}`,
+      title: `${problem.title} (split)`,
+      sgf,
+      builtin: undefined,
+    });
+  };
   useArrowKeys(mode === 'explore' ? { onLeft: stepBack, onRight: stepForward } : null);
   const treeLayout = useMemo(
     () => (mode === 'explore' ? layoutTree(engine.root, boardDims(engine.root)) : null),
@@ -467,6 +486,14 @@ export function Study({
         {mode === 'explore' ? (
           <>
             <Btn label="Forward ›" onPress={stepForward} disabled={!engine.canForward} />
+            {onSplit ? (
+              <Btn
+                label="Split off here"
+                kind="ghost"
+                onPress={split}
+                disabled={!s.node || !canSplitAt(engine.root, s.node)}
+              />
+            ) : null}
             <Btn
               label="Pass"
               onPress={() => {

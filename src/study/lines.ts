@@ -117,3 +117,16 @@ export function preferredChild(node: SgfNode): SgfNode | null {
     null
   );
 }
+
+/** The node with a given `nodeKey` in a tree (null if there is none): the way back from a key a review reports. */
+export function nodeByKey(root: SgfNode, key: string): SgfNode | null {
+  let n = root;
+  if (key === '') return n;
+  const next = (from: SgfNode): SgfNode | undefined =>
+    from.children.find((c) => key === nodeKey(c) || key.startsWith(nodeKey(c) + ';'));
+  for (let c = next(n); c; c = next(n)) {
+    n = c;
+    if (nodeKey(n) === key) return n;
+  }
+  return null;
+}

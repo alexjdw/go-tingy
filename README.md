@@ -155,6 +155,12 @@ phone app.
   (`%APPDATA%\go-flashcards-desktop` when run from `desktop/`; the panel names the folder if the file is missing), or set
   `KATAGO_EXE`, `KATAGO_MODEL` and `KATAGO_CONFIG`. The first question after installing takes a few minutes while
   KataGo tunes itself for the GPU. `scripts/katago-review.ts` runs the same engine over SGF files from the command line.
+- **Splitting a puzzle into easier ones (desktop).** In **Explore**, pick a move in the tree and press **Split off here**:
+  the position at that move, and everything played after it, opens in the editor as a new puzzle ("... (split)").
+  In the editor, **KataGo helps: on** makes KataGo answer each new move you play (about a second) with its best reply,
+  so a move and its refutation appear as a branch to keep, mark or delete; switch it off to build by hand. With it on,
+  pressing **Save puzzle** first has KataGo check the puzzle and list what it disagrees with; you can keep editing or
+  save anyway. KataGo is a second opinion, not a proof.
 - **Not signed.** Windows shows "Windows protected your PC" (More info, then Run anyway). On a Mac, right-click the app
   and choose Open the first time. Removing the warnings needs a Windows code-signing certificate and an Apple Developer
   account.

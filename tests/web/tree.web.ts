@@ -30,7 +30,14 @@ describe('walking the tree in explore mode', { skip: skipWithoutChrome }, () => 
   let app: App;
 
   before(async () => {
-    app = await startApp('tree', { viewport: { width: 700, height: 1100 }, library: [PUZZLE] });
+    app = await startApp('tree', {
+      viewport: { width: 700, height: 1100 },
+      library: [PUZZLE],
+      prepare: async (page) => {
+        // the app draws a random number to decide the color flip: 0.9 means "do not flip", so the stones keep their colors
+        await page.evaluateOnNewDocument('Math.random = () => 0.9');
+      },
+    });
   });
   after(async () => {
     await app?.close();

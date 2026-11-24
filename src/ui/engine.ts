@@ -19,6 +19,7 @@ const sameKeys = (a: unknown[], b: unknown[]) => a.length === b.length && a.ever
  */
 export function useEngine(keys: unknown[]) {
   const bridge: KataGoBridge | null = useMemo(() => getBridge(), []);
+  const analyzer = useMemo(() => (bridge ? bridgeAnalyzer(bridge) : null), [bridge]);
   const [status, setStatus] = useState<{ ready: boolean; message: string } | null>(null);
   const [held, setHeld] = useState<Held | null>(null);
   const latest = useRef(0);
@@ -52,5 +53,5 @@ export function useEngine(keys: unknown[]) {
   );
 
   const state: EngineState = held && sameKeys(held.keys, keys) ? held.state : { kind: 'idle' };
-  return { available: bridge !== null, status, state, ask };
+  return { available: bridge !== null, status, state, ask, analyzer };
 }

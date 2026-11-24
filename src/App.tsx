@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Platform, SafeAreaView, StatusBar as RNStatusBar, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SAMPLES, type Problem } from './data/samples';
@@ -53,6 +53,7 @@ import { SessionScreen } from './ui/screens/SessionScreen';
 import { AboutScreen } from './ui/screens/AboutScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
 import { Study } from './ui/screens/Study';
+import { getBridge } from './analysis/bridge';
 
 type Screen =
   | { name: 'home' }
@@ -178,6 +179,9 @@ export default function App() {
     },
     [progress],
   );
+
+  /** The desktop app (it has the KataGo bridge): splitting a puzzle is offered there. */
+  const desktop = useMemo(() => getBridge() !== null, []);
 
   const problems = [...SAMPLES, ...custom];
 
@@ -355,6 +359,7 @@ export default function App() {
           settings={settings}
           run={screen.run ? { freeMoves: screen.run.freeMoves } : undefined}
           onModeChange={screen.run ? undefined : (mode) => swap({ ...screen, mode })}
+          onSplit={desktop && !screen.run ? (problem) => go({ name: 'editor', problem }) : undefined}
           flipLock={screen.flipped}
           onFlipLock={(flipped) => {
             if (screen.flipped !== flipped) swap({ ...screen, flipped });

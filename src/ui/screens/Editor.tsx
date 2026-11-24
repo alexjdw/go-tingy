@@ -29,14 +29,16 @@ import {
 } from '../../sgf/parser';
 import { fullViewport } from '../../go/viewport';
 import { BOARD_PRESETS, resizeSetup, writeBoardProps } from '../../sgf/editing';
+import { reviewPuzzle } from '../../analysis/review';
 import { suggestMoves } from '../../analysis/suggest';
 import { BoardView } from '../components/Board';
+import { type Check, CheckPanel } from '../components/CheckPanel';
 import { EnginePanel } from '../components/EnginePanel';
 import { TreeView } from '../components/TreeView';
 import { Btn, theme } from '../components/theme';
 import { useEngine } from '../engine';
 import { useArrowKeys } from '../keys';
-import { preferredChild } from '../../study/lines';
+import { nodeByKey, preferredChild } from '../../study/lines';
 import { layoutTree, treeSignature } from '../../study/treeLayout';
 import { useZoom, zoomedTap } from '../zoom';
 
@@ -52,6 +54,10 @@ const TITLES: Record<Step, string> = {
   tree: 'Move tree',
 };
 const other = (c: Color): Color => (c === 'B' ? 'W' : 'B');
+/** How much KataGo thinks about an answer to a new move (about a second), and about each position when checking. */
+const AI_VISITS = 300;
+const CHECK_VISITS = 200;
+const CHECK_QUERIES = 60;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const markOf = (n: SgfNode): Mark => (n.props.TE ? 'correct' : n.props.BM ? 'incorrect' : 'neutral');
@@ -95,6 +101,11 @@ export function Editor({ initial, onCancel, onSave }: Props) {
   const [tool, setTool] = useState<Tool>('move');
   const [title, setTitle] = useState(initial?.title ?? '');
   const [error, setError] = useState('');
+  // KataGo helping with the tree: answers each new move, and checks the puzzle before it is saved. Can be switched off.
+  const [ai, setAi] = useState(true);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState('');
+  const [check, setCheck] = useState<Check | null>(null);
 
   const base = useMemo(() => fullViewport(dims), [dims]);
   const zoom = useZoom(base);
@@ -130,6 +141,7 @@ export function Editor({ initial, onCancel, onSave }: Props) {
   useArrowKeys(step === 'tree' ? { onLeft: stepBack, onRight: stepForward } : null);
 
   const engine = useEngine([cursor, nextColor, step]);
+  const aiOn = engine.available && engine.status?.ready === true && ai;
   const suggestions = engine.state.kind === 'done' ? engine.state.moves : [];
   const askEngine = (maxVisits: number) =>
     engine.ask((analyzer) =>
@@ -145,6 +157,52 @@ export function Editor({ initial, onCancel, onSave }: Props) {
         { maxVisits },
       ),
     );
+
+  /** The move just added is answered by KataGo's best reply: a one-exchange branch to look at or keep. */
+  const exchange = async (mine: SgfNode, color: Color) => {
+    if (!engine.analyzer) return;
+    setAiBusy(true);
+    setAiNote('');
+    try {
+      const played: { color: Color; point: Point | null }[] = [];
+      for (let n: SgfNode | null = mine; n && n !== root; n = n.parent) {
+        const m = nodeMove(n, dims);
+        if (m) played.unshift(m);
+      }
+      const [reply] = await suggestMoves(
+        engine.analyzer,
+        { dims, open, black, white, player: first },
+        played,
+        other(color),
+        allPoints(root),
+        { maxVisits: AI_VISITS, count: 1 },
+      );
+      if (!mine.parent?.children.includes(mine)) return; // deleted while KataGo was thinking
+      if (!reply?.point) {
+        setAiNote('KataGo would pass here: there is nothing more to refute.');
+        return;
+      }
+      const sg = pointToSgf(reply.point);
+      const them = other(color);
+      let node = mine.children.find((c) => c.props[them]?.[0] === sg);
+      if (!node) {
+        node = { props: { [them]: [sg] }, children: [], parent: mine };
+        mine.children.push(node);
+      }
+      const answer = node;
+      setCursor((c) => (c === mine ? answer : c));
+      const chance = Math.round((1 - reply.winrate) * 100);
+      const verdict = chance <= 30 ? ' (this move looks refuted)' : chance >= 70 ? ' (this move holds up)' : '';
+      setAiNote(
+        `KataGo answered ${coordName(reply.point, dims)}. ${color === 'B' ? 'Black' : 'White'}'s chance after that: ${chance}%${verdict}.`,
+      );
+      force();
+    } catch (e) {
+      setAiNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   const labels = (cursor.props.LB ?? []).map((v) => {
     const [pt, label] = v.split(':');
@@ -223,14 +281,18 @@ export function Editor({ initial, onCancel, onSave }: Props) {
       return;
     }
 
+    if (aiBusy) return; // KataGo is still answering the last move
     if (!board.play(p, nextColor)) return; // occupied, suicide or ko
     const sg = pointToSgf(p);
     let node = cursor.children.find((c) => c.props[nextColor]?.[0] === sg);
+    const created = !node;
     if (!node) {
       node = { props: { [nextColor]: [sg] }, children: [], parent: cursor };
       cursor.children.push(node);
     }
+    setCheck(null);
     setCursor(node);
+    if (created && aiOn) void exchange(node, nextColor);
     setSwap(false);
   };
 
@@ -258,25 +320,48 @@ export function Editor({ initial, onCancel, onSave }: Props) {
     setCursor(parent);
   };
 
-  const save = () => {
-    if (!root.children.length) return setError('Add at least one move to the tree first.');
-    root.props = {
-      ...root.props,
-      GM: ['1'],
-      FF: ['4'],
-      GN: [title.trim() || 'Untitled'],
-      PL: [first],
+  /** The puzzle as it would be saved, or null (with the reason shown) if it is not ready. The tree itself is not touched. */
+  const build = (): Problem | null => {
+    if (!root.children.length) {
+      setError('Add at least one move to the tree first.');
+      return null;
+    }
+    const out: SgfNode = {
+      props: { ...root.props, GM: ['1'], FF: ['4'], GN: [title.trim() || 'Untitled'], PL: [first] },
+      children: root.children,
+      parent: null,
     };
-    writeBoardProps(root, dims, open);
-    if (black.length) root.props.AB = black.map(pointToSgf);
-    else delete root.props.AB;
-    if (white.length) root.props.AW = white.map(pointToSgf);
-    else delete root.props.AW;
-    onSave({
-      id: initial?.id ?? `c-${Date.now()}`,
-      title: title.trim() || 'Untitled',
-      sgf: toSgf(root),
-    });
+    writeBoardProps(out, dims, open);
+    if (black.length) out.props.AB = black.map(pointToSgf);
+    else delete out.props.AB;
+    if (white.length) out.props.AW = white.map(pointToSgf);
+    else delete out.props.AW;
+    // keep what else the puzzle has (the collection it is in, for one)
+    return { ...initial, id: initial?.id ?? `c-${Date.now()}`, title: title.trim() || 'Untitled', sgf: toSgf(out) };
+  };
+
+  /** Save; with KataGo on, check the puzzle first and let the author decide if it finds something. */
+  const save = async () => {
+    setError('');
+    const problem = build();
+    if (!problem) return;
+    if (!aiOn || !engine.analyzer) return onSave(problem);
+    setCheck({ kind: 'running' });
+    try {
+      const review = await reviewPuzzle(problem.sgf, engine.analyzer, {
+        maxVisits: CHECK_VISITS,
+        maxQueries: CHECK_QUERIES,
+      });
+      if (review.verdict === 'agrees') return onSave(problem);
+      setCheck({ kind: 'done', review, problem, signature });
+    } catch (e) {
+      setCheck({ kind: 'failed', message: e instanceof Error ? e.message : String(e), problem, signature });
+    }
+  };
+
+  const jumpToKey = (key: string) => {
+    const node = nodeByKey(root, key);
+    if (node) setCursor(node);
   };
 
   const stepIdx = STEPS.indexOf(step);
@@ -443,6 +528,23 @@ export function Editor({ initial, onCancel, onSave }: Props) {
             </View>
           ) : null}
 
+          {engine.available ? (
+            <View style={styles.row}>
+              <Btn
+                label={`KataGo helps: ${aiOn ? 'on' : 'off'}`}
+                kind={aiOn ? 'solid' : 'ghost'}
+                onPress={() => setAi((v) => !v)}
+                accessibilityLabel={aiOn ? 'KataGo helps: on' : 'KataGo helps: off'}
+              />
+              <Text style={[styles.hint, { flex: 1 }]}>
+                {ai
+                  ? 'On: KataGo answers each new move you play and checks the puzzle before you save.'
+                  : 'Off: you build the tree by hand.'}
+              </Text>
+            </View>
+          ) : null}
+          {aiBusy ? <Text style={styles.hint}>KataGo is thinking…</Text> : null}
+          {aiNote ? <Text style={styles.hint}>{aiNote}</Text> : null}
           <EnginePanel
             available={engine.available}
             status={engine.status}
@@ -497,7 +599,16 @@ export function Editor({ initial, onCancel, onSave }: Props) {
             style={styles.input}
           />
           {error ? <Text style={{ color: '#e5484d' }}>{error}</Text> : null}
-          <Btn label="Save puzzle" onPress={save} />
+          {check && (check.kind === 'running' || check.signature === signature) ? (
+            <CheckPanel
+              check={check}
+              dims={dims}
+              onJump={jumpToKey}
+              onSaveAnyway={() => check.kind !== 'running' && onSave(check.problem)}
+              onDismiss={() => setCheck(null)}
+            />
+          ) : null}
+          <Btn label="Save puzzle" onPress={() => void save()} disabled={check?.kind === 'running'} />
         </View>
       )}
 

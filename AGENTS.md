@@ -108,6 +108,17 @@ failure, else the first) and `jumpTo(node)`. The left/right arrow keys (`useArro
 its `layout` changes, so callers memoize the layout (`treeSignature` tells an in-place edited tree apart) and pass a
 stable `onSelect`. Tests: `tests/study/explore-walk.test.ts`, `tests/web/tree.web.ts`.
 
+## Splitting a puzzle (desktop only)
+
+In free exploration the desktop app (the page has `window.katago`, see `getBridge`) offers **Split off here**: the position
+at the current move, with everything played after it, becomes a new puzzle (`src/sgf/split.ts`: the stones on the board
+become the starting stones, the next mover plays first, a flipped view is written back in the original colors) that
+opens in the Editor with the title "<title> (split)" and a fresh id; nothing is saved until the player saves it. In the
+Editor, **KataGo helps: on/off** (default on when the engine is set up): a new move gets KataGo's best reply as a one-exchange
+branch (`AI_VISITS`, about a second), and Save first runs `reviewPuzzle` and shows its findings (`CheckPanel`) so the author
+can keep editing or save anyway; with it off the Editor is hand-built as before. The Editor keeps a puzzle's other fields
+(collection, folder) when saving. Tests: `tests/sgf/split.test.ts`, `tests/analysis/describe.test.ts`, `tests/web/split.web.ts`.
+
 ## Browser history
 
 On the web each screen is a history entry (`{depth}` state, kept in step in `App.tsx`): in-app Back calls `history.back()`, and the
