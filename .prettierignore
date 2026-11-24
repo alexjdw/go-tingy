@@ -8,3 +8,7 @@ tests/fixtures/
 assets/
 .native-test/
 THIRD_PARTY_NOTICES.md
+desktop/web/
+desktop/build/
+desktop/dist/
+desktop/package-lock.json

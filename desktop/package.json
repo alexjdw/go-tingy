@@ -1,0 +1,44 @@
+{
+  "name": "go-flashcards-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Go Flashcards for Windows and macOS: the web build of the app in an Electron window.",
+  "author": "Go Flashcards",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --x64",
+    "dist:mac": "electron-builder --mac --x64 --arm64"
+  },
+  "build": {
+    "appId": "com.weiqioverstudy.desktop",
+    "productName": "Go Flashcards",
+    "files": [
+      "main.js",
+      "web/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis",
+      "artifactName": "go-flashcards-${version}-windows-${arch}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.education",
+      "identity": "-",
+      "artifactName": "go-flashcards-${version}-macos-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
+  }
+}

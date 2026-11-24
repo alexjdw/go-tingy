@@ -115,7 +115,8 @@ Questions, bug reports and requests: <https://github.com/alexjdw/go-tingy/issues
 
 ## Releases
 
-Builds are made by hand and attached to a GitHub release (there is no CI).
+The phone builds are made by hand and attached to a GitHub release. The Windows and Mac builds are made by GitHub
+Actions (see Desktop below).
 
 1. Build in the cloud: `npx eas-cli build --platform android --profile preview` (an installable `.apk`) and
    `npx eas-cli build --platform ios --profile ios-simulator` (a `.tar.gz` that runs in the iOS Simulator on a Mac).
@@ -132,3 +133,20 @@ npm run release -- v1.0.0 \
 
 The release is created for the tag if it does not exist, and an asset with the same name is replaced. A value can
 also be a local file path.
+
+## Desktop (Windows and Mac)
+
+`desktop/` is a small Electron shell around the web build of the app. It serves the build from a private `app://`
+address, and links to other sites open in the browser. Progress is stored inside the desktop app, separate from the
+phone app.
+
+- **Windows, on this machine:** `npm run desktop:prepare`, then in `desktop/`: `npm install` and `npm run dist:win`.
+  The installer is `desktop/dist/go-flashcards-<version>-windows-x64-setup.exe`. `npm start` in `desktop/` runs the app
+  without packaging it.
+- **Windows and Mac, on GitHub:** `.github/workflows/desktop.yml` builds the Windows installer and the Mac `.dmg`
+  files (Intel and Apple Silicon) when a version tag is pushed, and attaches them to that tag's release:
+  `git tag v1.0.0 && git push origin v1.0.0`. It can also be started by hand from the Actions tab, which keeps the
+  files as workflow artifacts only.
+- **Not signed.** Windows shows "Windows protected your PC" (More info, then Run anyway). On a Mac, right-click the app
+  and choose Open the first time. Removing the warnings needs a Windows code-signing certificate and an Apple Developer
+  account.

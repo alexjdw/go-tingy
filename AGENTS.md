@@ -95,6 +95,12 @@ In a guided learning run the given (free) moves are not replayed: the player cli
 green dot (engine phase `follow`, option `follow`; wrong clicks are ignored), then solves the rest alone. The first time,
 `RunTutorial` explains this; `seen.v1` remembers which tutorials were shown.
 
+## Desktop
+
+`desktop/` is an Electron shell (its own `package.json` and node_modules) around `expo export --platform web`;
+`npm run desktop:prepare` fills `desktop/web`. Metro, ESLint and tsc ignore it. `.github/workflows/desktop.yml` builds the
+Windows and Mac installers when a version tag is pushed. Phone builds stay on EAS.
+
 ## Responsiveness
 
 The app must feel super responsive. Scrolling, taps and screen changes must never stall or visibly lag, whatever the size
