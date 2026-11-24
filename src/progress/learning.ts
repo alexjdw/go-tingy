@@ -9,7 +9,7 @@
  *      timed run  unlocked once guided is cleared: solve every line, scored in moves per minute.
  *    Both modes are limited to DAILY_LIMIT attempts per puzzle per day.
  */
-import { type Attempt, type SkillBar, barColor, isDue } from './skill';
+import { type Attempt, type SelfRating, type SkillBar, SELF_SCORE, barColor, isDue } from './skill';
 
 export type Category = 'spaced' | 'learning';
 export type TimedLevel = 'none' | 'green' | 'gold' | 'diamond';
@@ -26,6 +26,8 @@ export interface GuidedScore {
   free: number;
   /** a clean run with 0 free moves has been completed */
   cleared: boolean;
+  /** paper mode: how well the clearing run went (0..1, from the self-rating); missing means a full score */
+  quality?: number;
 }
 
 export interface TimedResult {
@@ -79,6 +81,11 @@ export function setCategory(s: LearningState, cat: Category, id: string, on: boo
   return { ...s, [cat]: next };
 }
 
+/** Add or remove several puzzles at once (a whole collection). Same rules as setCategory, one state change. */
+export function setCategoryMany(s: LearningState, cat: Category, ids: string[], on: boolean): LearningState {
+  return ids.reduce((acc, id) => setCategory(acc, cat, id, on), s);
+}
+
 /** Spaced repetition is the only way a puzzle comes due. */
 export const isDueNow = (s: LearningState, id: string, history: Attempt[] | undefined, now = Date.now()) =>
   inCategory(s, 'spaced', id) && isDue(history, now);
@@ -123,25 +130,34 @@ export function guidedStages(learnerMoves: number): number[] {
 export function guidedStatus(s: LearningState, id: string, learnerMoves: number): GuidedScore {
   const start = initialFree(learnerMoves);
   const g = s.scores[id]?.guided;
-  return g ? { free: Math.min(g.free, start), cleared: g.cleared } : { free: start, cleared: false };
+  return g ? { ...g, free: Math.min(g.free, start) } : { free: start, cleared: false };
 }
 
 /**
  * Record a finished guided run. A clean run steps the free moves down (a clean run at 0 clears the stage); a
  * run with any mistake changes nothing.
+ *
+ * Paper mode passes the player's self-rating. "Too tough" counts as not clean and, unlike a mistake, adds free moves
+ * back (one step, up to the starting count). Any other rating is a clean run; the rating of the run that clears the
+ * stage (at 0 free moves) sets the guided score.
  */
 export function recordGuidedResult(
   s: LearningState,
   id: string,
   learnerMoves: number,
   correct: boolean,
+  rating?: SelfRating,
 ): LearningState {
-  if (!correct) return s;
   const cur = guidedStatus(s, id, learnerMoves);
   if (cur.cleared) return s;
+  if (rating === 'toohard' || (rating && !correct)) {
+    const free = Math.min(initialFree(learnerMoves), cur.free + freeStep(learnerMoves));
+    return { ...s, scores: { ...s.scores, [id]: { ...s.scores[id], guided: { free, cleared: false } } } };
+  }
+  if (!correct) return s;
   const guided: GuidedScore =
     cur.free === 0
-      ? { free: 0, cleared: true }
+      ? { free: 0, cleared: true, ...(rating ? { quality: SELF_SCORE[rating] } : {}) }
       : { free: Math.max(0, cur.free - freeStep(learnerMoves)), cleared: false };
   return { ...s, scores: { ...s.scores, [id]: { ...s.scores[id], guided } } };
 }
@@ -182,7 +198,10 @@ export function learningProgress(s: LearningState, id: string, learnerMoves: num
   const stages = guidedStages(learnerMoves);
   const done = g.cleared ? stages.length : Math.max(0, stages.indexOf(g.free));
   const best = s.scores[id]?.best?.score ?? 0;
-  const fill = g.cleared ? 0.5 + 0.5 * Math.min(1, Math.max(0, best) / DIAMOND_ABOVE) : 0.5 * (done / stages.length);
+  // the guided half is full unless a paper-mode self-rating cleared the stage with less; timed runs fill the rest
+  const guidedHalf = 0.5 * (g.quality ?? 1);
+  const timed = Math.min(1, Math.max(0, best) / DIAMOND_ABOVE);
+  const fill = g.cleared ? guidedHalf + (1 - guidedHalf) * timed : 0.5 * (done / stages.length);
   return { fill, color: barColor(fill) };
 }
 

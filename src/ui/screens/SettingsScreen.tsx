@@ -13,6 +13,11 @@ const ROWS: { key: keyof Settings; title: string; desc: string }[] = [
     title: 'Flip colors',
     desc: 'Guided and unguided only. Swaps black and white so you learn the shape, not the colors. On: always. Random: each attempt. Off: never.',
   },
+  {
+    key: 'paper',
+    title: 'Paper mode',
+    desc: 'Solving only. Shows the puzzle as a still diagram: solve it in your head, tap Done, then say how it went. Your answer counts toward spaced repetition and guided learning scores. On: always. Random: sometimes. Off: never.',
+  },
 ];
 
 const OPTIONS: Tri[] = ['on', 'random', 'off'];

@@ -6,18 +6,22 @@
  * relies on the one before it.
  */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { launch, type Browser, type Page } from 'puppeteer-core';
 import { SAMPLES } from '../../src/data/samples';
-import { initialViewport } from '../../src/go/viewport';
-import { allPoints, boardDims, openEdges, parseSgf, type Point } from '../../src/sgf/parser';
-import { findChrome } from '../../scripts/lib/chrome';
-import { buildWeb, clickText, serveDir, sleep } from '../../scripts/lib/web';
-
-const chromePath = findChrome();
+import { type Point } from '../../src/sgf/parser';
+import {
+  type App,
+  startApp,
+  skipWithoutChrome,
+  expectText,
+  expectNoText,
+  click,
+  clickAria,
+  tapBoard,
+  bodyText,
+  sleep,
+} from '../lib/web';
+import type { Page } from 'puppeteer-core';
 
 const [CORNER, EDGE, OPEN] = SAMPLES; // Corner capture, Edge pair in atari, Capture in the open
 const ANSWER: Record<string, Point> = {
@@ -27,86 +31,23 @@ const ANSWER: Record<string, Point> = {
 };
 const WRONG: Point = { x: 3, y: 3 }; // empty and inside every built-in puzzle's window, and never the answer
 
-const bodyText = (page: Page) => page.evaluate('document.body.innerText') as Promise<string>;
-
-/** Wait until the page text contains `needle`; on timeout fail with what the page does say. */
-async function expectText(page: Page, needle: string | RegExp, ms = 6000) {
-  const has = (t: string) => (typeof needle === 'string' ? t.includes(needle) : needle.test(t));
-  const end = Date.now() + ms;
-  let t = '';
-  while (Date.now() < end) {
-    t = await bodyText(page);
-    if (has(t)) return t;
-    await sleep(150);
-  }
-  assert.fail(`expected the page to show ${needle}, but it shows:\n${t.slice(0, 700)}`);
-}
-
-async function expectNoText(page: Page, needle: string | RegExp) {
-  await sleep(250);
-  const t = await bodyText(page);
-  const has = typeof needle === 'string' ? t.includes(needle) : needle.test(t);
-  assert.ok(!has, `expected the page NOT to show ${needle}, but it shows:\n${t.slice(0, 700)}`);
-}
-
-async function click(page: Page, text: string) {
-  assert.ok(
-    await clickText(page, text, 450),
-    `no button "${text}" on screen:\n${(await bodyText(page)).slice(0, 500)}`,
-  );
-}
-
-async function clickAria(page: Page, label: string) {
-  const ok = await page.evaluate(
-    `(() => { const e = document.querySelector('[aria-label=${JSON.stringify(label)}]'); if (!e) return false; e.click(); return true; })()`,
-  );
-  assert.ok(ok, `no control labelled "${label}" on screen`);
-  await sleep(450);
-}
-
 const count = (page: Page, js: string) => page.evaluate(js) as Promise<number>;
 
 /** The widths of the progress bars on screen, as a string, to see whether they changed. */
 const BARS = `[...document.querySelectorAll('[aria-label="Skill"] > div')].map((e) => e.getAttribute('style')).join('|')`;
 
-/** Tap a board point. The tap targets are the page's transparent rects, in row order over the visible window. */
-async function tapBoard(page: Page, sgf: string, p: Point) {
-  const root = parseSgf(sgf);
-  const v = initialViewport(allPoints(root), boardDims(root), openEdges(root));
-  assert.ok(p.x >= v.x0 && p.x <= v.x1 && p.y >= v.y0 && p.y <= v.y1, 'the point is inside the window');
-  const idx = (p.y - v.y0) * (v.x1 - v.x0 + 1) + (p.x - v.x0);
-  const box = (await page.evaluate(
-    `(() => { const r = [...document.querySelectorAll('svg rect')].filter((e) => e.getAttribute('fill') === 'transparent')[${idx}];
-      if (!r) return null; const b = r.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`,
-  )) as { x: number; y: number } | null;
-  assert.ok(box, 'the board has tap targets');
-  await page.mouse.click(box.x, box.y);
-  await sleep(450);
-}
-
-describe('journeys', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
-  let outDir = '';
-  let site: { url: string; close: () => void };
-  let browser: Browser;
+describe('journeys', { skip: skipWithoutChrome }, () => {
+  let app: App;
   let page: Page;
-  const errors: string[] = [];
+  let errors: string[];
 
   before(async () => {
-    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-journey-'));
-    buildWeb(outDir);
-    site = await serveDir(outDir);
-    browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
-    page = await browser.newPage();
-    await page.setViewport({ width: 390, height: 844 });
-    page.on('pageerror', (e) => errors.push(String(e)));
-    await page.goto(site.url, { waitUntil: 'networkidle0' });
-    await sleep(800);
+    app = await startApp('journey', { viewport: { width: 390, height: 844 } });
+    ({ page, errors } = app);
   });
 
   after(async () => {
-    await browser?.close();
-    site?.close();
-    if (outDir) fs.rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    await app?.close();
   });
 
   it('Home offers the three modes', async () => {

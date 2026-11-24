@@ -17,9 +17,10 @@ import {
   recordGuidedResult,
   recordTimedResult,
   setCategory,
+  setCategoryMany,
 } from './progress/learning';
 import { type RunKind, learningAction } from './progress/practice';
-import { type Attempt, type ProgressMap, recordAttempt } from './progress/skill';
+import { type Attempt, type ProgressMap, type SelfRating, recordAttempt } from './progress/skill';
 import { depthOf, toDepth } from './nav/history';
 import { canGoBack, current, pop, push, replace, reset, type Stack } from './nav/stack';
 import {
@@ -222,6 +223,8 @@ export default function App() {
   };
 
   const toggleCategory = (id: string, cat: Category, on: boolean) => updateLearning((s) => setCategory(s, cat, id, on));
+  const toggleCategoryMany = (ids: string[], cat: Category, on: boolean) =>
+    updateLearning((s) => setCategoryMany(s, cat, ids, on));
 
   /** Start the next training step of a learning puzzle: a guided run, or a timed run. */
   const startRun = (problem: Problem, kind: RunKind) => {
@@ -239,8 +242,10 @@ export default function App() {
   };
 
   /** What to tell the player after a guided run. */
-  const guidedMessage = (id: string, learnerMoves: number, correct: boolean) => {
+  const guidedMessage = (id: string, learnerMoves: number, correct: boolean, rating?: SelfRating) => {
     const now = guidedStatus(learningRef.current, id, learnerMoves);
+    if (rating === 'toohard')
+      return `That was too tough, so you'll get ${now.free} free move${now.free === 1 ? '' : 's'} next time.`;
     if (!correct) return `Not clean this time, so you'll get ${now.free} free move${now.free === 1 ? '' : 's'} again.`;
     if (now.cleared) return 'Guided stage cleared! Timed runs are unlocked.';
     return `Clean run! Next time you get ${now.free} free move${now.free === 1 ? '' : 's'}.`;
@@ -328,6 +333,7 @@ export default function App() {
           problems={problems}
           learning={learning}
           onToggle={(id, on) => toggleCategory(id, screen.category, on)}
+          onToggleMany={(ids, on) => toggleCategoryMany(ids, screen.category, on)}
           onBack={back}
         />
       )}
@@ -360,11 +366,11 @@ export default function App() {
           runBar={screen.run ? learningProgress(learning, screen.problem.id, screen.run.learnerMoves) : undefined}
           onExit={screen.run ? leaveRun : back}
           onRunStart={() => updateLearning((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
-          onRunResult={({ correct }) => {
+          onRunResult={({ correct, rating }) => {
             const id = screen.problem.id;
             const L = screen.run?.learnerMoves ?? 0;
-            updateLearning((s) => recordGuidedResult(s, id, L, correct));
-            return guidedMessage(id, L, correct);
+            updateLearning((s) => recordGuidedResult(s, id, L, correct, rating));
+            return guidedMessage(id, L, correct, rating);
           }}
         />
       )}

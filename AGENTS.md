@@ -63,7 +63,9 @@ src/ui/components/        Board (SVG), PuzzleTile/PuzzleGrid/PlusMenu/Collection
                           LearningBadge (GM, fills with the level), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
 src/ui/batch.ts           tile batch rules: 10 at a time (pure TS, tested)
 src/ui/zoom.ts, sound.ts  zoom hook, stone sound
-tests/                    node:test suites + tests/fixtures (real SGF collections)
+tests/                    node:test suites, one folder per area like src/ (sgf, go, study, progress, storage, nav, ui, data),
+                          tooling (store, licenses, release, Metro), web (browser) and native; shared helpers.ts;
+                          tests/fixtures (real SGF collections)
 store/                    store listing text, privacy policy/answers, graphics, publishing checklist
 scripts/                  asset generation (icons, screenshots) and the store-readiness checks
 ```
@@ -83,6 +85,16 @@ Joseki mode is a per-puzzle toggle, remembered in `joseki.v1`, set from Study or
 every mode (Browse, sessions, guided and timed runs, not free exploration): the puzzle is played from the first side,
 then from the second (`StudyEngine` option `side: 'second'` plays move 1 for you, with the same colors). A session or
 guided run counts both sides as one attempt; a timed run needs every line from both sides.
+
+## Paper mode
+
+Setting `paper` (on / random / off, default off), rolled once when a solving puzzle opens (`Study`; not Hints, Explore or
+timed runs). The board is a still diagram (`BoardView paper`, muted palette); in a guided run the given moves are still
+clicked through, then the player taps Done and rates it Easy / Medium / Tough / Too tough (`RatingPrompt`, `SelfRating` in
+`src/progress/skill.ts`). Spaced sessions record the rating on the `Attempt` (`self` replaces the speed score; too tough =
+failed, so the puzzle returns once). A guided run passes it to `recordGuidedResult`: too tough adds one step of free moves
+back; the rating of the run that clears the stage at 0 free moves sets `GuidedScore.quality`, which scales the guided half
+of the bar. Browse records nothing. A joseki counts the worse of its two sides. Tests: `tests/progress/paper.test.ts`.
 
 ## Browser history
 
@@ -110,7 +122,7 @@ A collection is a named folder of puzzles: `Problem.collection` is its name and 
 asks the player for the collection's name (`suggestName` offers one; "No collection" skips it). The folders of a zip or
 a picked folder (web: "Choose folder…") are kept. Browse and the Add puzzles picker show collection chips, then the
 folders inside the chosen one; Browse can rename and delete a collection. The logic is in `src/sgf/folders.ts`, tested
-in `tests/folders.test.ts` and `tests/web/collections.web.ts`.
+in `tests/sgf/folders.test.ts` and `tests/web/collections.web.ts`.
 
 ## Desktop
 
@@ -132,7 +144,7 @@ the rest, and show a cheap placeholder instead of making the player wait. Check 
 Puzzle tiles (`PuzzleGrid`) are drawn in batches of `BATCH_SIZE` (10): more load on scroll or from a "Show N more" button. A screen whose list changes (a filter) must give the grid a new `key` so it restarts at the first batch. FlatList unmounts tiles far off screen, so tests must not expect every loaded tile to be in the DOM. In React Native Web a bare horizontal `ScrollView` shrinks when a long list is below it, so use `ChipRow` for rows of buttons.
 `tests/fixtures/` holds real
 puzzle collections; see its README for provenance and licensing. Behavior changes need a test; wrong-answer and
-failed-attempt behavior in particular is covered in `tests/solve.test.ts`.
+failed-attempt behavior in particular is covered in `tests/study/solve.test.ts`.
 
 ## Building with EAS
 

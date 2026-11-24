@@ -20,7 +20,33 @@ interface Props {
   open?: OpenEdges;
   /** Increases whenever a stone is placed; triggers the placement animation. */
   animKey?: number;
+  /** Paper mode: a muted, matte diagram instead of the shiny board (soft tones, nothing bright white). */
+  paper?: boolean;
 }
+
+/** Colors of the regular board and of the paper diagram. */
+const WOOD = {
+  board: '#e8b55a',
+  line: '#5a4210',
+  black: '#111',
+  blackEdge: '#000',
+  white: '#f6f6f2',
+  whiteEdge: '#888',
+  onBlack: '#fff',
+  onWhite: '#111',
+  mark: '#c2271b',
+};
+const PAPER = {
+  board: '#cfc6ac',
+  line: '#6b614b',
+  black: '#3b3d43',
+  blackEdge: '#2b2c31',
+  white: '#e3decd',
+  whiteEdge: '#6b614b',
+  onBlack: '#d9d4c2',
+  onWhite: '#34363c',
+  mark: '#9a3b2f',
+};
 
 const STAR_LINES: Record<number, number[]> = { 19: [3, 9, 15], 13: [3, 6, 9], 9: [2, 4, 6] };
 
@@ -45,7 +71,9 @@ export function BoardView({
   disabled,
   open = NO_OPEN_EDGES,
   animKey = 0,
+  paper = false,
 }: Props) {
+  const C = paper ? PAPER : WOOD;
   // 0..1 progress of the newest stone's placement animation (1 = idle).
   const [t, setT] = useState(1);
   const prevKey = useRef(animKey);
@@ -92,7 +120,7 @@ export function BoardView({
 
   return (
     <Svg width={width} height={height}>
-      <Rect x={0} y={0} width={width} height={height} fill="#e8b55a" rx={6} />
+      <Rect x={0} y={0} width={width} height={height} fill={C.board} rx={6} />
       {vertical.map((l, i) => (
         <Line
           key={`v${i}`}
@@ -100,7 +128,7 @@ export function BoardView({
           x2={l.x2}
           y1={l.y1}
           y2={l.y2}
-          stroke="#5a4210"
+          stroke={C.line}
           strokeWidth={l.heavy ? BORDER : 1}
         />
       ))}
@@ -111,12 +139,12 @@ export function BoardView({
           x2={l.x2}
           y1={l.y1}
           y2={l.y2}
-          stroke="#5a4210"
+          stroke={C.line}
           strokeWidth={l.heavy ? BORDER : 1}
         />
       ))}
       {stars.map((p) => (
-        <Circle key={`s${p.x},${p.y}`} cx={px(p.x)} cy={py(p.y)} r={cell * 0.1} fill="#5a4210" />
+        <Circle key={`s${p.x},${p.y}`} cx={px(p.x)} cy={py(p.y)} r={cell * 0.1} fill={C.line} />
       ))}
 
       {points.map((p) => {
@@ -129,8 +157,8 @@ export function BoardView({
               cx={px(p.x)}
               cy={py(p.y)}
               r={fresh ? stoneR * (0.82 + 0.18 * ease) : stoneR}
-              fill={c === 'B' ? '#111' : '#f6f6f2'}
-              stroke={c === 'B' ? '#000' : '#888'}
+              fill={c === 'B' ? C.black : C.white}
+              stroke={c === 'B' ? C.blackEdge : C.whiteEdge}
               strokeWidth={1}
             />
           </G>
@@ -143,7 +171,7 @@ export function BoardView({
           cy={py(last.y)}
           r={stoneR * 0.45}
           fill="none"
-          stroke={board.get(last) === 'B' ? '#fff' : '#111'}
+          stroke={board.get(last) === 'B' ? C.onBlack : C.onWhite}
           strokeWidth={2}
         />
       ) : null}
@@ -160,7 +188,7 @@ export function BoardView({
         const cx = px(m.point.x);
         const cy = py(m.point.y);
         const on = board.get(m.point);
-        const col = on === 'B' ? '#fff' : '#c2271b';
+        const col = on === 'B' ? C.onBlack : C.mark;
         const r = stoneR * 0.55;
         switch (m.kind) {
           case 'TR':

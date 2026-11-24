@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { Problem } from '../../data/samples';
-import { StudyEngine, chooseFlip, hasSecondSide, type Mode } from '../../study/engine';
+import { StudyEngine, chooseFlip, hasSecondSide, rollTri, type Mode } from '../../study/engine';
 import { allPoints, type Point } from '../../sgf/parser';
 import type { Settings } from '../../storage/settings';
 import { BoardView } from '../components/Board';
 import { initialViewport } from '../../go/viewport';
-import { type Attempt, type SkillBar as SkillBarData, LEVEL_COLORS } from '../../progress/skill';
+import {
+  type Attempt,
+  type SelfRating,
+  type SkillBar as SkillBarData,
+  LEVEL_COLORS,
+  SELF_LABEL,
+  worseRating,
+} from '../../progress/skill';
+import { RatingPrompt } from '../components/RatingPrompt';
 import { RunTutorial } from '../components/RunTutorial';
 import { SolvedStamp } from '../components/SolvedStamp';
 import { SkillBar } from '../components/SkillBar';
@@ -29,7 +37,7 @@ interface Props {
   /** Called once, on the first move of a run: it uses up one of today's attempts. */
   onRunStart?: () => void;
   /** Called when the run is solved. May return a message to show, like what the next stage will be. */
-  onRunResult?: (r: { correct: boolean }) => string | void;
+  onRunResult?: (r: { correct: boolean; rating?: SelfRating }) => string | void;
   /**
    * Part of a spaced-repetition session: shows where you are, offers Skip, and Next once the puzzle is solved.
    * Restart is hidden (it would wipe the mistakes that the session records).
@@ -96,12 +104,16 @@ export function Study({
   // Chosen once when the puzzle loads, then kept: for every mode, restart and joseki side.
   const [flip] = useState(() => flipLock ?? chooseFlip(settings.flipColors));
   useEffect(() => onFlipLock?.(flip), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [carry, setCarry] = useState<{ mistakes: number; ms: number; parMs: number } | null>(null);
+  // Paper mode (solving only): a still diagram, solved in the head and then rated. Chosen once, like the flip.
+  const [paper] = useState(() => mode === 'unguided' && rollTri(settings.paper));
+  const [asking, setAsking] = useState(false);
+  const [rating, setRating] = useState<SelfRating | null>(null);
+  const [carry, setCarry] = useState<{ mistakes: number; ms: number; parMs: number; self?: SelfRating } | null>(null);
   const activeSide = twoSided ? side : 'first';
   const engine = useMemo(
     () =>
       new StudyEngine(problem.sgf, mode, {
-        markChoices: run || activeSide === 'second' ? 'off' : settings.markChoices,
+        markChoices: run || paper || activeSide === 'second' ? 'off' : settings.markChoices,
         flipColors: settings.flipColors,
         freeMoves: run?.freeMoves,
         follow: !!run,
@@ -111,7 +123,7 @@ export function Study({
     [problem.sgf, mode, settings, run?.freeMoves, activeSide, flip], // eslint-disable-line react-hooks/exhaustive-deps
   );
   /** The first side of a joseki is done, and the other side is still to play. */
-  const sidePending = twoSided && side === 'first' && engine.snap.status === 'solved';
+  const sidePending = twoSided && side === 'first' && (paper ? rating !== null : engine.snap.status === 'solved');
   const base = useMemo(() => initialViewport(allPoints(engine.root), engine.dims, engine.open), [engine]);
   const zoom = useZoom(base);
   const [, force] = useReducer((n: number) => n + 1, 0);
@@ -123,10 +135,13 @@ export function Study({
   // Timer starts on the first board interaction (or when the replay finishes), not on screen open.
   const startRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  /** Paper mode: the player has said Done, so the clock stops. */
+  const stopped = useRef(false);
   useEffect(() => {
     if (mode === 'explore') return;
     const t = setInterval(() => {
-      if (startRef.current != null && engine.snap.status !== 'solved') setElapsed(Date.now() - startRef.current);
+      if (startRef.current != null && engine.snap.status !== 'solved' && !stopped.current)
+        setElapsed(Date.now() - startRef.current);
     }, 250);
     return () => clearInterval(t);
   }, [engine, mode]);
@@ -147,6 +162,13 @@ export function Study({
   }, [engine, phase]);
 
   const s = engine.snap;
+  /** Paper mode, the part where the diagram is only looked at (after any given moves were clicked through). */
+  const looking = paper && phase === 'play';
+  useEffect(() => {
+    if (!looking) return;
+    zoom.reset(); // the zoom needs taps, which a still diagram does not take
+    if (startRef.current == null) startRef.current = Date.now();
+  }, [looking]); // eslint-disable-line react-hooks/exhaustive-deps
   const followHint = engine.followHint();
   const hints = followHint
     ? [followHint]
@@ -157,6 +179,38 @@ export function Study({
   const shake = () => {
     setFlash('wrong');
     setTimeout(() => setFlash(null), 500);
+  };
+
+  /**
+   * A side is over: solved on the board, or (paper mode) rated by the player, who gives `self`. The first side of a
+   * joseki waits for the other; otherwise the result goes to the guided run or the spaced-repetition session.
+   */
+  const finishAttempt = (ms: number, mistakes: number, self?: SelfRating) => {
+    if (twoSided && side === 'first') {
+      setCarry({ mistakes, ms, parMs: engine.parMs(), self });
+    } else if (run) {
+      // a joseki run is clean only if both sides were
+      const msg = onRunResult?.({
+        correct: mistakes === 0 && (carry?.mistakes ?? 0) === 0,
+        rating: worseRating(carry?.self, self),
+      });
+      if (msg) setRunMessage(msg);
+    } else if (engine.tracksSkill && session && onResult) {
+      const one: Attempt = self
+        ? { correct: mistakes === 0, ms, parMs: engine.parMs(), at: Date.now(), self }
+        : engine.attempt(ms);
+      // a joseki is one attempt over both sides: right only if both were clean, with both times added up
+      const attempt: Attempt = carry
+        ? {
+            ...one,
+            correct: one.correct && carry.mistakes === 0,
+            ms: one.ms + carry.ms,
+            parMs: one.parMs + carry.parMs,
+            ...(carry.self || one.self ? { self: worseRating(carry.self, one.self) } : {}),
+          }
+        : one;
+      void onResult(attempt);
+    }
   };
 
   const handle = (p: { x: number; y: number }) => {
@@ -185,27 +239,32 @@ export function Study({
     if (r === 'solved') {
       const ms = Date.now() - startRef.current;
       setElapsed(ms);
-      if (twoSided && side === 'first') {
-        setCarry({ mistakes: engine.mistakes, ms, parMs: engine.parMs() });
-      } else if (run) {
-        // a joseki run is clean only if both sides were
-        const msg = onRunResult?.({ correct: engine.mistakes === 0 && (carry?.mistakes ?? 0) === 0 });
-        if (msg) setRunMessage(msg);
-      } else if (engine.tracksSkill && session && onResult) {
-        const one = engine.attempt(ms);
-        // a joseki is one attempt over both sides: right only if both were clean, with both times added up
-        const attempt = carry
-          ? {
-              ...one,
-              correct: one.correct && carry.mistakes === 0,
-              ms: one.ms + carry.ms,
-              parMs: one.parMs + carry.parMs,
-            }
-          : one;
-        void onResult(attempt);
-      }
+      finishAttempt(ms, engine.mistakes);
     }
     force();
+  };
+
+  /** Paper mode: "Done" asks how it went; this takes the answer. */
+  const rate = (r: SelfRating) => {
+    const ms = startRef.current != null ? Date.now() - startRef.current : 0;
+    stopped.current = true;
+    setElapsed(ms);
+    setAsking(false);
+    setRating(r);
+    finishAttempt(ms, r === 'toohard' ? 1 : 0, r);
+    force();
+  };
+  const paperDone = () => {
+    if (run && !runStarted.current) {
+      runStarted.current = true;
+      onRunStart?.();
+    }
+    setAsking(true);
+  };
+  const clearPaper = () => {
+    stopped.current = false;
+    setAsking(false);
+    setRating(null);
   };
   const onTap = (p: Point) => zoomedTap(zoom, p, handle);
 
@@ -216,6 +275,7 @@ export function Study({
 
   /** Go back to the first side, e.g. after joseki mode is switched on or off. */
   const resetSides = () => {
+    clearPaper();
     setSide('first');
     setCarry(null);
     startRef.current = null;
@@ -225,6 +285,7 @@ export function Study({
   };
 
   const otherSide = () => {
+    clearPaper();
     setSide('second');
     startRef.current = null;
     setElapsed(0);
@@ -237,6 +298,7 @@ export function Study({
       resetSides(); // a restart goes back to the first side, the way a joseki starts
       return;
     }
+    clearPaper();
     engine.reset();
     startRef.current = null;
     setElapsed(0);
@@ -251,7 +313,12 @@ export function Study({
   if (phase === 'replay') status = 'Watch the moves…';
   else if (phase === 'follow') status = 'Follow the green dot';
   else if (phase === 'mark') status = `Mark every move that could be correct (${engine.marks.length} marked)`;
-  else if (sidePending) status = 'First side solved! Now play it again from the other side.';
+  else if (sidePending)
+    status = paper
+      ? 'First side rated. Now the other side.'
+      : 'First side solved! Now play it again from the other side.';
+  else if (paper && rating) status = `You rated it: ${SELF_LABEL[rating]}`;
+  else if (looking) status = asking ? 'Done thinking?' : `Solve it in your head as ${me}, then tap Done`;
   else if (s.status === 'solved')
     status =
       mode === 'unguided'
@@ -280,9 +347,10 @@ export function Study({
             {twoSided ? ` · joseki, side ${side === 'first' ? 1 : 2} of 2` : ''}
             {mode !== 'explore' ? ` · ${(elapsed / 1000).toFixed(0)}s` : ''}
             {engine.flipped ? ' · colors flipped' : ''}
+            {paper ? ' · paper' : ''}
           </Text>
         </View>
-        {zoom.canZoom ? (
+        {zoom.canZoom && !looking ? (
           <Btn
             label={zoom.mode === 'off' ? 'Zoom (z)' : zoom.mode === 'armed' ? 'Tap area…' : 'Zoomed'}
             kind={zoom.mode === 'off' ? 'ghost' : 'solid'}
@@ -317,7 +385,8 @@ export function Study({
           onPlay={onTap}
           open={engine.open}
           animKey={engine.placed}
-          disabled={phase === 'replay' || (s.status === 'solved' && mode !== 'explore')}
+          disabled={phase === 'replay' || looking || (s.status === 'solved' && mode !== 'explore')}
+          paper={paper}
         />
         {s.status === 'solved' && mode !== 'explore' ? <SolvedStamp /> : null}
       </View>
@@ -326,7 +395,8 @@ export function Study({
       <Text style={[styles.status, s.status === 'solved' && phase === 'play' && { color: LEVEL_COLORS.green }]}>
         {status}
       </Text>
-      {run && s.status === 'solved' && !sidePending && runBar ? (
+      {asking ? <RatingPrompt onRate={rate} /> : null}
+      {run && (paper ? rating !== null : s.status === 'solved') && !sidePending && runBar ? (
         <View style={styles.skill}>
           <SkillBar bar={runBar} height={10} label="Learning progress" />
         </View>
@@ -335,17 +405,20 @@ export function Study({
       {s.message || engine.comment() ? <Text style={styles.comment}>{s.message || engine.comment()}</Text> : null}
 
       <View style={styles.row}>
+        {looking && !asking && rating === null ? <Btn label="Done" onPress={paperDone} /> : null}
         {phase === 'mark' ? <Btn label="Submit choices" onPress={submit} disabled={engine.marks.length === 0} /> : null}
         {run ? null : (
           <>
-            <Btn
-              label="Undo"
-              onPress={() => {
-                engine.undo();
-                force();
-              }}
-              disabled={!engine.canUndo}
-            />
+            {paper ? null : (
+              <Btn
+                label="Undo"
+                onPress={() => {
+                  engine.undo();
+                  force();
+                }}
+                disabled={!engine.canUndo}
+              />
+            )}
             {session ? null : <Btn label="Restart" onPress={restart} />}
             {onJosekiChange && mode !== 'explore' ? (
               <Btn
@@ -374,7 +447,7 @@ export function Study({
           </>
         ) : null}
         {session ? (
-          s.status === 'solved' && !sidePending ? (
+          (paper ? rating !== null : s.status === 'solved') && !sidePending ? (
             <Btn label={session.isLast ? 'Finish' : 'Next ›'} onPress={() => onNext?.()} />
           ) : sidePending ? null : (
             <Btn label="Skip" kind="ghost" onPress={() => onSkip?.()} />

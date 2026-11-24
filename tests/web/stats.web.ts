@@ -3,30 +3,13 @@
  * Run with `npm run test:web`.
  */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { launch, type Browser, type Page } from 'puppeteer-core';
 import { SAMPLES } from '../../src/data/samples';
-import { findChrome } from '../../scripts/lib/chrome';
-import { buildWeb, clickText, serveDir, sleep } from '../../scripts/lib/web';
+import { type App, startApp, skipWithoutChrome, expectText, click, bodyText, sleep } from '../lib/web';
+import type { Page } from 'puppeteer-core';
+import { clickText } from '../../scripts/lib/web';
 
-const chromePath = findChrome();
 const FIRST = SAMPLES[0];
-
-const bodyText = (page: Page) => page.evaluate('document.body.innerText') as Promise<string>;
-
-async function expectText(page: Page, needle: string | RegExp, ms = 4000) {
-  const end = Date.now() + ms;
-  let t = '';
-  while (Date.now() < end) {
-    t = await bodyText(page);
-    if (typeof needle === 'string' ? t.includes(needle) : needle.test(t)) return t;
-    await sleep(120);
-  }
-  assert.fail(`expected the page to show ${needle}, but it shows:\n${t.slice(0, 600)}`);
-}
 
 /** The middle of the first tile's title. */
 const titleBox = (page: Page) =>
@@ -35,30 +18,19 @@ const titleBox = (page: Page) =>
       const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`,
   ) as Promise<{ x: number; y: number }>;
 
-describe('tile stats in the browser', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
-  let outDir = '';
-  let site: { url: string; close: () => void };
-  let browser: Browser;
+describe('tile stats in the browser', { skip: skipWithoutChrome }, () => {
+  let app: App;
   let page: Page;
-  const errors: string[] = [];
+  let errors: string[];
 
   before(async () => {
-    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-stats-'));
-    buildWeb(outDir);
-    site = await serveDir(outDir);
-    browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
-    page = await browser.newPage();
-    await page.setViewport({ width: 1000, height: 900 });
-    page.on('pageerror', (e) => errors.push(String(e)));
-    await page.goto(site.url, { waitUntil: 'networkidle0' });
-    await sleep(700);
-    assert.ok(await clickText(page, 'Browse', 500));
+    app = await startApp('stats', { viewport: { width: 1000, height: 900 } });
+    ({ page, errors } = app);
+    await click(page, 'Browse');
   });
 
   after(async () => {
-    await browser?.close();
-    site?.close();
-    if (outDir) fs.rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    await app?.close();
   });
 
   it('shows the stats for every mode while the pointer is over a tile', async () => {

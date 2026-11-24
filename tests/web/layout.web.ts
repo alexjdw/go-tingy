@@ -7,15 +7,9 @@
  * (set CHROME_PATH if it isn't in a standard place) and takes about a minute because it builds the app.
  */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { launch, type Browser } from 'puppeteer-core';
-import { findChrome } from '../../scripts/lib/chrome';
-import { buildWeb, clickText, serveDir, sleep } from '../../scripts/lib/web';
-
-const chromePath = findChrome();
+import { clickText, sleep } from '../../scripts/lib/web';
+import { type Site, skipWithoutChrome, startSite } from '../lib/web';
 
 /** A big library, as after importing two collections, with some puzzles in each study category. */
 const LIBRARY = Array.from({ length: 300 }, (_, i) => ({
@@ -134,27 +128,20 @@ const VIEWPORTS: [string, number, number][] = [
   ['unfolded foldable', 717, 512],
 ];
 
-describe('web layout', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
-  let outDir = '';
-  let site: { url: string; close: () => void };
-  let browser: Browser;
+describe('web layout', { skip: skipWithoutChrome }, () => {
+  let site: Site;
 
   before(async () => {
-    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-web-'));
-    buildWeb(outDir);
-    site = await serveDir(outDir);
-    browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
+    site = await startSite('layout');
   });
 
   after(async () => {
-    await browser?.close();
-    site?.close();
-    if (outDir) fs.rmSync(outDir, { recursive: true, force: true });
+    await site?.close();
   });
 
   for (const [name, width, height] of VIEWPORTS) {
     it(`no covered, clipped or collapsed buttons on any screen (${name}, ${width}x${height})`, async () => {
-      const page = await browser.newPage();
+      const page = await site.browser.newPage();
       const errors: string[] = [];
       page.on('pageerror', (e) => errors.push(String(e)));
       await page.setViewport({ width, height });

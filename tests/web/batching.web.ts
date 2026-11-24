@@ -3,16 +3,10 @@
  * time the player scrolls near the end or taps "Show more". Run with `npm run test:web`.
  */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { launch, type Browser, type Page } from 'puppeteer-core';
+import type { Page } from 'puppeteer-core';
 import { SAMPLES } from '../../src/data/samples';
-import { findChrome } from '../../scripts/lib/chrome';
-import { buildWeb, clickText, serveDir, sleep } from '../../scripts/lib/web';
-
-const chromePath = findChrome();
+import { type App, bodyText, click, expectText, skipWithoutChrome, sleep, startApp } from '../lib/web';
 
 // 35 imported puzzles (25 in one collection, 10 in another) plus the 4 built-in ones = 39
 const CUSTOM = Array.from({ length: 35 }, (_, i) => ({
@@ -23,7 +17,6 @@ const CUSTOM = Array.from({ length: 35 }, (_, i) => ({
 }));
 const TOTAL = CUSTOM.length + SAMPLES.length;
 
-const bodyText = (page: Page) => page.evaluate('document.body.innerText') as Promise<string>;
 const tiles = (page: Page) =>
   page.evaluate(
     `[...document.querySelectorAll('div, span')].filter((e) => !e.children.length && e.innerText === 'Play').length`,
@@ -39,21 +32,6 @@ async function expectTiles(page: Page, n: number, ms = 6000) {
     await sleep(150);
   }
   assert.fail(`expected ${n} tiles, found ${now}`);
-}
-
-async function expectText(page: Page, needle: string | RegExp, ms = 5000) {
-  const end = Date.now() + ms;
-  let t = '';
-  while (Date.now() < end) {
-    t = await bodyText(page);
-    if (typeof needle === 'string' ? t.includes(needle) : needle.test(t)) return t;
-    await sleep(150);
-  }
-  assert.fail(`expected the page to show ${needle}, but it shows:\n${t.slice(0, 600)}`);
-}
-
-async function click(page: Page, text: string) {
-  assert.ok(await clickText(page, text, 450), `no button "${text}"`);
 }
 
 /** Scroll the tile list to its end, like a finger would. */
@@ -72,32 +50,17 @@ async function scrollToEnd(page: Page) {
   await sleep(600);
 }
 
-describe('tile batches in the browser', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
-  let outDir = '';
-  let site: { url: string; close: () => void };
-  let browser: Browser;
+describe('tile batches in the browser', { skip: skipWithoutChrome }, () => {
+  let app: App;
   let page: Page;
 
-  const open = async () => {
-    await page.goto(site.url, { waitUntil: 'networkidle0' });
-    await sleep(700);
-  };
-
   before(async () => {
-    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-batch-'));
-    buildWeb(outDir);
-    site = await serveDir(outDir);
-    browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
-    page = await browser.newPage();
-    await page.setViewport({ width: 390, height: 844 });
-    await page.evaluateOnNewDocument((lib) => localStorage.setItem('library.v1', JSON.stringify(lib)), CUSTOM);
-    await open();
+    app = await startApp('batch', { viewport: { width: 390, height: 844 }, library: CUSTOM });
+    page = app.page;
   });
 
   after(async () => {
-    await browser?.close();
-    site?.close();
-    if (outDir) fs.rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    await app?.close();
   });
 
   it('Browse draws the first 10 tiles of a bigger library', async () => {

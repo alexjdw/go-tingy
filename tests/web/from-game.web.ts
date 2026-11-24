@@ -3,68 +3,24 @@
  * Browse. Run with `npm run test:web`.
  */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { launch, type Browser, type Page } from 'puppeteer-core';
-import { findChrome } from '../../scripts/lib/chrome';
-import { buildWeb, clickText, serveDir, sleep } from '../../scripts/lib/web';
+import { type App, startApp, skipWithoutChrome, expectText, click, clickAria } from '../lib/web';
+import type { Page } from 'puppeteer-core';
 
-const chromePath = findChrome();
 const GAME = '(;GM[1]SZ[19]PB[Kuro]PW[Shiro];B[ab];W[aa];B[ba];W[pp];B[dd])';
 
-const bodyText = (page: Page) => page.evaluate('document.body.innerText') as Promise<string>;
-
-async function expectText(page: Page, needle: string | RegExp, ms = 6000) {
-  const end = Date.now() + ms;
-  let t = '';
-  while (Date.now() < end) {
-    t = await bodyText(page);
-    if (typeof needle === 'string' ? t.includes(needle) : needle.test(t)) return t;
-    await sleep(150);
-  }
-  assert.fail(`expected the page to show ${needle}, but it shows:\n${t.slice(0, 700)}`);
-}
-
-async function click(page: Page, text: string) {
-  assert.ok(
-    await clickText(page, text, 400),
-    `no button "${text}" on screen:\n${(await bodyText(page)).slice(0, 500)}`,
-  );
-}
-
-async function clickAria(page: Page, label: string) {
-  const ok = await page.evaluate(
-    `(() => { const e = document.querySelector('[aria-label=${JSON.stringify(label)}]'); if (!e) return false; e.click(); return true; })()`,
-  );
-  assert.ok(ok, `no control labelled "${label}"`);
-  await sleep(300);
-}
-
-describe('new from game in the browser', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
-  let outDir = '';
-  let site: { url: string; close: () => void };
-  let browser: Browser;
+describe('new from game in the browser', { skip: skipWithoutChrome }, () => {
+  let app: App;
   let page: Page;
-  const errors: string[] = [];
+  let errors: string[];
 
   before(async () => {
-    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-fromgame-'));
-    buildWeb(outDir);
-    site = await serveDir(outDir);
-    browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
-    page = await browser.newPage();
-    await page.setViewport({ width: 390, height: 844 });
-    page.on('pageerror', (e) => errors.push(String(e)));
-    await page.goto(site.url, { waitUntil: 'networkidle0' });
-    await sleep(700);
+    app = await startApp('fromgame', { viewport: { width: 390, height: 844 } });
+    ({ page, errors } = app);
   });
 
   after(async () => {
-    await browser?.close();
-    site?.close();
-    if (outDir) fs.rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    await app?.close();
   });
 
   it('rejects text that is not a game', async () => {

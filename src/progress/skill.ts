@@ -12,11 +12,34 @@
 
 export type Level = 'new' | 'red' | 'yellow' | 'green' | 'silver' | 'gold';
 
+/** How a paper-mode attempt went, by the player's own judgment (best first). */
+export type SelfRating = 'easy' | 'medium' | 'tough' | 'toohard';
+
+export const SELF_RATINGS: readonly SelfRating[] = ['easy', 'medium', 'tough', 'toohard'];
+
+export const SELF_LABEL: Record<SelfRating, string> = {
+  easy: 'Easy',
+  medium: 'Medium',
+  tough: 'Tough',
+  toohard: 'Too tough',
+};
+
+/** The worse (harder) of two ratings; a missing one counts for nothing. */
+export function worseRating(a: SelfRating | undefined, b: SelfRating | undefined): SelfRating | undefined {
+  if (!a || !b) return a ?? b;
+  return SELF_RATINGS.indexOf(a) >= SELF_RATINGS.indexOf(b) ? a : b;
+}
+
+/** 0..1 value of a self-rating, for spaced repetition scores. "Too tough" counts as a failed attempt. */
+export const SELF_SCORE: Record<SelfRating, number> = { easy: 1, medium: 0.8, tough: 0.5, toohard: 0 };
+
 export interface Attempt {
-  correct: boolean; // solved with zero mistakes
+  correct: boolean; // solved with zero mistakes (paper mode: not rated "too tough")
   ms: number;
   parMs: number;
   at: number; // epoch ms
+  /** paper mode: the player's own rating, which replaces the speed score */
+  self?: SelfRating;
 }
 
 /** Attempt history per problem id. */
@@ -31,6 +54,7 @@ const WINDOW = 10;
 
 /** 0..1 quality of a single attempt. Wrong = 0; correct scores by speed relative to par. */
 export function attemptScore(a: Attempt): number {
+  if (a.self) return SELF_SCORE[a.self];
   if (!a.correct) return 0;
   const r = a.ms / a.parMs;
   if (r <= 1) return 1;

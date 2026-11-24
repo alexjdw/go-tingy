@@ -7,9 +7,11 @@ export interface Settings {
   markChoices: Tri;
   /** Guided/unguided: swap black and white. */
   flipColors: Tri;
+  /** Solving only: show the puzzle as a still diagram, solve it in your head, then rate how it went. */
+  paper: Tri;
 }
 
-export const DEFAULT_SETTINGS: Settings = { markChoices: 'off', flipColors: 'random' };
+export const DEFAULT_SETTINGS: Settings = { markChoices: 'off', flipColors: 'random', paper: 'off' };
 
 const KEY = 'settings.v1';
 

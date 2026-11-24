@@ -5,6 +5,7 @@ import { captionOf } from '../../sgf/folders';
 import { PuzzleGrid } from '../components/PuzzleGrid';
 import { PuzzleTile } from '../components/PuzzleTile';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { Btn } from '../components/theme';
 import { View } from 'react-native';
 
 const NAMES: Record<Category, string> = { learning: 'Guided learning', spaced: 'Spaced repetition' };
@@ -14,13 +15,19 @@ interface Props {
   problems: Problem[];
   learning: LearningState;
   onToggle: (id: string, on: boolean) => void;
+  /** add or remove many puzzles at once (a whole collection or folder) */
+  onToggleMany: (ids: string[], on: boolean) => void;
   onBack: () => void;
 }
 
 /** "Add puzzles": the library as tiles, each with one button that adds it to (or takes it out of) a study mode. */
-export function Picker({ category, problems, learning, onToggle, onBack }: Props) {
+export function Picker({ category, problems, learning, onToggle, onToggleMany, onBack }: Props) {
   const { collections, active, setSelected, folders, folder, setFolder, shown } = useCollectionFilter(problems);
   const added = problems.filter((p) => inCategory(learning, category, p.id)).length;
+
+  // with a collection (or a folder of it) selected, one button adds or removes everything shown
+  const missing = shown.filter((p) => !inCategory(learning, category, p.id));
+  const scope = folder ? 'this folder' : 'this collection';
 
   const header = (
     <View style={{ gap: 12 }}>
@@ -33,6 +40,34 @@ export function Picker({ category, problems, learning, onToggle, onBack }: Props
         folder={folder}
         onFolder={setFolder}
       />
+      {active && shown.length > 0 && (
+        <View style={{ flexDirection: 'row' }}>
+          {missing.length > 0 ? (
+            <Btn
+              label={`Add all ${missing.length} from ${scope}`}
+              accessibilityLabel={`Add all puzzles from ${scope} to ${NAMES[category]}`}
+              onPress={() =>
+                onToggleMany(
+                  missing.map((p) => p.id),
+                  true,
+                )
+              }
+            />
+          ) : (
+            <Btn
+              kind="ghost"
+              label={`✓ All added · Remove all from ${scope}`}
+              accessibilityLabel={`Remove all puzzles of ${scope} from ${NAMES[category]}`}
+              onPress={() =>
+                onToggleMany(
+                  shown.map((p) => p.id),
+                  false,
+                )
+              }
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 

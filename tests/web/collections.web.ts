@@ -3,49 +3,16 @@
  * and a collection can be renamed. Run with `npm run test:web`.
  */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { launch, type Browser, type Page } from 'puppeteer-core';
-import { findChrome } from '../../scripts/lib/chrome';
-import { buildWeb, clickText, serveDir, sleep } from '../../scripts/lib/web';
+import { type App, startApp, skipWithoutChrome, expectText, click, clickAria, bodyText, sleep } from '../lib/web';
+import type { Page } from 'puppeteer-core';
 
-const chromePath = findChrome();
 const SGF = (n: number) => `(;GM[1]SZ[9]PL[B]AB[a${'abcdefghi'[n]}]AW[bb](;B[cc]))`;
 const SEEDED = [
   { id: 'c-1', title: 'Peep one', sgf: SGF(0), collection: 'Tesuji', folder: 'Part 1/Peep' },
   { id: 'c-2', title: 'Clamp one', sgf: SGF(1), collection: 'Tesuji', folder: 'Part 1/Clamp' },
   { id: 'c-3', title: 'Dent one', sgf: SGF(2), collection: 'Tesuji', folder: 'Part 2' },
 ];
-
-const bodyText = (page: Page) => page.evaluate('document.body.innerText') as Promise<string>;
-
-async function expectText(page: Page, needle: string | RegExp, ms = 6000) {
-  const end = Date.now() + ms;
-  let t = '';
-  while (Date.now() < end) {
-    t = await bodyText(page);
-    if (typeof needle === 'string' ? t.includes(needle) : needle.test(t)) return t;
-    await sleep(150);
-  }
-  assert.fail(`expected the page to show ${needle}, but it shows:\n${t.slice(0, 700)}`);
-}
-
-async function click(page: Page, text: string) {
-  assert.ok(
-    await clickText(page, text, 450),
-    `no button "${text}" on screen:\n${(await bodyText(page)).slice(0, 500)}`,
-  );
-}
-
-async function clickAria(page: Page, label: string) {
-  const ok = await page.evaluate(
-    `(() => { const e = document.querySelector('[aria-label=${JSON.stringify(label)}]'); if (!e) return false; e.click(); return true; })()`,
-  );
-  assert.ok(ok, `no control labelled "${label}"`);
-  await sleep(450);
-}
 
 /** Replace the text of the input with this aria-label. */
 async function typeInto(page: Page, label: string, text: string) {
@@ -57,33 +24,19 @@ async function typeInto(page: Page, label: string, text: string) {
   await sleep(200);
 }
 
-describe('collections', { skip: chromePath ? false : 'Chrome not found (set CHROME_PATH)' }, () => {
-  let outDir = '';
-  let site: { url: string; close: () => void };
-  let browser: Browser;
+describe('collections', { skip: skipWithoutChrome }, () => {
+  let app: App;
   let page: Page;
-  const errors: string[] = [];
+  let errors: string[];
 
   before(async () => {
-    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'go-collections-'));
-    buildWeb(outDir);
-    site = await serveDir(outDir);
-    browser = await launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] });
-    page = await browser.newPage();
-    await page.setViewport({ width: 700, height: 1100 });
-    page.on('pageerror', (e) => errors.push(String(e)));
-    await page.evaluateOnNewDocument((lib) => {
-      if (!localStorage.getItem('library.v1')) localStorage.setItem('library.v1', JSON.stringify(lib));
-    }, SEEDED);
-    await page.goto(site.url, { waitUntil: 'networkidle0' });
-    await sleep(700);
+    app = await startApp('collections', { viewport: { width: 700, height: 1100 }, library: SEEDED });
+    ({ page, errors } = app);
     await click(page, 'Browse');
   });
 
   after(async () => {
-    await browser?.close();
-    site?.close();
-    if (outDir) fs.rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    await app?.close();
   });
 
   it('opens folders inside a collection and goes back up', async () => {
@@ -130,6 +83,25 @@ describe('collections', { skip: chromePath ? false : 'Chrome not found (set CHRO
     await click(page, 'Save name');
     await expectText(page, 'Renamed set (3)');
     assert.doesNotMatch(await bodyText(page), /My new set/);
+  });
+
+  it('Add puzzles can add a whole collection, or one folder of it, at once', async () => {
+    await click(page, '‹ Back');
+    await click(page, 'Guided Learning');
+    await click(page, 'Add puzzles');
+    await expectText(page, '0 added so far');
+    assert.doesNotMatch(await bodyText(page), /Add all/, 'no bulk button until a collection is chosen');
+    await click(page, 'Tesuji (3)');
+    await click(page, 'Part 1 (2)');
+    await click(page, 'Add all 2 from this folder');
+    await expectText(page, '2 added so far');
+    await expectText(page, 'All added');
+    await click(page, '‹ Tesuji');
+    await expectText(page, 'Add all 1 from this collection');
+    await click(page, 'Add all 1 from this collection');
+    await expectText(page, '3 added so far');
+    await click(page, '✓ All added · Remove all from this collection');
+    await expectText(page, '0 added so far');
   });
 
   it('threw no errors', () => {

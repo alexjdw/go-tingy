@@ -74,10 +74,13 @@ export interface Snapshot {
 const same = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 const other = (c: Color): Color => (c === 'B' ? 'W' : 'B');
 
-/** Decide whether this puzzle is shown with the colors flipped, from the setting ("random" is a coin toss). */
-export function chooseFlip(setting: Tri | undefined, rng: () => number = Math.random): boolean {
+/** Resolve an on / random / off setting ("random" is a coin toss). */
+export function rollTri(setting: Tri | undefined, rng: () => number = Math.random): boolean {
   return setting === 'on' ? true : setting === 'random' ? rng() < 0.5 : false;
 }
+
+/** Decide whether this puzzle is shown with the colors flipped, from the setting. */
+export const chooseFlip = rollTri;
 
 export class StudyEngine {
   root!: SgfNode;
