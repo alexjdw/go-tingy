@@ -45,7 +45,6 @@ export function Home({
 
       <ModeCard
         title="Spaced repetition"
-        blurb="Review the puzzles that are due. A session starts right away."
         status={
           dueCount
             ? `${dueCount} due now`
@@ -58,7 +57,6 @@ export function Home({
       />
       <ModeCard
         title="Guided Learning"
-        blurb="Work a puzzle up from guided moves to solving every line, fast."
         status={
           learningCount
             ? `${plural(learningCount, 'puzzle')} · ${learningReady} ready today`
@@ -66,25 +64,18 @@ export function Home({
         }
         onPress={onLearning}
       />
-      <ModeCard
-        title="Browse"
-        blurb="See every puzzle, play any of them, and add them to a study mode. Create or import puzzles here."
-        status={plural(puzzleCount, 'puzzle')}
-        onPress={onBrowse}
-      />
+      <ModeCard title="Browse" status={plural(puzzleCount, 'puzzle')} onPress={onBrowse} />
     </ScrollView>
   );
 }
 
 function ModeCard({
   title,
-  blurb,
   status,
   highlight,
   onPress,
 }: {
   title: string;
-  blurb: string;
   status: string;
   highlight?: boolean;
   onPress: () => void;
@@ -97,7 +88,6 @@ function ModeCard({
       style={({ pressed }) => [styles.card, highlight && styles.cardHot, pressed && { opacity: 0.8 }]}
     >
       <Text style={styles.cardTitle}>{title}</Text>
-      <Text style={styles.blurb}>{blurb}</Text>
       <Text style={[styles.status, highlight && { color: '#f5c518' }]}>{status}</Text>
     </Pressable>
   );
@@ -118,6 +108,5 @@ const styles = StyleSheet.create({
   },
   cardHot: { borderColor: '#f5c518' },
   cardTitle: { color: theme.text, fontSize: 22, fontWeight: '800' },
-  blurb: { color: theme.text, fontSize: 15, opacity: 0.85 },
   status: { color: theme.muted, fontSize: 14, marginTop: 4, fontWeight: '600' },
 });
