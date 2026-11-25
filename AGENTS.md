@@ -128,7 +128,10 @@ become the starting stones, the next mover plays first, a flipped view is writte
 opens in the Editor with the title "<title> (split)" and a fresh id; nothing is saved until the player saves it. In the
 Editor, **KataGo helps: on/off** (default on when the engine is set up): a new move gets KataGo's best reply as a one-exchange
 branch (`AI_VISITS`, about a second), and Save first runs `reviewPuzzle` and shows its findings (`CheckPanel`) so the author
-can keep editing or save anyway; with it off the Editor is hand-built as before. The Editor keeps a puzzle's other fields
+can keep editing or save anyway; with it off the Editor is hand-built as before. A first-player move that KataGo's reply refutes (`isRefuted` in `src/analysis/suggest.ts`:
+gives away 30% of the win chance or 15 points compared with its favorite) is marked wrong (BM) unless it already has a mark, with
+an Undo button; the bar is high on purpose, since in a corner problem the whole-game win chance barely moves and a smaller
+valid solution must not be marked wrong. The Editor keeps a puzzle's other fields
 (collection, folder) when saving. Tests: `tests/sgf/split.test.ts`, `tests/analysis/describe.test.ts`, `tests/web/split.web.ts`.
 
 ## Browser history

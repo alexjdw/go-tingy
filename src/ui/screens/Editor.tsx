@@ -29,8 +29,9 @@ import {
 } from '../../sgf/parser';
 import { fullViewport } from '../../go/viewport';
 import { BOARD_PRESETS, resizeSetup, writeBoardProps } from '../../sgf/editing';
-import { reviewPuzzle } from '../../analysis/review';
-import { suggestMoves } from '../../analysis/suggest';
+import { describeExchange } from '../../analysis/describe';
+import { favoriteOf, reviewPuzzle } from '../../analysis/review';
+import { isRefuted, judgeMove, suggestMoves } from '../../analysis/suggest';
 import { BoardView } from '../components/Board';
 import { type Check, CheckPanel } from '../components/CheckPanel';
 import { EnginePanel } from '../components/EnginePanel';
@@ -105,6 +106,8 @@ export function Editor({ initial, onCancel, onSave }: Props) {
   const [ai, setAi] = useState(true);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState('');
+  /** the move KataGo marked wrong, while the author can still take that back */
+  const [autoMark, setAutoMark] = useState<SgfNode | null>(null);
   const [check, setCheck] = useState<Check | null>(null);
 
   const base = useMemo(() => fullViewport(dims), [dims]);
@@ -163,20 +166,26 @@ export function Editor({ initial, onCancel, onSave }: Props) {
     if (!engine.analyzer) return;
     setAiBusy(true);
     setAiNote('');
+    setAutoMark(null);
     try {
       const played: { color: Color; point: Point | null }[] = [];
       for (let n: SgfNode | null = mine; n && n !== root; n = n.parent) {
         const m = nodeMove(n, dims);
         if (m) played.unshift(m);
       }
-      const [reply] = await suggestMoves(
-        engine.analyzer,
-        { dims, open, black, white, player: first },
-        played,
-        other(color),
-        allPoints(root),
-        { maxVisits: AI_VISITS, count: 1 },
-      );
+      const setup = { dims, open, black, white, player: first };
+      const points = allPoints(root);
+      const analyzer = engine.analyzer;
+      // The reply, and (for the puzzle's first player) the favorite move to measure this move against, at the same time.
+      const [replies, alternatives] = await Promise.all([
+        suggestMoves(analyzer, setup, played, other(color), points, { maxVisits: AI_VISITS, count: 1 }),
+        color === first
+          ? suggestMoves(analyzer, setup, played.slice(0, -1), color, points, { maxVisits: AI_VISITS, count: 8 }).catch(
+              () => [],
+            )
+          : Promise.resolve([]),
+      ]);
+      const reply = replies[0];
       if (!mine.parent?.children.includes(mine)) return; // deleted while KataGo was thinking
       if (!reply?.point) {
         setAiNote('KataGo would pass here: there is nothing more to refute.');
@@ -191,10 +200,27 @@ export function Editor({ initial, onCancel, onSave }: Props) {
       }
       const answer = node;
       setCursor((c) => (c === mine ? answer : c));
-      const chance = Math.round((1 - reply.winrate) * 100);
-      const verdict = chance <= 30 ? ' (this move looks refuted)' : chance >= 70 ? ' (this move holds up)' : '';
+
+      // A first-player move that gives away a lot is refuted: mark it wrong (the author can undo that).
+      const favorite = favoriteOf(alternatives);
+      const judgement = favorite ? judgeMove(favorite, reply.winrate, reply.scoreLead) : null;
+      const marked = !!judgement && isRefuted(judgement) && !mine.props.TE && !mine.props.BM;
+      if (marked) {
+        mine.props.BM = ['1'];
+        setAutoMark(mine);
+      }
+      const move = nodeMove(mine, dims)?.point;
       setAiNote(
-        `KataGo answered ${coordName(reply.point, dims)}. ${color === 'B' ? 'Black' : 'White'}'s chance after that: ${chance}%${verdict}.`,
+        describeExchange({
+          mover: color === 'B' ? 'Black' : 'White',
+          move: move ? coordName(move, dims) : 'pass',
+          answer: coordName(reply.point, dims),
+          chance: Math.round((1 - reply.winrate) * 100),
+          judgement,
+          favorite: favorite?.point ? coordName(favorite.point, dims) : null,
+          marked,
+          dims,
+        }),
       );
       force();
     } catch (e) {
@@ -548,6 +574,18 @@ export function Editor({ initial, onCancel, onSave }: Props) {
           ) : null}
           {aiBusy ? <Text style={styles.hint}>KataGo is thinking…</Text> : null}
           {aiNote ? <Text style={styles.hint}>{aiNote}</Text> : null}
+          {autoMark?.props.BM ? (
+            <Btn
+              label="Undo the wrong mark"
+              kind="ghost"
+              onPress={() => {
+                delete autoMark.props.BM;
+                setAutoMark(null);
+                setAiNote('Took the wrong mark off again.');
+                force();
+              }}
+            />
+          ) : null}
           <EnginePanel
             available={engine.available}
             status={engine.status}

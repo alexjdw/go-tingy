@@ -27,13 +27,15 @@ const PUZZLE = { id: 'c-split', title: 'Branches', sgf: SGF };
 const FAKE_ENGINE = `
 window.sent = [];
 window.badMoves = [];
+window.refuteAt = -1; // after this many moves, whoever moves is doing very well, so the move before it was refuted
 window.katago = {
   status: async () => ({ ready: true, message: '' }),
   query: async (text) => {
     const q = JSON.parse(text);
     window.sent.push(q);
     const names = (q.allowMoves && q.allowMoves[0].moves) || ['E5'];
-    const rate = (m) => (window.badMoves.includes(m) ? 0.1 : window.badMoves.length ? 0.9 : m === 'E5' ? 0.55 : 0.5);
+    const rate = (m) =>
+      q.moves.length === window.refuteAt ? (m === 'E5' ? 0.96 : 0.95) : window.badMoves.includes(m) ? 0.1 : window.badMoves.length ? 0.9 : m === 'E5' ? 0.55 : 0.5;
     const infos = names.map((m) => ({ move: m, winrate: rate(m) })).sort((a, b) => b.winrate - a.winrate);
     return JSON.stringify({
       moveInfos: infos.map((x, i) => ({ move: x.move, visits: 10, winrate: x.winrate, scoreLead: 0, prior: 0.1, order: i, pv: [x.move] })),
@@ -108,7 +110,7 @@ describe('splitting a puzzle off in the desktop app', { skip: skipWithoutChrome 
     const before = await sent(page);
     await tapEditor(page, 6, 6); // Black plays G3
     await expectText(page, /KataGo answered E5/);
-    assert.equal((await sent(page)) - before, 1, 'one question for one move');
+    assert.equal((await sent(page)) - before, 2, 'the answer, and the favorite move to compare it with');
     const text = await bodyText(page);
     assert.match(text, /●G3/);
     assert.match(text, /○E5/);
@@ -181,6 +183,66 @@ describe('KataGo checking a puzzle before it is saved', { skip: skipWithoutChrom
     await click(page, 'Save puzzle');
     await expectText(page, PUZZLE.title);
     assert.doesNotMatch(await bodyText(page), /Keep editing|Save anyway/);
+  });
+
+  it('threw no errors', () => {
+    assert.deepEqual(app.errors, []);
+  });
+});
+
+describe('KataGo marking a refuted move wrong', { skip: skipWithoutChrome }, () => {
+  let app: App;
+
+  before(async () => {
+    app = await startApp('split-mark', {
+      viewport: { width: 700, height: 1300 },
+      library: [PUZZLE],
+      prepare: async (page) => {
+        await page.evaluateOnNewDocument(FAKE_ENGINE);
+      },
+    });
+  });
+  after(async () => {
+    await app?.close();
+  });
+
+  it('a first-player move that gives away a lot is marked wrong, and the author can take that back', async () => {
+    const { page } = app;
+    await openEditor(page);
+    await page.evaluate('window.refuteAt = 1');
+    await tapEditor(page, 6, 6); // Black plays G3; White's best answer leaves Black with 4%
+    await expectText(page, /G3 looks wrong.*marked incorrect/);
+    assert.match(await bodyText(page), /●G3✗/, 'the move carries the wrong mark');
+    await click(page, 'Undo the wrong mark');
+    await expectText(page, 'Took the wrong mark off again.');
+    const text = await bodyText(page);
+    assert.doesNotMatch(text, /●G3✗/);
+    assert.doesNotMatch(text, /Undo the wrong mark/);
+  });
+
+  it('a move that holds up is not marked', async () => {
+    const { page } = app;
+    await page.evaluate('window.refuteAt = -1');
+    await click(page, '↑ Parent');
+    await click(page, '↑ Parent');
+    await tapEditor(page, 6, 2); // Black plays G7
+    await expectText(page, /KataGo answered E5/);
+    const text = await bodyText(page);
+    assert.match(text, /●G7/);
+    assert.doesNotMatch(text, /●G7✗|looks wrong|Undo the wrong mark/);
+  });
+
+  it('only the first player is judged: a move by the other side is never marked', async () => {
+    const { page } = app;
+    await page.evaluate('window.refuteAt = 1');
+    await click(page, '↑ Parent');
+    await click(page, '↑ Parent');
+    await click(page, 'Next: White');
+    const before = await sent(page);
+    await tapEditor(page, 7, 7); // White plays H2
+    await expectText(page, /KataGo answered/);
+    assert.equal((await sent(page)) - before, 1, 'one question: no comparison needed');
+    assert.doesNotMatch(await bodyText(page), /○H2✗|looks wrong/);
   });
 
   it('threw no errors', () => {

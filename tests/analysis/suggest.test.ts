@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { bridgeAnalyzer, getBridge } from '../../src/analysis/bridge';
 import type { Analyzer, Query } from '../../src/analysis/engine';
 import { embedSetup } from '../../src/analysis/position';
-import { suggestMoves } from '../../src/analysis/suggest';
+import { isRefuted, judgeMove, suggestMoves } from '../../src/analysis/suggest';
 import { NO_OPEN_EDGES } from '../../src/sgf/parser';
 
 const setup = {
@@ -91,4 +91,31 @@ test('the bridge analyzer sends a JSON request and reads the JSON answer', async
   });
   assert.equal(JSON.parse(sent).maxVisits, 5);
   assert.equal(a.moves[0].move, 'D4');
+});
+
+const fav = { point: { x: 4, y: 4 }, winrate: 0.6, scoreLead: 5, visits: 50, prior: 0.5, line: [] };
+
+test('a move is judged by what the mover has left after the best reply, against the favorite', () => {
+  // the replier is at 95% and ahead by 20: the mover has 5% and is 20 behind, against 60% and 5 ahead
+  const bad = judgeMove(fav, 0.95, 20);
+  assert.equal(bad.verdict, 'bad');
+  assert.ok(Math.abs(bad.loss - 0.55) < 1e-9);
+  assert.equal(bad.pointLoss, 25);
+  // about as good as the favorite
+  assert.equal(judgeMove(fav, 0.4, -5).verdict, 'best');
+  // a little worse
+  assert.equal(judgeMove(fav, 0.45, -3).verdict, 'ok');
+  // a better move than the favorite gives nothing away
+  const better = judgeMove(fav, 0.1, -9);
+  assert.equal(better.loss, 0);
+  assert.equal(better.pointLoss, 0);
+});
+
+test('only a move that gives away a lot is refuted: wasting a few points, or a smaller solution, is not', () => {
+  const j = (loss: number, pointLoss: number) => ({ verdict: 'bad' as const, loss, pointLoss, favorite: fav });
+  assert.equal(isRefuted(j(0.31, 0)), true, 'the game swings');
+  assert.equal(isRefuted(j(0, 15)), true, 'a group dies: tens of points');
+  assert.equal(isRefuted(j(0.29, 14.9)), false);
+  assert.equal(isRefuted(j(0, 7.6)), false, 'a tenuki that only wastes a move');
+  assert.equal(isRefuted(j(0, 0)), false);
 });

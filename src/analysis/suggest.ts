@@ -1,6 +1,7 @@
 import type { Analyzer } from './engine';
 import { type Setup, embedSetup, moveName, pointOf, regionFromPoints } from './position';
 import type { Color, Point } from '../sgf/parser';
+import { type Verdict, verdictFor } from './review';
 
 /** A move the engine would consider at a position, with what it thinks of it. */
 export interface Suggestion {
@@ -58,3 +59,35 @@ export async function suggestMoves(
       line: m.pv.map((n) => pointOf(e, n, setup.dims)).filter((p): p is Point => p !== null),
     }));
 }
+
+/** How a move just played compares with what KataGo would have played instead. */
+export interface MoveJudgement {
+  verdict: Verdict;
+  /** win chance given away against the favorite (0..1) */
+  loss: number;
+  /** points given away */
+  pointLoss: number;
+  /** the favorite it is measured against */
+  favorite: Suggestion;
+}
+
+/**
+ * Judge a move by what happens after KataGo's best reply to it: the mover's chances then, against the mover's chances
+ * with the favorite move (from the position before it was played). `replyWinrate` and `replyLead` are the replying
+ * side's, as KataGo reports them. A move that gives away a lot is refuted.
+ */
+export function judgeMove(favorite: Suggestion, replyWinrate: number, replyLead: number): MoveJudgement {
+  const loss = Math.max(0, favorite.winrate - (1 - replyWinrate));
+  const pointLoss = Math.max(0, favorite.scoreLead + replyLead);
+  return { verdict: verdictFor(loss, pointLoss), loss, pointLoss, favorite };
+}
+
+/**
+ * When a move counts as refuted (and is marked wrong): it gives away at least this much win chance, or this many
+ * points. Points matter most: in a corner problem the win chance of the whole game barely moves, while a group that
+ * dies costs tens of points. The bar is higher than the review's "bad" so that a valid but smaller solution (one that
+ * lives with fewer points) is not marked wrong; a tried-and-wasted move, which gives away 5 to 12 points, is not either.
+ */
+export const REFUTED = { win: 0.3, points: 15 };
+
+export const isRefuted = (j: MoveJudgement): boolean => j.loss >= REFUTED.win || j.pointLoss >= REFUTED.points;

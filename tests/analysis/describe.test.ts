@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { describeFinding, describeVerdict } from '../../src/analysis/describe';
+import { describeExchange, describeFinding, describeVerdict } from '../../src/analysis/describe';
+import { judgeMove } from '../../src/analysis/suggest';
 import type { FindingKind } from '../../src/analysis/review';
 import { nodeByKey, nodeKey } from '../../src/study/lines';
 import { parseSgf } from '../../src/sgf/parser';
@@ -44,5 +45,28 @@ describe('finding a node again from its key', () => {
     for (const n of all) assert.equal(nodeByKey(root, nodeKey(n)), n);
     assert.equal(nodeByKey(root, 'B:cc;W:gg'), null);
     assert.equal(nodeByKey(root, 'W:cc'), null);
+  });
+});
+
+describe('describing an exchange', () => {
+  const fav = { point: { x: 4, y: 4 }, winrate: 0.6, scoreLead: 5, visits: 50, prior: 0.5, line: [] };
+  const base = { mover: 'Black', move: 'G3', answer: 'E5', chance: 4, favorite: 'D4', dims };
+
+  it('says a refuted move was marked wrong, and what it gave away', () => {
+    const text = describeExchange({ ...base, judgement: judgeMove(fav, 0.96, 20), marked: true });
+    assert.match(text, /KataGo answered E5/);
+    assert.match(text, /G3 looks wrong: it gives away 56% of the win chance and 25 points compared with D4/);
+    assert.match(text, /marked incorrect/);
+  });
+
+  it('only mentions a weaker move, and says nothing more for a fine one or when it could not judge', () => {
+    const weaker = describeExchange({ ...base, judgement: judgeMove(fav, 0.6, 0), marked: false });
+    assert.match(weaker, /G3 is weaker than D4/);
+    const notEnough = describeExchange({ ...base, judgement: judgeMove(fav, 0.65, 4), marked: false });
+    assert.match(notEnough, /weaker than D4.*gives away/, 'a clear loss that is not marked is still said');
+    assert.doesNotMatch(weaker, /marked/);
+    const fine = describeExchange({ ...base, judgement: judgeMove(fav, 0.4, -5), marked: false });
+    assert.equal(fine, "KataGo answered E5. Black's chance after that: 4%.");
+    assert.equal(describeExchange({ ...base, judgement: null, marked: false }), fine);
   });
 });

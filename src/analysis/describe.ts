@@ -1,5 +1,6 @@
 import { type Dims, coordName } from '../sgf/parser';
 import type { Finding, PuzzleVerdict } from './review';
+import type { MoveJudgement } from './suggest';
 
 const move = (f: Finding, dims: Dims) => (f.point ? coordName(f.point, dims) : 'a pass');
 
@@ -32,4 +33,31 @@ export function describeVerdict(v: PuzzleVerdict): string {
     case 'unjudged':
       return "KataGo couldn't check this puzzle (it may be too long, or have no moves to look at).";
   }
+}
+
+/**
+ * What to tell the author after a move and KataGo's answer to it. A move that gives away a lot (verdict "bad") is marked
+ * wrong (`marked`, see `isRefuted`); a weaker one is only mentioned. `chance` is the mover's chance after the reply, 0..100.
+ */
+export function describeExchange(o: {
+  mover: string;
+  move: string;
+  answer: string;
+  chance: number;
+  judgement: MoveJudgement | null;
+  favorite: string | null;
+  marked: boolean;
+  dims: Dims;
+}): string {
+  const base = `KataGo answered ${o.answer}. ${o.mover}'s chance after that: ${o.chance}%.`;
+  const j = o.judgement;
+  if (!j) return base;
+  const gave = `${Math.round(j.loss * 100)}% of the win chance${j.pointLoss >= 1 ? ` and ${Math.round(j.pointLoss)} points` : ''}`;
+  const other = o.favorite ?? 'its favorite';
+  if (o.marked) {
+    return `${base} ${o.move} looks wrong: it gives away ${gave} compared with ${other}, so it is marked incorrect.`;
+  }
+  if (j.verdict === 'worse' || j.verdict === 'bad')
+    return `${base} ${o.move} is weaker than ${other}: it gives away ${gave}.`;
+  return base;
 }

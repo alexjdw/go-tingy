@@ -58,6 +58,16 @@ export function verdictFor(winLoss: number, pointLoss: number, t: Thresholds = D
   return RANK[Math.max(RANK.indexOf(a), RANK.indexOf(b))];
 }
 
+/** The engine's favorite: the best win chance, and among moves that are level on it, the most points. */
+export function favoriteOf<T extends { winrate: number; scoreLead: number }>(
+  items: T[],
+  level = DEFAULTS.thresholds.win.best,
+): T | null {
+  if (!items.length) return null;
+  const top = Math.max(...items.map((m) => m.winrate));
+  return items.filter((m) => top - m.winrate <= level).reduce((a, b) => (b.scoreLead > a.scoreLead ? b : a));
+}
+
 export const isGood = (v: Verdict | null) => v === 'best' || v === 'ok';
 
 /** A move the puzzle's tree has at some position, and what the engine thinks of it. */
@@ -188,12 +198,7 @@ export async function reviewPuzzle(sgf: string, analyzer: Analyzer, opts: Review
     return (await analyzer.analyze(q)).moves;
   };
 
-  /** The engine's favorite: the best win chance, and among moves that are level on it, the most points. */
-  const favorite = (infos: MoveInfo[]): MoveInfo | null => {
-    if (!infos.length) return null;
-    const top = Math.max(...infos.map((m) => m.winrate));
-    return infos.filter((m) => top - m.winrate <= t.win.best).reduce((a, b) => (b.scoreLead > a.scoreLead ? b : a));
-  };
+  const favorite = (infos: MoveInfo[]) => favoriteOf(infos, t.win.best);
 
   const walk = async (node: SgfNode): Promise<void> => {
     if (used >= maxQueries) {

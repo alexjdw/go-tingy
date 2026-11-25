@@ -161,7 +161,9 @@ phone app.
 - **Splitting a puzzle into easier ones (desktop).** In **Explore**, pick a move in the tree and press **Split off here**:
   the position at that move, and everything played after it, opens in the editor as a new puzzle ("... (split)").
   In the editor, **KataGo helps: on** makes KataGo answer each new move you play (about a second) with its best reply,
-  so a move and its refutation appear as a branch to keep, mark or delete; switch it off to build by hand. With it on,
+  so a move and its refutation appear as a branch to keep, mark or delete. If KataGo's reply shows that your move
+  gives away a lot, the move is marked wrong for you (with an **Undo the wrong mark** button, and the usual Correct /
+  Incorrect / Neutral buttons still work); switch it off to build by hand. With it on,
   pressing **Save puzzle** first has KataGo check the puzzle and list what it disagrees with; you can keep editing or
   save anyway. KataGo is a second opinion, not a proof.
 - **Not signed.** Windows shows "Windows protected your PC" (More info, then Run anyway). On a Mac, right-click the app
