@@ -186,9 +186,6 @@ export function recordTimedResult(s: LearningState, id: string, r: TimedResult):
   return { ...s, scores: { ...s.scores, [id]: { ...cur, best, last: r, runs: (cur?.runs ?? 0) + 1 } } };
 }
 
-/** How full a level's badge is, 0 to 1: empty until a level is earned, full at diamond. */
-export const levelFill = (l: TimedLevel): number => ({ none: 0, green: 1 / 3, gold: 2 / 3, diamond: 1 })[l];
-
 /**
  * A learning puzzle's progress as a bar: the first half fills as clean guided runs step the free moves down to zero,
  * the second half as the best timed score climbs to diamond. No numbers are shown.
@@ -203,6 +200,22 @@ export function learningProgress(s: LearningState, id: string, learnerMoves: num
   const timed = Math.min(1, Math.max(0, best) / DIAMOND_ABOVE);
   const fill = g.cleared ? guidedHalf + (1 - guidedHalf) * timed : 0.5 * (done / stages.length);
   return { fill, color: barColor(fill) };
+}
+
+/** The five marks of the badge on a learning puzzle's tile: 🔴 🟡 🟢 ✨ 💎 */
+export type SkillMark = 'red' | 'yellow' | 'green' | 'sparkle' | 'diamond';
+
+/**
+ * The estimated skill level shown on a learning puzzle's tile, rising with the same progress as its bar:
+ * red while the guided stages have hardly begun, yellow from half way through them, green once the guided stage is
+ * cleared, sparkle at a gold timed best and diamond at a diamond timed best.
+ */
+export function skillMark(s: LearningState, id: string, learnerMoves: number): SkillMark {
+  const level = puzzleTimedLevel(s, id);
+  if (level === 'diamond') return 'diamond';
+  if (level === 'gold') return 'sparkle';
+  if (guidedStatus(s, id, learnerMoves).cleared) return 'green';
+  return learningProgress(s, id, learnerMoves).fill >= 0.25 ? 'yellow' : 'red';
 }
 
 /** The level a puzzle has earned (its best run). */

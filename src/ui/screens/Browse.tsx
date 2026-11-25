@@ -7,7 +7,7 @@ import {
   inCategory,
   localDay,
   learningProgress,
-  puzzleTimedLevel,
+  skillMark,
 } from '../../progress/learning';
 import type { ProgressMap } from '../../progress/skill';
 import { tileStats } from '../../progress/stats';
@@ -21,7 +21,13 @@ import { PuzzleTile } from '../components/PuzzleTile';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Btn } from '../components/theme';
 
+const NAMES: Record<Category, string> = { learning: 'Guided learning', spaced: 'Spaced repetition' };
+
 interface Props {
+  /** set when opened from "Add puzzles": each tile then has an Add button for this study mode */
+  addTo?: Category;
+  /** add or remove many puzzles at once (a whole collection or folder) */
+  onToggleMany: (ids: string[], category: Category, on: boolean) => void;
   problems: Problem[];
   progress: ProgressMap;
   learning: LearningState;
@@ -40,8 +46,13 @@ interface Props {
   onRenameCollection: (collection: string, name: string) => void;
 }
 
-/** Every puzzle as a tile, with Play and "+" under each. New and Import live here too. */
+/**
+ * Every puzzle as a tile, with Play and "+" under each. New and Import live here too. Opened from "Add puzzles"
+ * (`addTo`), the same screen puts an Add button on each tile instead of Play, and can add a whole collection at once.
+ */
 export function Browse({
+  addTo,
+  onToggleMany,
   problems,
   progress,
   learning,
@@ -60,10 +71,18 @@ export function Browse({
 }: Props) {
   const { collections, active, setSelected, folders, folder, setFolder, shown } = useCollectionFilter(problems);
   const [menu, setMenu] = useState<Problem | null>(null);
+  const added = addTo ? problems.filter((p) => inCategory(learning, addTo, p.id)).length : 0;
+  // with a collection (or a folder of it) selected, one button adds or removes everything shown
+  const missing = addTo ? shown.filter((p) => !inCategory(learning, addTo, p.id)) : [];
+  const scope = folder ? 'this folder' : 'this collection';
 
   const header = (
     <View style={{ gap: 12 }}>
-      <ScreenHeader title="Browse" subtitle={`${problems.length} puzzles`} onBack={onBack} />
+      <ScreenHeader
+        title={addTo ? 'Add puzzles' : 'Browse'}
+        subtitle={addTo ? `to ${NAMES[addTo]} · ${added} added so far` : `${problems.length} puzzles`}
+        onBack={onBack}
+      />
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         <Btn label="New puzzle" onPress={onNew} />
         <Btn label="New from game" kind="ghost" onPress={onFromGame} />
@@ -80,6 +99,36 @@ export function Browse({
         deleteCount={collections.find(([c]) => c === active)?.[1] ?? 0}
         onDeleteCollection={(c) => onDeleteMany(problems.filter((p) => p.collection === c).map((p) => p.id))}
       />
+      {addTo && active && shown.length > 0 && (
+        <View style={{ flexDirection: 'row' }}>
+          {missing.length > 0 ? (
+            <Btn
+              label={`Add all ${missing.length} from ${scope}`}
+              accessibilityLabel={`Add all puzzles from ${scope} to ${NAMES[addTo]}`}
+              onPress={() =>
+                onToggleMany(
+                  missing.map((p) => p.id),
+                  addTo,
+                  true,
+                )
+              }
+            />
+          ) : (
+            <Btn
+              kind="ghost"
+              label={`✓ All added · Remove all from ${scope}`}
+              accessibilityLabel={`Remove all puzzles of ${scope} from ${NAMES[addTo]}`}
+              onPress={() =>
+                onToggleMany(
+                  shown.map((p) => p.id),
+                  addTo,
+                  false,
+                )
+              }
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 
@@ -100,7 +149,9 @@ export function Browse({
               width={width}
               bar={inLearning ? learningProgress(learning, p.id, cachedLearnerDepth(p.sgf)) : undefined}
               caption={captionOf(p)}
-              badge={inLearning ? <LearningBadge level={puzzleTimedLevel(learning, p.id)} /> : undefined}
+              badge={
+                inLearning ? <LearningBadge mark={skillMark(learning, p.id, cachedLearnerDepth(p.sgf))} /> : undefined
+              }
               stats={() =>
                 tileStats({
                   id: p.id,
@@ -113,7 +164,16 @@ export function Browse({
               }
               tags={[spaced ? 'Spaced repetition' : '', joseki.includes(p.id) ? 'Joseki' : ''].filter(Boolean)}
               actions={[
-                { label: 'Play', onPress: () => onPlay(p) },
+                addTo
+                  ? {
+                      label: inCategory(learning, addTo, p.id) ? '✓ Added' : 'Add',
+                      kind: inCategory(learning, addTo, p.id) ? 'solid' : 'ghost',
+                      accessibilityLabel: `${inCategory(learning, addTo, p.id) ? 'Remove' : 'Add'} ${p.title} ${
+                        inCategory(learning, addTo, p.id) ? 'from' : 'to'
+                      } ${NAMES[addTo]}`,
+                      onPress: () => onToggleCategory(p.id, addTo, !inCategory(learning, addTo, p.id)),
+                    }
+                  : { label: 'Play', onPress: () => onPlay(p) },
                 {
                   label: '+',
                   kind: 'ghost',

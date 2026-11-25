@@ -32,6 +32,9 @@ shows the last one; Back pops it, and the Android back button does the same (fro
 
 The app opens on **Home**, where the player picks one of three modes: **Spaced repetition** (a review session that starts at once; Add puzzles and Prune puzzles are on its
 end screen), **Guided Learning** (a list of tiles with Add puzzles at the top) or **Browse** (every puzzle as tiles with Play and +; New puzzle, New from game and Import SGF live here).
+**Add puzzles** (on the Guided Learning screen and the spaced-repetition end screen) opens that same Browse screen with `addTo`
+set to the study mode: the title reads "Add puzzles", each tile has an Add button instead of Play (the + menu is still there),
+and with a collection chosen one button adds the whole collection or folder. So a new player can also create or import there.
 
 ## Project layout
 
@@ -52,6 +55,7 @@ src/study/lines.ts        a puzzle's solution lines (root-to-leaf paths) and the
 src/study/treeLayout.ts    the game tree on a grid (rows = lines of play) for the tree picture                    (pure TS)
 src/study/timed.ts         TimedRun: all lines in random order, clock, score                    (pure TS)
 src/study/session.ts      SessionQueue: a spaced-repetition session, missed puzzles retried once (pure TS)
+src/sync/                 cloud sync: snapshot + merge of two devices' data, the sync step, a Google Drive provider  (pure TS)
 src/nav/stack.ts          the navigation stack                                                   (pure TS)
 src/nav/history.ts        browser Back/Forward <-> stack depth (web history entries)             (pure TS)
 src/progress/skill.ts     attempt history -> skill level, bar colors, spaced-repetition due dates            (pure TS)
@@ -60,10 +64,10 @@ src/progress/stats.ts     the stats a tile shows on hover / long press, all mode
 src/progress/practice.ts  what Play does in learning mode; which puzzles look easy (pruning)      (pure TS)
 src/storage/              AsyncStorage persistence for library, progress, settings, learning (+15 backups)
 src/data/samples.ts       built-in demo problems and the Problem type
-src/ui/screens/           Home, Browse, LearningHome, SessionScreen, Picker, Prune, Study, TimedScreen (a learning
+src/ui/screens/           Home, Browse, LearningHome, SessionScreen, Prune, Study, TimedScreen (a learning
                           run), Editor, FromGame (New from game), ImportScreen, SettingsScreen
 src/ui/components/        Board (SVG), PuzzleTile/PuzzleGrid/PlusMenu/CollectionBar,
-                          LearningBadge (GM, fills with the level), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
+                          LearningBadge (🔴 🟡 🟢 ✨ 💎), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
 src/ui/batch.ts           tile batch rules: 10 at a time (pure TS, tested)
 src/ui/zoom.ts, sound.ts  zoom hook, stone sound
 tests/                    node:test suites, one folder per area like src/ (sgf, go, study, progress, storage, nav, ui, data),
@@ -73,7 +77,7 @@ store/                    store listing text, privacy policy/answers, graphics, 
 scripts/                  asset generation (icons, screenshots) and the store-readiness checks
 ```
 
-Keep everything under `src/sgf`, `src/go`, `src/study`, `src/progress` and `src/nav` free of React and React Native imports so it
+Keep everything under `src/sgf`, `src/go`, `src/study`, `src/progress`, `src/sync` and `src/nav` free of React and React Native imports so it
 stays testable in plain Node.
 
 ## Progress bar and joseki
@@ -151,9 +155,23 @@ opened again gets a new draw. `tests/web/flip.web.ts` covers it.
 A collection is a named folder of puzzles: `Problem.collection` is its name and `Problem.folder` a path below it
 (`Part 1/Peep`). Importing two or more puzzles at once (a folder, a zip with folders, a file of several puzzles) first
 asks the player for the collection's name (`suggestName` offers one; "No collection" skips it). The folders of a zip or
-a picked folder (web: "Choose folder…") are kept. Browse and the Add puzzles picker show collection chips, then the
+a picked folder (web: "Choose folder…") are kept. Browse (also as Add puzzles) shows collection chips, then the
 folders inside the chosen one; Browse can rename and delete a collection. The logic is in `src/sgf/folders.ts`, tested
 in `tests/sgf/folders.test.ts` and `tests/web/collections.web.ts`.
+
+## Cloud sync and the web app
+
+iPhone users run the web app (an iOS app needs Apple signing), hosted free on GitHub Pages by `.github/workflows/pages.yml`
+(`experiments.baseUrl` is set to the repo's sub-path in CI only). `public/` holds the manifest, the home-screen icons
+(`npx tsx scripts/make-web-icons.ts`) and `index.html` with the iOS meta tags; links in it must stay relative.
+Settings has **Sync with Google Drive** (web only, hidden unless `EXPO_PUBLIC_GOOGLE_CLIENT_ID` was set at build time): the
+player's puzzles, attempts, joseki list, learning state and settings are one JSON file in their own Drive `appDataFolder`
+(scope `drive.appdata` only). Sign-in is Google's token client (`src/ui/googleAuth.ts`, no secret, token in memory only);
+`src/ui/useSync.ts` syncs on opening, 15 s after a change, and when the tab regains focus, never while a puzzle is open.
+The merge (`src/sync/snapshot.ts`) is pure: puzzles by id, deletions as markers (`deleted.v1`), attempts combined once
+each, the more practiced learning record wins, and the newer device wins for settings, joseki and which puzzles are in a
+learning list. A damaged cloud file is never overwritten unless the player asks. Tests: `tests/sync/sync.test.ts`,
+`tests/web/sync.web.ts` (two devices, fake Drive).
 
 ## Desktop
 

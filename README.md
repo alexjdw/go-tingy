@@ -12,7 +12,7 @@ Flashcard-style training for Go (baduk / weiqi): tsumego and joseki from SGF fil
   - **Spaced repetition** starts a review session at once: the puzzles that are due, one after another, a missed one
     coming back once at the end. The end screen offers **Add puzzles** and **Prune puzzles** (remove the ones that got
     too easy).
-  - **Guided Learning** lists your guided-learning puzzles as tiles, with **Add puzzles** at the top. Play does each puzzle's next
+  - **Guided Learning** lists your guided-learning puzzles as tiles, with **Add puzzles** at the top (it opens Browse, where you can also create or import puzzles). Play does each puzzle's next
     training step (see below).
 - **Spaced repetition** records how each review went (accuracy and speed) to decide when a puzzle comes due again.
   Playing a puzzle from Browse never changes that.

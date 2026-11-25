@@ -1,0 +1,58 @@
+# Publishes the web app (the version iPhone and any browser users open) to GitHub Pages:
+#   https://<owner>.github.io/<repo>/
+# Runs on every push to main, or by hand from the Actions tab. One-time setup in the repository:
+#   Settings > Pages > Source: GitHub Actions
+#   Settings > Secrets and variables > Actions > Variables: GOOGLE_CLIENT_ID = the Google "Web application" OAuth
+#   client id (public, not a secret). Without it the app works but hides "Sync with Google Drive".
+# Only the app itself is published: puzzles from the git-ignored scraped/ folder never are (see AGENTS.md).
+name: Web app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Host under the repository's sub-path (experiments.baseUrl)
+        run: |
+          node -e "
+            const fs = require('fs');
+            const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            app.expo.experiments = { ...app.expo.experiments, baseUrl: '/' + process.env.GITHUB_REPOSITORY.split('/')[1] };
+            fs.writeFileSync('app.json', JSON.stringify(app, null, 2));
+          "
+      - name: Export the web app
+        env:
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+        run: npx expo export --platform web --output-dir site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

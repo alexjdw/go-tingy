@@ -36,9 +36,12 @@ import {
 import { asyncKv } from './storage/asyncKv';
 import { createLearningStore } from './storage/learning';
 import { DEFAULT_SETTINGS, type Settings, loadSettings, saveSettings } from './storage/settings';
+import { loadDeleted, saveDeleted } from './storage/syncState';
 import { cachedLearnerDepth } from './study/lines';
 import type { Mode } from './study/engine';
+import type { Snapshot } from './sync/snapshot';
 import { theme } from './ui/components/theme';
+import { useSync } from './ui/useSync';
 import { Browse } from './ui/screens/Browse';
 import { Editor } from './ui/screens/Editor';
 import { FromGame } from './ui/screens/FromGame';
@@ -47,7 +50,6 @@ import { collectionsOf, renameCollection as renameCollectionIn } from './sgf/fol
 import { ImportScreen } from './ui/screens/ImportScreen';
 import { LearningHome } from './ui/screens/LearningHome';
 import { TimedScreen } from './ui/screens/TimedScreen';
-import { Picker } from './ui/screens/Picker';
 import { Prune } from './ui/screens/Prune';
 import { SessionScreen } from './ui/screens/SessionScreen';
 import { AboutScreen } from './ui/screens/AboutScreen';
@@ -57,10 +59,9 @@ import { getBridge } from './analysis/bridge';
 
 type Screen =
   | { name: 'home' }
-  | { name: 'browse' }
+  | { name: 'browse'; addTo?: Category }
   | { name: 'learning' }
   | { name: 'session' }
-  | { name: 'picker'; category: Category }
   | { name: 'prune' }
   | { name: 'settings' }
   | { name: 'about' }
@@ -92,6 +93,8 @@ export default function App() {
   const [learning, setLearning] = useState<LearningState>(emptyLearningState());
   const [joseki, setJoseki] = useState<string[]>([]);
   const [seen, setSeen] = useState<string[] | null>(null);
+  /** puzzles the player deleted -> when, so the deletion reaches their other devices (see src/sync) */
+  const [deleted, setDeleted] = useState<Record<string, number>>({});
   const [ready, setReady] = useState(false);
   // the latest learning state, so several updates in one event see each other
   const learningRef = useRef(learning);
@@ -116,17 +119,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void loadLibrary().then(setCustom);
-    void loadProgress().then(setProgress);
-    void loadSettings().then(setSettings);
-    void loadJoseki().then(setJoseki);
-    void loadSeen().then(setSeen);
-    // the saved state, or the newest backup if it is missing or damaged
-    void learningStore.load().then(({ state }) => {
-      learningRef.current = state;
-      setLearning(state);
-      setReady(true);
-    });
+    // everything is loaded before the app is ready (a sync must never see half-loaded data)
+    void Promise.all([
+      loadLibrary().then(setCustom),
+      loadProgress().then(setProgress),
+      loadSettings().then(setSettings),
+      loadJoseki().then(setJoseki),
+      loadSeen().then(setSeen),
+      loadDeleted().then(setDeleted),
+      // the saved state, or the newest backup if it is missing or damaged
+      learningStore.load().then(({ state }) => {
+        learningRef.current = state;
+        setLearning(state);
+      }),
+    ]).then(() => setReady(true));
   }, []);
 
   /** Change the learning state and save it. Returns the new state. */
@@ -210,7 +216,54 @@ export default function App() {
     const next = custom.filter((c) => !drop.has(c.id));
     setCustom(next);
     await saveLibrary(next);
+    const now = Date.now();
+    const marks = { ...deleted, ...Object.fromEntries(ids.map((id) => [id, now])) };
+    setDeleted(marks);
+    await saveDeleted(marks);
   };
+
+  // Keep the player's data in step with their Google Drive (web only; see src/sync and src/ui/useSync.ts).
+  const customRef = useRef(custom);
+  const progressRef = useRef(progress);
+  const josekiRef = useRef(joseki);
+  const settingsRef = useRef(settings);
+  const deletedRef = useRef(deleted);
+  useEffect(() => {
+    customRef.current = custom;
+    progressRef.current = progress;
+    josekiRef.current = joseki;
+    settingsRef.current = settings;
+    deletedRef.current = deleted;
+  }, [custom, progress, joseki, settings, deleted]);
+  const sync = useSync({
+    ready: ready && seen !== null,
+    busy: screen.name === 'study' || screen.name === 'timedRun',
+    getContent: () => ({
+      version: 1,
+      library: customRef.current,
+      deleted: deletedRef.current,
+      progress: progressRef.current,
+      joseki: josekiRef.current,
+      learning: learningRef.current,
+      settings: settingsRef.current,
+    }),
+    apply: (m: Snapshot) => {
+      setCustom(m.library);
+      void saveLibrary(m.library);
+      setProgress(m.progress);
+      void saveProgress(m.progress);
+      setJoseki(m.joseki);
+      void saveJoseki(m.joseki);
+      setDeleted(m.deleted);
+      void saveDeleted(m.deleted);
+      setSettings(m.settings);
+      void saveSettings(m.settings);
+      learningRef.current = m.learning;
+      setLearning(m.learning);
+      void learningStore.save(m.learning);
+    },
+    version: [custom, progress, joseki, learning, settings, deleted],
+  });
 
   /** A one-time tutorial was finished or dismissed; it is not shown again. */
   const markSeen = (name: string) => {
@@ -283,6 +336,8 @@ export default function App() {
 
       {screen.name === 'browse' && (
         <Browse
+          addTo={screen.addTo}
+          onToggleMany={(ids, category, on) => toggleCategoryMany(ids, category, on)}
           problems={problems}
           progress={progress}
           learning={learning}
@@ -309,7 +364,7 @@ export default function App() {
           joseki={joseki}
           onJosekiChange={setJosekiMode}
           onBack={back}
-          onAddPuzzles={() => go({ name: 'picker', category: 'learning' })}
+          onAddPuzzles={() => go({ name: 'browse', addTo: 'learning' })}
           onPlay={startRun}
           onToggleCategory={toggleCategory}
         />
@@ -325,20 +380,9 @@ export default function App() {
           joseki={joseki}
           onJosekiChange={setJosekiMode}
           // from the end screen, Add/Prune replace the session so that Back returns home, not to a new session
-          onAddPuzzles={() => swap({ name: 'picker', category: 'spaced' })}
+          onAddPuzzles={() => swap({ name: 'browse', addTo: 'spaced' })}
           onPrune={() => swap({ name: 'prune' })}
           onDone={back}
-        />
-      )}
-
-      {screen.name === 'picker' && (
-        <Picker
-          category={screen.category}
-          problems={problems}
-          learning={learning}
-          onToggle={(id, on) => toggleCategory(id, screen.category, on)}
-          onToggleMany={(ids, on) => toggleCategoryMany(ids, screen.category, on)}
-          onBack={back}
         />
       )}
 
@@ -402,6 +446,7 @@ export default function App() {
           }}
           onBack={back}
           onAbout={() => go({ name: 'about' })}
+          sync={sync}
         />
       )}
 

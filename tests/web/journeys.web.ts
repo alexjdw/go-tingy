@@ -97,9 +97,9 @@ describe('journeys', { skip: skipWithoutChrome }, () => {
     await click(page, 'Close');
     await expectText(page, 'Spaced repetition');
     assert.equal(
-      await count(page, `document.querySelectorAll('[aria-label="Level: not started"]').length`),
+      await count(page, `document.querySelectorAll('[aria-label="Level: just starting"]').length`),
       1,
-      'a GM badge on the learning puzzle, not the word Learning',
+      'a red badge on the learning puzzle, not the word Learning',
     );
     assert.ok(!(await bodyText(page)).includes('Spaced repetition · Learning'));
   });
@@ -143,9 +143,12 @@ describe('journeys', { skip: skipWithoutChrome }, () => {
     assert.doesNotMatch(t, /Review \d+ more/, 'nothing else is due yet');
   });
 
-  it('Add puzzles opens a picker like Browse; adding works; Back returns home', async () => {
+  it('Add puzzles opens Browse, which also creates and imports; adding works; Back returns home', async () => {
     await click(page, 'Add puzzles');
     await expectText(page, 'to Spaced repetition · 1 added so far');
+    const bar = await bodyText(page);
+    for (const b of ['New puzzle', 'New from game', '+ SGF']) assert.ok(bar.includes(b), `${b} is offered when adding`);
+    assert.doesNotMatch(bar, /Play/, 'tiles add instead of play');
     await clickAria(page, `Add ${OPEN.title} to Spaced repetition`);
     await expectText(page, '✓ Added');
     await expectText(page, '2 added so far');
