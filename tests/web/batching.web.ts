@@ -94,7 +94,8 @@ describe('tile batches in the browser', { skip: skipWithoutChrome }, () => {
     await click(page, 'Browse');
     await expectTiles(page, 10);
     await scrollToEnd(page);
-    const t = await expectText(page, /Showing (\d+) of \d+/);
+    // "Showing 10 of ..." is there before the scroll has loaded anything, so wait for a second batch
+    const t = await expectText(page, /Showing ([2-9]\d|\d{3,}) of \d+/);
     const shown = Number(/Showing (\d+) of/.exec(t)![1]);
     assert.ok(shown >= 20 && shown <= TOTAL, `scrolling loaded more (shows ${shown})`);
     assert.ok((await tiles(page)) >= 20);

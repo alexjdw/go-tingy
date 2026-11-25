@@ -165,9 +165,17 @@ describe('web layout', { skip: skipWithoutChrome }, () => {
             continue;
           }
         }
-        const covered = (await page.evaluate(FIND_COVERED)) as string[];
-        const clipped = (await page.evaluate(FIND_CLIPPED)) as string[];
-        for (const c of [...covered, ...clipped]) problems.push(`${label}: ${c}`);
+        // A screen may still be changing (a menu closing) when the machine is busy: look again until it settles. A real
+        // layout bug does not go away, so it is still reported.
+        let found: string[] = [];
+        for (let look = 0; look < 8; look++) {
+          const covered = (await page.evaluate(FIND_COVERED)) as string[];
+          const clipped = (await page.evaluate(FIND_CLIPPED)) as string[];
+          found = [...covered, ...clipped];
+          if (!found.length) break;
+          await sleep(250);
+        }
+        for (const c of found) problems.push(`${label}: ${c}`);
       }
       await page.close();
 

@@ -49,7 +49,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:web": "node --import tsx --test --test-timeout=300000 \"tests/web/*.web.ts\"",
+    "test:web": "node --import tsx --test --test-concurrency=4 --test-timeout=300000 \"tests/web/*.web.ts\"",
     "assets:icons": "tsx scripts/make-icons.ts",
     "check:store": "tsx scripts/check-store.ts",
     "assets:screenshots": "tsx scripts/make-screenshots.ts",
