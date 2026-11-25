@@ -9,7 +9,7 @@ import {
   setCategory,
   skillMark,
 } from '../../src/progress/learning';
-import { nextAutoIndex, pickAutoIds } from '../../src/study/auto';
+import { autoStatus, autoText, nextAutoIndex, pickAutoIds } from '../../src/study/auto';
 import { seeded } from '../lib/helpers';
 
 const DAY = '2026-11-25';
@@ -89,5 +89,20 @@ describe('auto mode', () => {
     assert.equal(nextAutoIndex(plan, 0, two, byId, DAY), 1, 'both used: next puzzle');
     const all = ['y1', 'g1'].reduce((s, id) => recordAttemptStart(recordAttemptStart(s, id, DAY), id, DAY), two);
     assert.equal(nextAutoIndex(plan, 0, all, byId, DAY), null, 'everything used up: done');
+  });
+
+  it('says where the player is in the set and what Next will do', () => {
+    const { s: s0, items } = world();
+    const byId = new Map(items.map((it) => [it.id, it]));
+    const plan = { ids: ['r1', 'y1', 'g1'], index: 0 };
+    let st = autoStatus(plan, s0, byId, DAY);
+    assert.deepEqual([st.position, st.total, st.left], [1, 3, 2]);
+    assert.equal(autoText(st), 'Auto 1 of 3 · 2 to go');
+    const one = recordAttemptStart(s0, 'r1', DAY);
+    assert.equal(autoStatus(plan, one, byId, DAY).nextLabel, 'Next attempt ›');
+    const two = recordAttemptStart(one, 'r1', DAY);
+    assert.equal(autoStatus(plan, two, byId, DAY).nextLabel, 'Next puzzle ›');
+    st = autoStatus({ ...plan, index: 2 }, recordAttemptStart(recordAttemptStart(s0, 'g1', DAY), 'g1', DAY), byId, DAY);
+    assert.deepEqual([st.position, st.left, st.nextLabel], [3, 0, 'Finish']);
   });
 });

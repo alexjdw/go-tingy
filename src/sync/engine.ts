@@ -32,13 +32,13 @@ export interface SyncResult {
 export async function syncOnce(
   provider: SyncProvider,
   local: Snapshot,
-  opts: { replaceDamaged?: boolean } = {},
+  opts: { replaceDamaged?: boolean; first?: boolean } = {},
 ): Promise<SyncResult> {
   const text = await provider.read();
   const remote = text === null ? null : parseSnapshot(text);
   if (text !== null && !remote && !opts.replaceDamaged)
     return { merged: local, uploaded: false, changedLocal: false, remoteDamaged: true };
-  const merged = remote ? mergeSnapshots(local, remote) : local;
+  const merged = remote ? mergeSnapshots(local, remote, { first: opts.first }) : local;
   const uploaded = !remote || !sameContent(merged, remote);
   if (uploaded) await provider.write(stringifySnapshot(merged));
   return { merged, uploaded, changedLocal: !sameContent(merged, local), remoteDamaged: false };

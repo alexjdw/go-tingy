@@ -220,13 +220,22 @@ export class StudyEngine {
 
   // ---------- multiple choice (A/B/C labels) ----------
 
-  /** Lettered points at the current node; when present (and it's the learner's turn) only these may be played. */
+  /**
+   * Lettered points at the current node; when present (and it's the learner's turn) only these may be played.
+   * The letters are choices only if at least one of them is a correct branch. Otherwise the author is using them to
+   * explain something on the board, and the player may play anywhere.
+   */
   choicePoints(): Point[] {
     const s = this.snap;
     if (!s.node || s.toPlay !== this.playerColor) return [];
     const labelled = (s.node.props.LB ?? []).map((v) => v.split(':')).filter(([, l]) => /^[A-Z]$/.test(l ?? ''));
     if (labelled.length < 2) return [];
-    return labelled.map(([pt]) => pointList([pt], this.dims)[0]).filter(Boolean);
+    const points = labelled.map(([pt]) => pointList([pt], this.dims)[0]).filter(Boolean);
+    const correct = this.goodChildren(s.node)
+      .map((c) => nodeMove(c, this.dims))
+      .filter((m) => m && m.color === this.playerColor && m.point)
+      .map((m) => m!.point!);
+    return points.some((p) => correct.some((q) => same(p, q))) ? points : [];
   }
 
   // ---------- replay + mark phases ----------

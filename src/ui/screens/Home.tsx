@@ -45,7 +45,7 @@ export function Home({
           </Text>
           <Text style={styles.sub}>How do you want to study?</Text>
         </View>
-        <SyncIndicator sync={sync} onPress={onSettings} />
+        <SyncIndicator sync={sync} onPress={sync?.status === 'signin' ? () => void sync.connect() : onSettings} />
         <Btn label="Settings" kind="ghost" onPress={onSettings} />
       </View>
 

@@ -21,7 +21,7 @@ import {
   setCategoryMany,
 } from './progress/learning';
 import { graduateToSpaced, setPriority } from './progress/backlog';
-import { type AutoPlan, nextAutoIndex, pickAutoIds } from './study/auto';
+import { type AutoPlan, autoStatus, nextAutoIndex, pickAutoIds } from './study/auto';
 import { type RunKind, learningAction } from './progress/practice';
 import { type Attempt, type ProgressMap, type SelfRating, recordAttempt } from './progress/skill';
 import { depthOf, toDepth } from './nav/history';
@@ -107,7 +107,7 @@ export default function App() {
   // the latest learning state, so several updates in one event see each other
   const learningRef = useRef(learning);
   /** guided learning's auto mode, while it is going */
-  const autoRef = useRef<AutoPlan | null>(null);
+  const [auto, setAuto] = useState<AutoPlan | null>(null);
   const nonceRef = useRef(0);
   /** a puzzle that just reached diamond, while the player is asked about moving it to spaced repetition */
   const [diamondId, setDiamondId] = useState<string | null>(null);
@@ -125,6 +125,7 @@ export default function App() {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!canGoBack(stackRef.current)) return false;
+      setAuto(null);
       setStack((st) => pop(st));
       return true;
     });
@@ -176,6 +177,7 @@ export default function App() {
       const left = current(before);
       if (next.stack.length < before.length && (left.name === 'timedRun' || (left.name === 'study' && left.run)))
         backupLearning();
+      setAuto(null);
       setStack(next.stack);
     };
     window.addEventListener('popstate', onPop);
@@ -310,24 +312,18 @@ export default function App() {
    * Auto mode: open the next puzzle that can still be played today, from the current one on. Returns false (and ends
    * auto mode) when there is none.
    */
-  const autoStep = (nav: (s: Screen) => void, from: number): boolean => {
-    const plan = autoRef.current;
-    if (!plan) return false;
+  const autoStep = (nav: (s: Screen) => void, plan: AutoPlan, from: number): boolean => {
     const day = localDay(new Date());
     const s = learningRef.current;
     const items = new Map(problems.map((p) => [p.id, { id: p.id, learnerMoves: cachedLearnerDepth(p.sgf) }] as const));
     const i = nextAutoIndex(plan, from, s, items, day);
     const problem = i === null ? undefined : problems.find((p) => p.id === plan.ids[i]);
-    if (i === null || !problem) {
-      autoRef.current = null;
+    const kind = problem ? learningAction(s, problem.id, items.get(problem.id)!.learnerMoves, day).kind : null;
+    if (i === null || !problem || !kind) {
+      setAuto(null);
       return false;
     }
-    const kind = learningAction(s, problem.id, items.get(problem.id)!.learnerMoves, day).kind;
-    if (!kind) {
-      autoRef.current = null;
-      return false;
-    }
-    autoRef.current = { ...plan, index: i, leftAtOpen: attemptsLeft(s, problem.id, day) };
+    setAuto({ ids: plan.ids, index: i });
     startRun(problem, kind, nav, ++nonceRef.current);
     return true;
   };
@@ -339,28 +335,28 @@ export default function App() {
       .map((p) => ({ id: p.id, learnerMoves: cachedLearnerDepth(p.sgf) }));
     const ids = pickAutoIds(items, s, localDay(new Date()), count);
     if (!ids.length) return;
-    autoRef.current = { ids, index: 0, leftAtOpen: 0 };
-    autoStep(go, 0);
+    autoStep(go, { ids, index: 0 }, 0);
   };
 
-  /** Leave a run. In auto mode a run that used an attempt leads straight on to the next one; backing out ends auto. */
+  /** Auto mode's Next button: another attempt at this puzzle, or the next one; after the last, back to the list. */
+  const autoNext = () => {
+    backupLearning();
+    if (!auto || !autoStep(swap, auto, auto.index)) back();
+  };
+
+  /** What a run screen shows in auto mode (null outside it). */
+  const autoInfo = () => {
+    if (!auto) return undefined;
+    const items = new Map(problems.map((p) => [p.id, { id: p.id, learnerMoves: cachedLearnerDepth(p.sgf) }] as const));
+    return autoStatus(auto, learning, items, localDay(new Date()));
+  };
+
+  /** Leave a run with Back or Done. This also ends auto mode: only its Next button goes on to the next run. */
   const leaveRun = () => {
     backupLearning();
-    const plan = autoRef.current;
-    if (plan) {
-      const id = plan.ids[plan.index];
-      const left = attemptsLeft(learningRef.current, id, localDay(new Date()));
-      if (left < plan.leftAtOpen && autoStep(swap, plan.index)) return;
-      autoRef.current = null;
-    }
+    setAuto(null);
     back();
   };
-
-  // auto mode ends when the player is no longer in a run (for example the browser's Back button)
-  useEffect(() => {
-    const inRun = screen.name === 'timedRun' || (screen.name === 'study' && !!screen.run);
-    if (!inRun) autoRef.current = null;
-  }, [screen]);
 
   /** The player answered the diamond prompt. */
   const answerDiamond = (move: boolean) => {
@@ -384,6 +380,8 @@ export default function App() {
     if (now.cleared) return 'Guided stage cleared! Timed runs are unlocked.';
     return `Clean run! Next time you get ${now.free} free move${now.free === 1 ? '' : 's'}.`;
   };
+
+  const autoShown = autoInfo();
 
   if (!ready) return <SafeAreaView style={styles.root} />;
 
@@ -443,7 +441,10 @@ export default function App() {
           onJosekiChange={setJosekiMode}
           onBack={back}
           onAddPuzzles={() => go({ name: 'browse', addTo: 'learning' })}
-          onPlay={(p, kind) => startRun(p, kind)}
+          onPlay={(p, kind) => {
+            setAuto(null);
+            startRun(p, kind);
+          }}
           onAuto={startAuto}
           onToggleCategory={toggleCategory}
         />
@@ -491,6 +492,7 @@ export default function App() {
           onJosekiChange={screen.run ? undefined : (on) => setJosekiMode(screen.problem.id, on)}
           tutorial={screen.run && seen && !seen.includes('guided-run') ? 'guided-run' : undefined}
           onTutorialDone={() => markSeen('guided-run')}
+          auto={autoShown ? { ...autoShown, onNext: autoNext } : undefined}
           runBar={screen.run ? learningProgress(learning, screen.problem.id, screen.run.learnerMoves) : undefined}
           onExit={screen.run ? leaveRun : back}
           onRunStart={() => updateLearning((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
@@ -509,6 +511,7 @@ export default function App() {
           problem={screen.problem}
           joseki={joseki.includes(screen.problem.id)}
           bar={learningProgress(learning, screen.problem.id, cachedLearnerDepth(screen.problem.sgf))}
+          auto={autoShown ? { ...autoShown, onNext: autoNext } : undefined}
           best={learning.scores[screen.problem.id]?.best}
           onExit={leaveRun}
           onFirstMove={() => updateLearning((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}

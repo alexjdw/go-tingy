@@ -4,8 +4,10 @@ import { DRIVE_SCOPE } from '../sync/drive';
 /**
  * Google sign-in for the web build (the iPhone version is the web app), with Google's own token client: it needs only a
  * public "Web application" client id (no secret) and gives a one-hour access token for the app's private Drive folder.
- * The token is kept in memory only. When it runs out, the next sync asks Google for a new one, which works without a
- * prompt while the player is still signed in to Google, and otherwise asks them to sign in again.
+ * The token is kept in memory and, so that reloading the page does not ask Google again, in this tab's session storage
+ * (gone when the tab closes; it lasts an hour and reaches only the app's private Drive folder). When it runs out, a sync
+ * asks Google for a new one, which works without a prompt while the player is still signed in to Google, and otherwise
+ * asks them to sign in again. Opening the app never asks by itself: see `cachedToken`.
  */
 export const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '';
 
@@ -52,7 +54,28 @@ const loadScript = (): Promise<GoogleGlobal> => {
   return script;
 };
 
-let token: { value: string; expiresAt: number } | null = null;
+const STORE = 'gdrive.token';
+type Token = { value: string; expiresAt: number };
+
+const readStored = (): Token | null => {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(STORE) ?? 'null') as Partial<Token> | null;
+    return v && typeof v.value === 'string' && typeof v.expiresAt === 'number' ? (v as Token) : null;
+  } catch {
+    return null;
+  }
+};
+const writeStored = (t: Token | null) => {
+  try {
+    if (t) sessionStorage.setItem(STORE, JSON.stringify(t));
+    else sessionStorage.removeItem(STORE);
+  } catch {
+    // storage blocked: the token then lives in memory only
+  }
+};
+
+let token: Token | null = Platform.OS === 'web' && typeof sessionStorage !== 'undefined' ? readStored() : null;
+const usable = (t: Token | null): t is Token => !!t && t.expiresAt - 60_000 > Date.now();
 let pending: Promise<string | null> | null = null;
 
 /** Ask Google for an access token. `prompt` '' = silently if possible, 'consent' = show the permission screen. */
@@ -73,6 +96,7 @@ function request(prompt: '' | 'consent'): Promise<string | null> {
               callback: (r) => {
                 if (r.access_token) {
                   token = { value: r.access_token, expiresAt: Date.now() + (r.expires_in ?? 3600) * 1000 };
+                  writeStored(token);
                   done(r.access_token);
                 } else done(null);
               },
@@ -89,17 +113,20 @@ function request(prompt: '' | 'consent'): Promise<string | null> {
 }
 
 /** Sign in (call this from a tap: browsers block the Google window otherwise). Null if the player cancelled. */
-export const signIn = () => request('consent');
+export const signIn = (prompt: '' | 'consent' = 'consent') => request(prompt);
+
+/** A token that is still good, with no request to Google at all (and so no window); null if there is none. */
+export const cachedToken = (): string | null => (usable(token) ? token.value : null);
 
 /** A usable access token, or null if the player has to sign in again. */
 export async function getToken(): Promise<string | null> {
-  if (token && token.expiresAt - 60_000 > Date.now()) return token.value;
-  return request('');
+  return cachedToken() ?? request('');
 }
 
 export async function signOut(): Promise<void> {
   const t = token?.value;
   token = null;
+  writeStored(null);
   if (!t) return;
   try {
     (await loadScript()).accounts.oauth2.revoke(t);

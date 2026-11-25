@@ -29,6 +29,8 @@ interface Props {
   /** the puzzle's learning progress */
   bar?: SkillBarData;
   onExit: () => void;
+  /** Guided learning's auto mode: where the player is in the set, and the Next button for when the run is over. */
+  auto?: { position: number; total: number; left: number; nextLabel: string; onNext: () => void };
   /** Called once, on the first move: uses up one of today's attempts. */
   onFirstMove: () => void;
   /** Called once, when every line has been solved. */
@@ -47,7 +49,7 @@ const LEVEL_NAME: Record<TimedLevel, string> = {
   diamond: 'Diamond',
 };
 
-export function TimedScreen({ problem, best, joseki, bar, onExit, onFirstMove, onFinish }: Props) {
+export function TimedScreen({ problem, best, joseki, bar, auto, onExit, onFirstMove, onFinish }: Props) {
   const { width } = useWindowDimensions();
   const boardW = Math.min(width - 24, 560);
   const run = useMemo(() => new TimedRun(problem.sgf, { joseki }), [problem.sgf, joseki]);
@@ -114,12 +116,14 @@ export function TimedScreen({ problem, best, joseki, bar, onExit, onFirstMove, o
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <View style={styles.header}>
-        <Btn label="‹ Back" onPress={onExit} kind="ghost" />
+        <Btn label={auto ? '‹ End auto' : '‹ Back'} onPress={onExit} kind="ghost" />
         <View style={{ flex: 1, marginLeft: 8 }}>
           <Text style={styles.title} numberOfLines={1}>
             {problem.title}
           </Text>
-          <Text style={styles.sub}>Timed run</Text>
+          <Text style={styles.sub}>
+            Timed run{auto ? ` · Auto ${auto.position} of ${auto.total} · ${auto.left} to go` : ''}
+          </Text>
         </View>
         {zoom.canZoom && run.phase !== 'ready' ? (
           <Btn
@@ -233,7 +237,8 @@ export function TimedScreen({ problem, best, joseki, bar, onExit, onFirstMove, o
             <Text style={styles.text}>New best!</Text>
           )}
           {bar ? <SkillBar bar={bar} height={10} label="Learning progress" /> : null}
-          <Btn label="Done" onPress={onExit} />
+          {auto ? <Btn label={auto.nextLabel} onPress={auto.onNext} /> : null}
+          <Btn label="Done" kind={auto ? 'ghost' : 'solid'} onPress={onExit} />
         </View>
       ) : null}
     </ScrollView>

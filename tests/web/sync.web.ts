@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import type { BrowserContext, HTTPRequest, Page } from 'puppeteer-core';
-import { type Site, click, expectNoText, expectText, skipWithoutChrome, sleep, startSite } from '../lib/web';
+import { type Site, click, clickAria, expectNoText, expectText, skipWithoutChrome, sleep, startSite } from '../lib/web';
 
 const PUZZLE = { id: 'c-1-a', title: 'Synced puzzle one', sgf: '(;GM[1]SZ[19]PL[B]AB[dd]AW[cd];B[ed]TE[1])' };
 const SECOND = { id: 'c-2-b', title: 'Second device puzzle', sgf: '(;GM[1]SZ[19]PL[B]AB[pp]AW[pq];B[qp]TE[1])' };
@@ -48,7 +48,7 @@ class FakeDrive {
 
 /** Replaces Google's sign-in script, so "Sign in with Google" succeeds at once. */
 const FAKE_GOOGLE = `window.google = { accounts: { oauth2: {
-  initTokenClient: (c) => ({ requestAccessToken: () => setTimeout(() => c.callback({ access_token: 'fake-token', expires_in: 3600 }), 20) }),
+  initTokenClient: (c) => ({ requestAccessToken: () => { window.__tokenRequests = (window.__tokenRequests || 0) + 1; setTimeout(() => c.callback({ access_token: 'fake-token', expires_in: 3600 }), 20); } }),
   revoke: () => {},
 } } };`;
 
@@ -139,6 +139,30 @@ describe('syncing with Google Drive in the browser', { skip: skipWithoutChrome }
     await click(one, 'Sync now');
     await sleep(800);
     assert.equal(drive.writes, writes, 'nothing changed, so nothing was uploaded');
+  });
+
+  const requests = (page: Page) => page.evaluate('window.__tokenRequests || 0') as Promise<number>;
+
+  it('reloading the page syncs with the saved token and never asks Google again', async () => {
+    await two.reload({ waitUntil: 'networkidle0' });
+    await sleep(1200);
+    assert.equal(await requests(two), 0, 'Google was not asked for a token, so no sign-in window');
+    assert.equal(await indicator(two), 'Google Drive: signed in');
+    await openSettings(two);
+    await expectText(two, /Last synced: (?!not yet)/);
+    await two.goBack();
+  });
+
+  it('without a usable token it does not pop up Google on its own: the cloud turns amber and a tap signs in', async () => {
+    await two.evaluate("sessionStorage.removeItem('gdrive.token')");
+    await two.reload({ waitUntil: 'networkidle0' });
+    await sleep(1200);
+    assert.equal(await requests(two), 0, 'nothing was requested by itself');
+    assert.equal(await indicator(two), 'Google Drive: sign in again');
+    await clickAria(two, 'Google Drive: sign in again');
+    await sleep(800);
+    assert.equal(await requests(two), 1, 'the tap asked Google once');
+    assert.equal(await indicator(two), 'Google Drive: signed in');
   });
 
   it('signing out stops syncing and offers to sign in again', async () => {

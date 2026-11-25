@@ -4,7 +4,18 @@
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { type App, startApp, skipWithoutChrome, expectText, click, clickAria, bodyText, sleep } from '../lib/web';
+import {
+  type App,
+  startApp,
+  skipWithoutChrome,
+  expectText,
+  click,
+  clickAria,
+  tapBoard,
+  bodyText,
+  sleep,
+} from '../lib/web';
+import { pt } from '../lib/helpers';
 import type { Page } from 'puppeteer-core';
 
 const SGF = '(;GM[1]SZ[19]PL[B];B[pd];W[qf];B[qc](;W[rc]TE[1])(;W[pc]TE[1]))';
@@ -95,14 +106,38 @@ describe('backlog and auto mode in the browser', { skip: skipWithoutChrome }, ()
     }
   });
 
-  it('auto mode picks puzzles and opens a guided run', async () => {
+  it('auto mode picks puzzles, shows how far along the set is, and goes on only with Next', async () => {
     await click(page, 'Auto');
     await expectText(page, 'How many puzzles');
     await click(page, 'Start auto mode');
     await expectText(page, /Guided learning · \d+ free move/);
+    await expectText(page, 'Auto 1 of 3 · 2 to go');
     // the first puzzle is one of the lowest level (Alpha is higher, so never first)
     const t = await bodyText(page);
     assert.doesNotMatch(t.split('Guided learning')[0], /Alpha/);
+    assert.doesNotMatch(t, /Next attempt|Next puzzle/, 'no Next before the run is over');
+    // first attempt: click through the given move, then solve
+    await click(page, 'Skip'); // the first-time tutorial
+    await tapBoard(page, SGF, pt('pd'));
+    await tapBoard(page, SGF, pt('qf'));
+    await tapBoard(page, SGF, pt('qc'));
+    await expectText(page, 'Next attempt ›');
+    // Next attempt: the same puzzle again, with no free moves left
+    await click(page, 'Next attempt ›');
+    await expectText(page, 'Auto 1 of 3 · 2 to go');
+    await tapBoard(page, SGF, pt('pd'));
+    await tapBoard(page, SGF, pt('qc'));
+    // both attempts are used: Next goes to the next puzzle
+    await expectText(page, 'Next puzzle ›');
+    await click(page, 'Next puzzle ›');
+    await expectText(page, 'Auto 2 of 3 · 1 to go');
+  });
+
+  it('Back ends auto mode and returns to the list, instead of going on', async () => {
+    await click(page, '‹ End auto');
+    await expectText(page, 'Guided Learning');
+    await expectText(page, 'ready today');
+    assert.doesNotMatch(await bodyText(page), /Auto \d of/);
   });
 
   it('threw no errors', () => {

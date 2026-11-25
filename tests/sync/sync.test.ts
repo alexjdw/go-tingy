@@ -282,3 +282,103 @@ describe('syncing the device', () => {
     assert.equal(hasUnsyncedChanges(mergedContent, r.meta), false);
   });
 });
+
+describe('connecting a device that has never synced', () => {
+  const learning = (spaced: string[], learningIds: string[]) => ({
+    ...snap().learning,
+    spaced: Object.fromEntries(spaced.map((id) => [id, true as const])),
+    learning: Object.fromEntries(learningIds.map((id) => [id, true as const])),
+  });
+
+  it("keeps the cloud's study lists, joseki list and settings, and adds the device's puzzles to them", async () => {
+    const { emptyMeta, runSync } = await import('../../src/sync/run');
+    const cloud = new Memory();
+    await cloud.write(
+      stringifySnapshot(
+        snap({
+          updatedAt: 100,
+          library: [puzzle('old')],
+          joseki: ['old'],
+          learning: learning(['old'], ['old']),
+          settings: { ...SETTINGS, paper: 'on' },
+        }),
+      ),
+    );
+    // a new device: a bunch of puzzles added, nothing else set up
+    const local = snap({ library: [puzzle('n1'), puzzle('n2')], joseki: ['n1'], learning: learning(['n1'], []) });
+    const { updatedAt: _u, ...content } = local;
+    void _u;
+    const { result } = await runSync(cloud, content, emptyMeta(), 5000);
+    const m = result.merged;
+    assert.deepEqual(m.library.map((p) => p.id).sort(), ['n1', 'n2', 'old']);
+    assert.deepEqual(Object.keys(m.learning.spaced).sort(), ['n1', 'old']);
+    assert.deepEqual(Object.keys(m.learning.learning), ['old'], "the cloud's guided learning list is still there");
+    assert.deepEqual([...m.joseki].sort(), ['n1', 'old']);
+    assert.equal(m.settings.paper, 'on', "the cloud's settings win over a device's defaults");
+    assert.deepEqual(parseSnapshot(cloud.text!)!.library.length, 3, 'and the cloud has it all');
+  });
+
+  it('a device that has synced before still lets its newer change win, as before', async () => {
+    const { runSync } = await import('../../src/sync/run');
+    const cloud = new Memory();
+    await cloud.write(stringifySnapshot(snap({ updatedAt: 100, joseki: ['a'], learning: learning(['a'], []) })));
+    const { updatedAt: _u, ...content } = snap({ joseki: [], learning: learning([], []) });
+    void _u;
+    const meta = { updatedAt: 50, lastSyncedAt: 50, syncedKey: 'something else' };
+    const { result } = await runSync(cloud, content, meta, 5000);
+    assert.deepEqual(result.merged.joseki, [], 'removed on this device since the last sync');
+    assert.deepEqual(result.merged.learning.spaced, {});
+  });
+
+  it('a device that was signed out and signs in again counts as new (its meta is reset)', async () => {
+    const { emptyMeta } = await import('../../src/sync/run');
+    assert.equal(emptyMeta().syncedKey, null);
+  });
+});
+
+describe('changes made while a sync is running', () => {
+  const content = (over: Partial<Snapshot> = {}) => {
+    const { updatedAt: _u, ...c } = snap(over);
+    void _u;
+    return c;
+  };
+  const resultOf = (merged: Snapshot, changedLocal: boolean) => ({
+    merged,
+    uploaded: true,
+    changedLocal,
+    remoteDamaged: false,
+  });
+
+  it('applies the merge as it is when nothing changed meanwhile', async () => {
+    const { applyAfterSync } = await import('../../src/sync/run');
+    const sent = content({ library: [puzzle('a')] });
+    const merged = snap({ updatedAt: 10, library: [puzzle('a'), puzzle('cloud')] });
+    assert.equal(applyAfterSync(sent, sent, resultOf(merged, true), 20), merged);
+    assert.equal(applyAfterSync(sent, sent, resultOf(merged, false), 20), null, 'nothing to apply');
+  });
+
+  it("keeps puzzles added while the sync ran, together with the cloud's", async () => {
+    const { applyAfterSync } = await import('../../src/sync/run');
+    const sent = content({ library: [puzzle('a')] });
+    const current = content({ library: [puzzle('a'), puzzle('typed-meanwhile')] });
+    const merged = snap({ updatedAt: 10, library: [puzzle('a'), puzzle('cloud')] });
+    const out = applyAfterSync(sent, current, resultOf(merged, true), 20)!;
+    assert.deepEqual(out.library.map((p) => p.id).sort(), ['a', 'cloud', 'typed-meanwhile']);
+  });
+
+  it('lets what the player did meanwhile win over the cloud for lists', async () => {
+    const { applyAfterSync } = await import('../../src/sync/run');
+    const sent = content({ joseki: [] });
+    const current = content({ joseki: ['x'] });
+    const merged = snap({ updatedAt: 10, joseki: [], library: [puzzle('cloud')] });
+    const out = applyAfterSync(sent, current, resultOf(merged, true), 20)!;
+    assert.deepEqual(out.joseki, ['x']);
+  });
+
+  it('applies nothing when the device already holds everything and more', async () => {
+    const { applyAfterSync } = await import('../../src/sync/run');
+    const sent = content({ library: [puzzle('a')] });
+    const current = content({ library: [puzzle('a'), puzzle('b')] });
+    assert.equal(applyAfterSync(sent, current, resultOf(snap({ updatedAt: 10 }), false), 20), null);
+  });
+});

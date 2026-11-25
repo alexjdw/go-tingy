@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadSyncSettings, saveSyncSettings } from '../storage/syncState';
 import { createDriveProvider } from '../sync/drive';
 import { SignInRequired } from '../sync/engine';
-import { type Content, type SyncMeta, emptyMeta, hasUnsyncedChanges, runSync } from '../sync/run';
+import { type Content, type SyncMeta, applyAfterSync, emptyMeta, hasUnsyncedChanges, runSync } from '../sync/run';
 import type { Snapshot } from '../sync/snapshot';
-import { getToken, signIn, signOut, syncAvailable } from './googleAuth';
+import { cachedToken, getToken, signIn, signOut, syncAvailable } from './googleAuth';
 
 export type SyncStatus = 'off' | 'idle' | 'syncing' | 'signin' | 'error' | 'damaged';
 
@@ -21,7 +21,7 @@ export interface SyncApi {
   lastSyncedAt: number | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  syncNow: (opts?: { replaceDamaged?: boolean }) => Promise<void>;
+  syncNow: (opts?: { replaceDamaged?: boolean; cachedOnly?: boolean }) => Promise<void>;
 }
 
 /**
@@ -42,6 +42,7 @@ export function useSync(o: {
   const [meta, setMeta] = useState<SyncMeta>(emptyMeta());
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const metaRef = useRef(meta);
+  const connectedRef = useRef(false);
   const running = useRef(false);
   const latest = useRef(o);
   useEffect(() => {
@@ -54,31 +55,35 @@ export function useSync(o: {
       metaRef.current = s.meta;
       setMeta(s.meta);
       setConnected(s.connected);
+      connectedRef.current = s.connected;
       setStatus(s.connected ? 'idle' : 'off');
       setSettingsLoaded(true);
     });
   }, []);
 
-  const syncNow = useCallback(async (opts: { replaceDamaged?: boolean } = {}) => {
+  const syncNow = useCallback(async (opts: { replaceDamaged?: boolean; cachedOnly?: boolean } = {}) => {
     if (running.current || !latest.current.ready) return;
+    // opening the app: never pop up Google's window by itself, which would also be blocked without a tap
+    if (opts.cachedOnly && !cachedToken()) {
+      setStatus('signin');
+      setMessage('Tap the cloud icon, or Sign in again in Settings, to sync with Google Drive.');
+      return;
+    }
     running.current = true;
     setStatus('syncing');
     setMessage('');
     try {
       const provider = createDriveProvider({ getToken });
-      const { result, meta: next } = await runSync(
-        provider,
-        latest.current.getContent(),
-        metaRef.current,
-        Date.now(),
-        opts,
-      );
+      const sent = latest.current.getContent();
+      const { result, meta: next } = await runSync(provider, sent, metaRef.current, Date.now(), opts);
       if (result.remoteDamaged) {
         setStatus('damaged');
         setMessage('The copy in Google Drive is damaged, so nothing was changed.');
         return;
       }
-      if (result.changedLocal) latest.current.apply(result.merged);
+      // the player may have changed things while this was running: keep those changes
+      const toApply = applyAfterSync(sent, latest.current.getContent(), result, Date.now());
+      if (toApply) latest.current.apply(toApply);
       metaRef.current = next;
       setMeta(next);
       await saveSyncSettings({ connected: true, meta: next });
@@ -97,12 +102,14 @@ export function useSync(o: {
   }, []);
 
   const connect = useCallback(async () => {
-    const t = await signIn();
+    // already connected (signing in again after the token ran out): no need to show the permission screen again
+    const t = await signIn(connectedRef.current ? '' : 'consent');
     if (!t) {
       setMessage('Google sign-in was cancelled or blocked.');
       return;
     }
     setConnected(true);
+    connectedRef.current = true;
     await saveSyncSettings({ connected: true, meta: metaRef.current });
     await syncNow();
   }, [syncNow]);
@@ -113,6 +120,7 @@ export function useSync(o: {
     metaRef.current = fresh;
     setMeta(fresh);
     setConnected(false);
+    connectedRef.current = false;
     setStatus('off');
     setMessage('');
     await saveSyncSettings({ connected: false, meta: fresh });
@@ -125,7 +133,7 @@ export function useSync(o: {
   useEffect(() => {
     if (!can || !first.current) return;
     first.current = false;
-    void syncNow();
+    void syncNow({ cachedOnly: true });
   }, [can, syncNow]);
 
   // after changes

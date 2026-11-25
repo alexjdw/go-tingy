@@ -1,5 +1,5 @@
 import { type SyncProvider, type SyncResult, syncOnce } from './engine';
-import { type Snapshot, contentKey } from './snapshot';
+import { type Snapshot, contentKey, mergeSnapshots } from './snapshot';
 
 /** What this device remembers about syncing (saved on the device, not in the cloud). */
 export interface SyncMeta {
@@ -40,10 +40,26 @@ export async function runSync(
   opts: { replaceDamaged?: boolean } = {},
 ): Promise<RunResult> {
   const local = stampLocal(content, meta, now);
-  const result = await syncOnce(provider, local, opts);
+  // a device that has never synced must not let its "newer" stamp wipe the cloud's lists and settings
+  const result = await syncOnce(provider, local, { ...opts, first: meta.syncedKey === null });
   if (result.remoteDamaged) return { result, meta };
   return {
     result,
     meta: { updatedAt: result.merged.updatedAt, lastSyncedAt: now, syncedKey: contentKey(result.merged) },
   };
+}
+
+const dataKey = (c: Content) => contentKey({ ...c, updatedAt: 0 });
+
+/**
+ * What to put in the app after a sync that `sent` the device's data and got `result` back. The sync takes a while, so
+ * the player may have changed things meanwhile (`current` differs from `sent`): applying `result.merged` as it is would
+ * throw those changes away. Then the merge is merged again with what is on the device now, which wins where they
+ * disagree; the changes also stay unsynced, so the next sync uploads them. Null when there is nothing to apply.
+ */
+export function applyAfterSync(sent: Content, current: Content, result: SyncResult, now: number): Snapshot | null {
+  const changedMeanwhile = dataKey(sent) !== dataKey(current);
+  if (!changedMeanwhile) return result.changedLocal ? result.merged : null;
+  if (!result.changedLocal) return null; // the device already holds everything, and more
+  return mergeSnapshots({ ...current, updatedAt: Math.max(now, result.merged.updatedAt + 1) }, result.merged);
 }

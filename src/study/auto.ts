@@ -43,15 +43,40 @@ export function pickAutoIds(
   return out;
 }
 
-/**
- * Where auto mode is: the chosen ids, the one being played, and how many attempts it had left when its run was opened
- * (so that backing out of a run without playing ends auto mode instead of reopening the same puzzle).
- */
+/** Where auto mode is: the chosen ids and the one being played. */
 export interface AutoPlan {
   ids: string[];
   index: number;
-  leftAtOpen: number;
 }
+
+/** What the run screen shows in auto mode: where the player is in the set, and what its Next button does. */
+export interface AutoStatus {
+  /** 1-based position of the current puzzle */
+  position: number;
+  total: number;
+  /** puzzles still to come after this one */
+  left: number;
+  /** the Next button: another attempt at this puzzle, the next puzzle, or the end */
+  nextLabel: string;
+}
+
+export function autoStatus(
+  plan: AutoPlan,
+  s: LearningState,
+  items: ReadonlyMap<string, AutoItem>,
+  day: string,
+): AutoStatus {
+  const next = nextAutoIndex(plan, plan.index, s, items, day);
+  return {
+    position: plan.index + 1,
+    total: plan.ids.length,
+    left: plan.ids.length - plan.index - 1,
+    nextLabel: next === null ? 'Finish' : next === plan.index ? 'Next attempt ›' : 'Next puzzle ›',
+  };
+}
+
+/** The line shown in the header of a run, like "Auto 2 of 5 · 3 to go". */
+export const autoText = (a: AutoStatus) => `Auto ${a.position} of ${a.total} · ${a.left} to go`;
 
 /**
  * The next puzzle auto mode should open, at or after `from`: the first one that can still be played today. Null when

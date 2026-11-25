@@ -74,6 +74,11 @@ interface Props {
   /** Show the first-time introduction to guided runs, until onTutorialDone. */
   tutorial?: string;
   onTutorialDone?: () => void;
+  /**
+   * Guided learning's auto mode: where the player is in the set, and the Next button that goes on once this run is
+   * over. Back then ends auto mode.
+   */
+  auto?: { position: number; total: number; left: number; nextLabel: string; onNext: () => void };
 }
 
 const MODE_LABEL: Record<Mode, string> = {
@@ -92,6 +97,7 @@ export function Study({
   onRunStart,
   onRunResult,
   session,
+  auto,
   onNext,
   onSkip,
   onSplit,
@@ -394,7 +400,7 @@ export function Study({
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <View style={styles.header}>
-        <Btn label={session ? '‹ End' : '‹ Back'} onPress={onExit} kind="ghost" />
+        <Btn label={session ? '‹ End' : auto ? '‹ End auto' : '‹ Back'} onPress={onExit} kind="ghost" />
         <View style={{ flex: 1, marginLeft: 8 }}>
           <Text style={styles.title} numberOfLines={1}>
             {problem.title}
@@ -405,6 +411,7 @@ export function Study({
               : session
                 ? `Review ${session.position} of ${session.total}`
                 : MODE_LABEL[mode]}
+            {auto ? ` · Auto ${auto.position} of ${auto.total} · ${auto.left} to go` : ''}
             {twoSided ? ` · joseki, side ${side === 'first' ? 1 : 2} of 2` : ''}
             {mode !== 'explore' ? ` · ${(elapsed / 1000).toFixed(0)}s` : ''}
             {engine.flipped ? ' · colors flipped' : ''}
@@ -513,6 +520,9 @@ export function Study({
           </>
         )}
         {sidePending ? <Btn label="Other side ›" onPress={otherSide} /> : null}
+        {auto && run && (paper ? rating !== null : s.status === 'solved') && !sidePending ? (
+          <Btn label={auto.nextLabel} onPress={auto.onNext} />
+        ) : null}
         {mode === 'explore' ? (
           <>
             <Btn label="Forward ›" onPress={stepForward} disabled={!engine.canForward} />

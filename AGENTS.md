@@ -103,15 +103,13 @@ makes up to `count` of them a _priority_ for `days` days: `LearningState.priorit
 (`priorityFirst`) and first in a spaced session when due (`pickSessionIds`' `first`). The settings are in the synced `Settings`.
 
 Guided learning has an **Auto** button: pick N, and `pickAutoIds` (`src/study/auto.ts`) takes N puzzles that can be played
-today, red first, then yellow, green, gold, random inside a level, never diamond. `App.tsx` keeps the plan in `autoRef`; leaving a
-run (`leaveRun`) opens the next run (`swap`, with a `nonce` so the same puzzle remounts) when the run used an attempt, and
-stays on the puzzle until its 2 daily attempts are gone; backing out of a run that used none ends auto mode.
+today, red first, then yellow, green, gold, random inside a level, never diamond. `App.tsx` keeps the plan in the `auto` state. A run screen shows "Auto 2 of 5 · 3 to go" (`autoStatus`) and, once the run is over, a Next button (`autoNext`: Next attempt, Next puzzle or Finish; `swap`, with a `nonce` so the same puzzle remounts) that stays on a puzzle until its 2 daily attempts are gone. Back (`‹ End auto`) always ends auto mode.
 
 Reaching diamond on a timed run asks (`DiamondPrompt`) whether to move the puzzle to spaced repetition
 (`graduateToSpaced`): it leaves guided learning (scores kept), joins spaced repetition, and if it was not there its history gets
 ten perfect attempts (gold, due in three weeks). Long press or double tap on a collection or folder chip in Browse opens
 `BulkMenu`: add or remove everything inside (folders too) to or from either mode. `ChipRow` wraps and folds to three lines
-with View more. Tests: `tests/progress/backlog.test.ts`, `tests/study/auto.test.ts`, `tests/web/backlog.web.ts`,
+with View more. Letters (LB) on a puzzle only force a choice when one of them is a correct branch (`choicePoints`); otherwise they just explain. Tests: `tests/progress/backlog.test.ts`, `tests/study/auto.test.ts`, `tests/web/backlog.web.ts`,
 `tests/web/chips.web.ts`, `tests/web/collections.web.ts`.
 
 ## Paper mode
@@ -192,9 +190,9 @@ iPhone users run the web app (an iOS app needs Apple signing), hosted free on Gi
 (`npx tsx scripts/make-web-icons.ts`) and `index.html` with the iOS meta tags; links in it must stay relative.
 Settings has **Sync with Google Drive** (web only, hidden unless `EXPO_PUBLIC_GOOGLE_CLIENT_ID` was set at build time): the
 player's puzzles, attempts, joseki list, learning state and settings are one JSON file in their own Drive `appDataFolder`
-(scope `drive.appdata` only). Sign-in is Google's token client (`src/ui/googleAuth.ts`, no secret, token in memory only);
+(scope `drive.appdata` only). Sign-in is Google's token client (`src/ui/googleAuth.ts`, no secret, token in memory and the tab's session storage, so a reload does not ask Google again; opening the app never opens Google's window by itself, a tap on the amber cloud on Home does);
 `src/ui/useSync.ts` syncs on opening, 15 s after a change, and when the tab regains focus, never while a puzzle is open.
-The merge (`src/sync/snapshot.ts`) is pure: puzzles by id, deletions as markers (`deleted.v1`), attempts combined once
+The merge (`src/sync/snapshot.ts`) is pure (a device that never synced keeps the cloud's lists and settings, `first`; `applyAfterSync` in `run.ts` keeps what changed while a sync ran): puzzles by id, deletions as markers (`deleted.v1`), attempts combined once
 each, the more practiced learning record wins, and the newer device wins for settings, joseki and which puzzles are in a
 learning list. A damaged cloud file is never overwritten unless the player asks. Tests: `tests/sync/sync.test.ts`,
 `tests/web/sync.web.ts` (two devices, fake Drive).

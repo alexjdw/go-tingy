@@ -17,6 +17,24 @@ describe('choice modes', () => {
     assert.equal(new StudyEngine(mc, 'guided').play({ x: 9, y: 9 }), 'wrong', 'guided is unrestricted');
   });
 
+  it('letters that explain something, with no correct branch among them, force nothing', () => {
+    // A and B only point things out: the answer is at cc, which carries no letter
+    const talk = `(;SZ[19]PL[B]AB[aa]AW[ab]LB[ee:A][ff:B]
+    (;B[cc]TE[1])(;B[dd]BM[1]))`;
+    const e = new StudyEngine(talk, 'unguided');
+    assert.deepEqual(e.choicePoints(), []);
+    assert.equal(e.play({ x: 9, y: 9 }), 'wrong', 'any point may be played, so this is a real mistake, not ignored');
+    assert.equal(e.play({ x: 2, y: 2 }), 'solved');
+    // a lettered point that is a wrong branch does not make the letters choices either
+    const wrongOnly = `(;SZ[19]PL[B]AB[aa]AW[ab]LB[dd:A][ee:B]
+    (;B[cc]TE[1])(;B[dd]BM[1]))`;
+    assert.deepEqual(new StudyEngine(wrongOnly, 'unguided').choicePoints(), []);
+    // one correct lettered branch is enough to make them all choices
+    const some = `(;SZ[19]PL[B]AB[aa]AW[ab]LB[cc:A][dd:B]
+    (;B[cc]TE[1])(;B[dd]BM[1]))`;
+    assert.equal(new StudyEngine(some, 'unguided').choicePoints().length, 2);
+  });
+
   it('mark-the-choices phase at the root', () => {
     // mark-the-choices phase at the root
     const mk2 = `(;SZ[19]PL[B]AB[aa]AW[ab]

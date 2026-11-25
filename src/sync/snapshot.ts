@@ -121,8 +121,11 @@ function mergeDaily(preferred: LearningState['attempts'], other: LearningState['
  *  - puzzles: all of them, by id; a deleted puzzle stays deleted; if both changed one, the newer snapshot's copy wins
  *  - attempts: all of them, once each
  *  - learning scores: the more practiced record per puzzle
+ *
+ * `first` is for a device that has never synced (so its "newer" stamp only means "not synced yet"): then nothing of
+ * the cloud's is dropped. The study lists and the joseki list are the union of both, and the cloud's settings win.
  */
-export function mergeSnapshots(a: Snapshot, b: Snapshot): Snapshot {
+export function mergeSnapshots(a: Snapshot, b: Snapshot, opts: { first?: boolean } = {}): Snapshot {
   const [older, newer] = a.updatedAt > b.updatedAt ? [b, a] : [a, b]; // a tie goes to `b` (the cloud copy)
   const deleted: Record<string, number> = { ...older.deleted };
   for (const [id, t] of Object.entries(newer.deleted)) deleted[id] = Math.max(t, deleted[id] ?? 0);
@@ -140,8 +143,8 @@ export function mergeSnapshots(a: Snapshot, b: Snapshot): Snapshot {
   const only = <T>(rec: Record<string, T>) => Object.fromEntries(Object.entries(rec).filter(([id]) => alive(id)));
   const learning: LearningState = {
     version: 1,
-    spaced: only(newer.learning.spaced),
-    learning: only(newer.learning.learning),
+    spaced: only(opts.first ? { ...a.learning.spaced, ...b.learning.spaced } : newer.learning.spaced),
+    learning: only(opts.first ? { ...a.learning.learning, ...b.learning.learning } : newer.learning.learning),
     scores: only(mergeScores(newer.learning.scores, older.learning.scores)),
     attempts: only(mergeDaily(newer.learning.attempts, older.learning.attempts)),
   };
@@ -157,8 +160,8 @@ export function mergeSnapshots(a: Snapshot, b: Snapshot): Snapshot {
     library: [...byId.values()],
     deleted,
     progress,
-    joseki: newer.joseki.filter(alive),
+    joseki: (opts.first ? [...new Set([...a.joseki, ...b.joseki])] : newer.joseki).filter(alive),
     learning,
-    settings: { ...older.settings, ...newer.settings },
+    settings: opts.first ? { ...a.settings, ...b.settings } : { ...older.settings, ...newer.settings },
   };
 }
