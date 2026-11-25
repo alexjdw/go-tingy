@@ -67,7 +67,7 @@ src/data/samples.ts       built-in demo problems and the Problem type
 src/ui/screens/           Home, Browse, LearningHome, SessionScreen, Prune, Study, TimedScreen (a learning
                           run), Editor, FromGame (New from game), ImportScreen, SettingsScreen
 src/ui/components/        Board (SVG), PuzzleTile/PuzzleGrid/PlusMenu/CollectionBar,
-                          LearningBadge (🔴 🟡 🟢 ✨ 💎), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
+                          LearningBadge (SVG: red, yellow, green dots, gold star, diamond), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
 src/ui/batch.ts           tile batch rules: 10 at a time (pure TS, tested)
 src/ui/zoom.ts, sound.ts  zoom hook, stone sound
 tests/                    node:test suites, one folder per area like src/ (sgf, go, study, progress, storage, nav, ui, data),
@@ -92,6 +92,27 @@ Joseki mode is a per-puzzle toggle, remembered in `joseki.v1`, set from Study or
 every mode (Browse, sessions, guided and timed runs, not free exploration): the puzzle is played from the first side,
 then from the second (`StudyEngine` option `side: 'second'` plays move 1 for you, with the same colors). A session or
 guided run counts both sides as one attempt; a timed run needs every line from both sides.
+
+## Backlog, auto mode and diamond
+
+Settings has **Work through a backlog**: `backlogCount` (default 5) and `backlogDays` (default 7), plus Choose puzzles, which opens
+`BacklogPicker` (screen `backlog`). It lists puzzles in spaced repetition or guided learning, lowest score first
+(`backlogCandidates` in `src/progress/backlog.ts`: the average of the guided progress and the spaced score), and Confirm
+makes up to `count` of them a _priority_ for `days` days: `LearningState.priority` (id -> end time, optional, synced:
+`mergeSnapshots` keeps both devices' entries, the later end winning). Priority puzzles are at the top of the guided list
+(`priorityFirst`) and first in a spaced session when due (`pickSessionIds`' `first`). The settings are in the synced `Settings`.
+
+Guided learning has an **Auto** button: pick N, and `pickAutoIds` (`src/study/auto.ts`) takes N puzzles that can be played
+today, red first, then yellow, green, gold, random inside a level, never diamond. `App.tsx` keeps the plan in `autoRef`; leaving a
+run (`leaveRun`) opens the next run (`swap`, with a `nonce` so the same puzzle remounts) when the run used an attempt, and
+stays on the puzzle until its 2 daily attempts are gone; backing out of a run that used none ends auto mode.
+
+Reaching diamond on a timed run asks (`DiamondPrompt`) whether to move the puzzle to spaced repetition
+(`graduateToSpaced`): it leaves guided learning (scores kept), joins spaced repetition, and if it was not there its history gets
+ten perfect attempts (gold, due in three weeks). Long press or double tap on a collection or folder chip in Browse opens
+`BulkMenu`: add or remove everything inside (folders too) to or from either mode. `ChipRow` wraps and folds to three lines
+with View more. Tests: `tests/progress/backlog.test.ts`, `tests/study/auto.test.ts`, `tests/web/backlog.web.ts`,
+`tests/web/chips.web.ts`, `tests/web/collections.web.ts`.
 
 ## Paper mode
 

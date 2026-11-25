@@ -1,9 +1,10 @@
 import { useMemo, useReducer, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Problem } from '../../data/samples';
+import { isPriority } from '../../progress/backlog';
 import { type LearningState, inCategory, isDueNow } from '../../progress/learning';
 import type { Attempt, ProgressMap } from '../../progress/skill';
-import { SessionQueue, pickSessionIds } from '../../study/session';
+import { SESSION_SIZE, SessionQueue, pickSessionIds } from '../../study/session';
 import type { Settings } from '../../storage/settings';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Btn, theme } from '../components/theme';
@@ -42,7 +43,12 @@ export function SessionScreen({
 }: Props) {
   const byId = useMemo(() => new Map(problems.map((p) => [p.id, p])), [problems]);
   const dueIds = () => problems.filter((p) => isDueNow(learning, p.id, progress[p.id])).map((p) => p.id);
-  const [queue, setQueue] = useState(() => new SessionQueue(pickSessionIds(dueIds())));
+  // priority puzzles (see the backlog setting) come first
+  const pickIds = () => {
+    const due = dueIds();
+    return pickSessionIds(due, Math.random, SESSION_SIZE, new Set(due.filter((id) => isPriority(learning, id))));
+  };
+  const [queue, setQueue] = useState(() => new SessionQueue(pickIds()));
   const [batch, setBatch] = useState(0);
   const [, force] = useReducer((n: number) => n + 1, 0);
 
@@ -121,7 +127,7 @@ export function SessionScreen({
           <Btn
             label={`Review ${Math.min(dueNow, 20)} more`}
             onPress={() => {
-              setQueue(new SessionQueue(pickSessionIds(dueIds())));
+              setQueue(new SessionQueue(pickIds()));
               setBatch((b) => b + 1);
             }}
           />

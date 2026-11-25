@@ -5,7 +5,7 @@ import { type SyncProvider, SignInRequired, syncOnce } from '../../src/sync/engi
 import { DRIVE_SCOPE, SYNC_FILE_NAME, createDriveProvider } from '../../src/sync/drive';
 import type { Attempt } from '../../src/progress/skill';
 
-const SETTINGS = { markChoices: 'off', flipColors: 'random', paper: 'off' } as const;
+const SETTINGS = { markChoices: 'off', flipColors: 'random', paper: 'off', backlogCount: 5, backlogDays: 7 } as const;
 const snap = (over: Partial<Snapshot> = {}): Snapshot => ({
   version: 1,
   updatedAt: 1000,
@@ -67,6 +67,18 @@ describe('merging two devices', () => {
       assert.equal(m.settings.paper, 'off');
       assert.equal(m.updatedAt, 2);
     }
+  });
+
+  it('keeps the priorities of both devices, the later end date winning, and drops those of deleted puzzles', () => {
+    const l = (priority: Record<string, number>) => ({ ...snap().learning, priority });
+    const a = snap({ updatedAt: 1, learning: l({ x: 100, y: 500, gone: 9 }) });
+    const b = snap({ updatedAt: 2, learning: l({ x: 300, z: 7 }), deleted: { gone: 5 } });
+    for (const m of [mergeSnapshots(a, b), mergeSnapshots(b, a)]) {
+      assert.deepEqual(m.learning.priority, { x: 300, y: 500, z: 7 });
+    }
+    assert.equal('priority' in mergeSnapshots(snap(), snap()).learning, false, 'no priorities, no field');
+    assert.equal(sameContent(a, snap({ updatedAt: 9, learning: l({ x: 100, y: 500, gone: 9 }) })), true);
+    assert.equal(sameContent(a, snap({ learning: l({ x: 101, y: 500, gone: 9 }) })), false);
   });
 
   it('keeps the more practiced learning record, and the later day count', () => {

@@ -222,6 +222,8 @@ describe('journeys', { skip: skipWithoutChrome }, () => {
     await click(page, 'Start');
     await tapBoard(page, CORNER.sgf, ANSWER[CORNER.id]);
     await expectText(page, 'All 1 line solved');
+    await expectText(page, 'Move it to spaced repetition?'); // solved this fast, it is diamond
+    await click(page, 'No, keep it in guided learning');
     await click(page, 'Done');
     await expectText(page, /Best: \w+ · \d/);
     await expectText(page, 'Tomorrow');

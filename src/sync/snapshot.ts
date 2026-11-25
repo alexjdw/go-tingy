@@ -73,6 +73,7 @@ function canonical(s: Snapshot): unknown {
       learning: sortKeys(s.learning.learning),
       scores: sortKeys(s.learning.scores),
       attempts: sortKeys(s.learning.attempts),
+      priority: sortKeys(s.learning.priority ?? {}),
     },
     settings: sortKeys(s.settings as unknown as Record<string, unknown>),
   };
@@ -144,6 +145,11 @@ export function mergeSnapshots(a: Snapshot, b: Snapshot): Snapshot {
     scores: only(mergeScores(newer.learning.scores, older.learning.scores)),
     attempts: only(mergeDaily(newer.learning.attempts, older.learning.attempts)),
   };
+  // priorities from both devices are kept, the later end date winning
+  const priority: Record<string, number> = {};
+  for (const src of [older.learning.priority, newer.learning.priority])
+    for (const [id, end] of Object.entries(src ?? {})) if (alive(id)) priority[id] = Math.max(end, priority[id] ?? 0);
+  if (Object.keys(priority).length) learning.priority = priority;
 
   return {
     version: 1,

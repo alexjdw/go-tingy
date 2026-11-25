@@ -1,24 +1,28 @@
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { Problem } from '../../data/samples';
+import { isPriority, priorityDaysLeft, priorityFirst } from '../../progress/backlog';
 import {
   type Category,
+  DAILY_LIMIT,
   type LearningState,
   inCategory,
   localDay,
   learningProgress,
   skillMark,
 } from '../../progress/learning';
+import { DEFAULT_AUTO_COUNT } from '../../study/auto';
 import { type RunKind, learningAction } from '../../progress/practice';
 import { cachedLearnerDepth } from '../../study/lines';
 import type { ProgressMap } from '../../progress/skill';
 import { tileStats } from '../../progress/stats';
 import { LearningBadge } from '../components/LearningBadge';
+import { NumberField } from '../components/NumberField';
 import { PlusMenu } from '../components/PlusMenu';
 import { PuzzleGrid } from '../components/PuzzleGrid';
 import { PuzzleTile } from '../components/PuzzleTile';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { Btn } from '../components/theme';
+import { Btn, theme } from '../components/theme';
 
 interface Props {
   problems: Problem[];
@@ -30,6 +34,8 @@ interface Props {
   onBack: () => void;
   onAddPuzzles: () => void;
   onPlay: (p: Problem, kind: RunKind) => void;
+  /** auto mode: pick this many puzzles and play them one after another */
+  onAuto: (count: number) => void;
   onToggleCategory: (id: string, category: Category, on: boolean) => void;
 }
 
@@ -46,11 +52,22 @@ export function LearningHome({
   onBack,
   onAddPuzzles,
   onPlay,
+  onAuto,
   onToggleCategory,
 }: Props) {
   const [menu, setMenu] = useState<Problem | null>(null);
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [autoCount, setAutoCount] = useState(DEFAULT_AUTO_COUNT);
   const day = localDay(new Date());
-  const members = useMemo(() => problems.filter((p) => inCategory(learning, 'learning', p.id)), [problems, learning]);
+  // priority puzzles (see the backlog setting) are always at the top
+  const members = useMemo(
+    () =>
+      priorityFirst(
+        problems.filter((p) => inCategory(learning, 'learning', p.id)),
+        learning,
+      ),
+    [problems, learning],
+  );
   const actions = useMemo(
     () => new Map(members.map((p) => [p.id, learningAction(learning, p.id, cachedLearnerDepth(p.sgf), day)])),
     [members, learning, day],
@@ -63,8 +80,28 @@ export function LearningHome({
         title="Guided Learning"
         subtitle={`${members.length} puzzle${members.length === 1 ? '' : 's'} · ${ready} ready today`}
         onBack={onBack}
-        right={<Btn label="Add puzzles" onPress={onAddPuzzles} />}
+        right={
+          <>
+            <Btn
+              label="Auto"
+              kind={autoOpen ? 'solid' : 'ghost'}
+              disabled={members.length === 0}
+              onPress={() => setAutoOpen((o) => !o)}
+            />
+            <Btn label="Add puzzles" onPress={onAddPuzzles} />
+          </>
+        }
       />
+      {autoOpen ? (
+        <View style={styles.auto}>
+          <Text style={styles.autoText}>
+            Auto mode picks puzzles for you, the ones you know least first (never diamond), and moves on to the next
+            when the {DAILY_LIMIT} attempts for today on a puzzle are used up.
+          </Text>
+          <NumberField label="How many puzzles" value={autoCount} min={1} max={100} onChange={setAutoCount} />
+          <Btn label="Start auto mode" onPress={() => onAuto(autoCount)} />
+        </View>
+      ) : null}
     </View>
   );
 
@@ -84,7 +121,10 @@ export function LearningHome({
               bar={learningProgress(learning, p.id, cachedLearnerDepth(p.sgf))}
               badge={<LearningBadge mark={skillMark(learning, p.id, cachedLearnerDepth(p.sgf))} />}
               caption={a.caption}
-              tags={joseki.includes(p.id) ? ['Joseki'] : []}
+              tags={[
+                isPriority(learning, p.id) ? `Priority · ${priorityDaysLeft(learning, p.id)}d left` : '',
+                joseki.includes(p.id) ? 'Joseki' : '',
+              ].filter(Boolean)}
               stats={() =>
                 tileStats({
                   id: p.id,
@@ -125,3 +165,8 @@ export function LearningHome({
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  auto: { backgroundColor: theme.card, borderRadius: 12, padding: 14, gap: 10 },
+  autoText: { color: theme.muted, fontSize: 13 },
+});

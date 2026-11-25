@@ -10,6 +10,7 @@ import {
   emptyLearningState,
   guidedStatus,
   inCategory,
+  puzzleTimedLevel,
   isDueNow,
   localDay,
   learningProgress,
@@ -19,6 +20,8 @@ import {
   setCategory,
   setCategoryMany,
 } from './progress/learning';
+import { graduateToSpaced, setPriority } from './progress/backlog';
+import { type AutoPlan, nextAutoIndex, pickAutoIds } from './study/auto';
 import { type RunKind, learningAction } from './progress/practice';
 import { type Attempt, type ProgressMap, type SelfRating, recordAttempt } from './progress/skill';
 import { depthOf, toDepth } from './nav/history';
@@ -41,6 +44,8 @@ import { cachedLearnerDepth } from './study/lines';
 import type { Mode } from './study/engine';
 import type { Snapshot } from './sync/snapshot';
 import { theme } from './ui/components/theme';
+import { DiamondPrompt } from './ui/components/DiamondPrompt';
+import { BacklogPicker } from './ui/screens/BacklogPicker';
 import { useSync } from './ui/useSync';
 import { Browse } from './ui/screens/Browse';
 import { Editor } from './ui/screens/Editor';
@@ -64,6 +69,7 @@ type Screen =
   | { name: 'session' }
   | { name: 'prune' }
   | { name: 'settings' }
+  | { name: 'backlog' }
   | { name: 'about' }
   | { name: 'import' }
   | { name: 'fromGame' }
@@ -75,8 +81,10 @@ type Screen =
       run?: { freeMoves: number; learnerMoves: number };
       /** the color flip chosen when the puzzle opened, kept while its mode changes */
       flipped?: boolean;
+      /** tells two runs of the same puzzle apart (auto mode opens the same puzzle again) */
+      nonce?: number;
     }
-  | { name: 'timedRun'; problem: Problem };
+  | { name: 'timedRun'; problem: Problem; nonce?: number };
 
 const learningStore = createLearningStore(asyncKv);
 
@@ -98,6 +106,11 @@ export default function App() {
   const [ready, setReady] = useState(false);
   // the latest learning state, so several updates in one event see each other
   const learningRef = useRef(learning);
+  /** guided learning's auto mode, while it is going */
+  const autoRef = useRef<AutoPlan | null>(null);
+  const nonceRef = useRef(0);
+  /** a puzzle that just reached diamond, while the player is asked about moving it to spaced repetition */
+  const [diamondId, setDiamondId] = useState<string | null>(null);
 
   const go = useCallback((s: Screen) => setStack((st) => push(st, s)), []);
   // On the web the browser's history mirrors the stack, so Back is the browser's Back.
@@ -284,18 +297,82 @@ export default function App() {
     updateLearning((s) => setCategoryMany(s, cat, ids, on));
 
   /** Start the next training step of a learning puzzle: a guided run, or a timed run. */
-  const startRun = (problem: Problem, kind: RunKind) => {
+  const startRun = (problem: Problem, kind: RunKind, nav: (s: Screen) => void = go, nonce?: number) => {
     const s = learningRef.current;
     if (attemptsLeft(s, problem.id, localDay(new Date())) <= 0) return; // two a day
-    if (kind === 'learning') return go({ name: 'timedRun', problem });
+    if (kind === 'learning') return nav({ name: 'timedRun', problem, nonce });
     const learnerMoves = cachedLearnerDepth(problem.sgf);
     const { free } = guidedStatus(s, problem.id, learnerMoves);
-    go({ name: 'study', problem, mode: 'unguided', run: { freeMoves: free, learnerMoves } });
+    nav({ name: 'study', problem, mode: 'unguided', run: { freeMoves: free, learnerMoves }, nonce });
   };
 
+  /**
+   * Auto mode: open the next puzzle that can still be played today, from the current one on. Returns false (and ends
+   * auto mode) when there is none.
+   */
+  const autoStep = (nav: (s: Screen) => void, from: number): boolean => {
+    const plan = autoRef.current;
+    if (!plan) return false;
+    const day = localDay(new Date());
+    const s = learningRef.current;
+    const items = new Map(problems.map((p) => [p.id, { id: p.id, learnerMoves: cachedLearnerDepth(p.sgf) }] as const));
+    const i = nextAutoIndex(plan, from, s, items, day);
+    const problem = i === null ? undefined : problems.find((p) => p.id === plan.ids[i]);
+    if (i === null || !problem) {
+      autoRef.current = null;
+      return false;
+    }
+    const kind = learningAction(s, problem.id, items.get(problem.id)!.learnerMoves, day).kind;
+    if (!kind) {
+      autoRef.current = null;
+      return false;
+    }
+    autoRef.current = { ...plan, index: i, leftAtOpen: attemptsLeft(s, problem.id, day) };
+    startRun(problem, kind, nav, ++nonceRef.current);
+    return true;
+  };
+
+  const startAuto = (count: number) => {
+    const s = learningRef.current;
+    const items = problems
+      .filter((p) => inCategory(s, 'learning', p.id))
+      .map((p) => ({ id: p.id, learnerMoves: cachedLearnerDepth(p.sgf) }));
+    const ids = pickAutoIds(items, s, localDay(new Date()), count);
+    if (!ids.length) return;
+    autoRef.current = { ids, index: 0, leftAtOpen: 0 };
+    autoStep(go, 0);
+  };
+
+  /** Leave a run. In auto mode a run that used an attempt leads straight on to the next one; backing out ends auto. */
   const leaveRun = () => {
     backupLearning();
+    const plan = autoRef.current;
+    if (plan) {
+      const id = plan.ids[plan.index];
+      const left = attemptsLeft(learningRef.current, id, localDay(new Date()));
+      if (left < plan.leftAtOpen && autoStep(swap, plan.index)) return;
+      autoRef.current = null;
+    }
     back();
+  };
+
+  // auto mode ends when the player is no longer in a run (for example the browser's Back button)
+  useEffect(() => {
+    const inRun = screen.name === 'timedRun' || (screen.name === 'study' && !!screen.run);
+    if (!inRun) autoRef.current = null;
+  }, [screen]);
+
+  /** The player answered the diamond prompt. */
+  const answerDiamond = (move: boolean) => {
+    const id = diamondId;
+    setDiamondId(null);
+    if (!id || !move) return;
+    const g = graduateToSpaced(learningRef.current, progress, id);
+    updateLearning(() => g.learning);
+    if (g.progress !== progress) {
+      setProgress(g.progress);
+      void saveProgress(g.progress);
+    }
   };
 
   /** What to tell the player after a guided run. */
@@ -331,6 +408,7 @@ export default function App() {
           onSpaced={() => go({ name: 'session' })}
           onBrowse={() => go({ name: 'browse' })}
           onSettings={() => go({ name: 'settings' })}
+          sync={sync}
         />
       )}
 
@@ -365,7 +443,8 @@ export default function App() {
           onJosekiChange={setJosekiMode}
           onBack={back}
           onAddPuzzles={() => go({ name: 'browse', addTo: 'learning' })}
-          onPlay={startRun}
+          onPlay={(p, kind) => startRun(p, kind)}
+          onAuto={startAuto}
           onToggleCategory={toggleCategory}
         />
       )}
@@ -397,7 +476,7 @@ export default function App() {
 
       {screen.name === 'study' && (
         <Study
-          key={`${screen.problem.id}-${screen.mode}-${screen.run ? 'run' : 'plain'}`}
+          key={`${screen.problem.id}-${screen.mode}-${screen.run ? 'run' : 'plain'}-${screen.nonce ?? 0}`}
           problem={screen.problem}
           mode={screen.mode}
           settings={settings}
@@ -426,14 +505,20 @@ export default function App() {
 
       {screen.name === 'timedRun' && (
         <TimedScreen
-          key={screen.problem.id}
+          key={`${screen.problem.id}-${screen.nonce ?? 0}`}
           problem={screen.problem}
           joseki={joseki.includes(screen.problem.id)}
           bar={learningProgress(learning, screen.problem.id, cachedLearnerDepth(screen.problem.sgf))}
           best={learning.scores[screen.problem.id]?.best}
           onExit={leaveRun}
           onFirstMove={() => updateLearning((s) => recordAttemptStart(s, screen.problem.id, localDay(new Date())))}
-          onFinish={(r: TimedResult) => updateLearning((s) => recordTimedResult(s, screen.problem.id, r))}
+          onFinish={(r: TimedResult) => {
+            const id = screen.problem.id;
+            const before = puzzleTimedLevel(learningRef.current, id);
+            const next = updateLearning((s) => recordTimedResult(s, id, r));
+            // reaching diamond for the first time: offer to move the puzzle to spaced repetition
+            if (before !== 'diamond' && puzzleTimedLevel(next, id) === 'diamond') setDiamondId(id);
+          }}
         />
       )}
 
@@ -446,7 +531,24 @@ export default function App() {
           }}
           onBack={back}
           onAbout={() => go({ name: 'about' })}
+          onPickBacklog={() => go({ name: 'backlog' })}
           sync={sync}
+        />
+      )}
+
+      {screen.name === 'backlog' && (
+        <BacklogPicker
+          problems={problems}
+          progress={progress}
+          learning={learning}
+          joseki={joseki}
+          count={settings.backlogCount}
+          days={settings.backlogDays}
+          onBack={back}
+          onConfirm={(ids) => {
+            updateLearning((s) => setPriority(s, ids, settings.backlogDays));
+            back();
+          }}
         />
       )}
 
@@ -464,6 +566,12 @@ export default function App() {
           onImport={addMany}
         />
       )}
+      <DiamondPrompt
+        title={diamondId ? (problems.find((p) => p.id === diamondId)?.title ?? 'This puzzle') : null}
+        inSpaced={diamondId ? inCategory(learning, 'spaced', diamondId) : false}
+        onMove={() => answerDiamond(true)}
+        onKeep={() => answerDiamond(false)}
+      />
     </SafeAreaView>
   );
 }

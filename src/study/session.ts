@@ -26,9 +26,26 @@ export function shuffle<T>(items: readonly T[], rng: () => number = Math.random)
   return a;
 }
 
-/** The ids for the next session: the due puzzles in random order, at most `limit` of them. */
-export const pickSessionIds = (dueIds: readonly string[], rng: () => number = Math.random, limit = SESSION_SIZE) =>
-  shuffle(dueIds, rng).slice(0, limit);
+/**
+ * The ids for the next session: the due puzzles in random order, at most `limit` of them. Puzzles in `first` (the
+ * priority ones) come before all the others, each group in random order.
+ */
+export const pickSessionIds = (
+  dueIds: readonly string[],
+  rng: () => number = Math.random,
+  limit = SESSION_SIZE,
+  first: ReadonlySet<string> = new Set(),
+) =>
+  [
+    ...shuffle(
+      dueIds.filter((id) => first.has(id)),
+      rng,
+    ),
+    ...shuffle(
+      dueIds.filter((id) => !first.has(id)),
+      rng,
+    ),
+  ].slice(0, limit);
 
 export class SessionQueue {
   private items: string[];

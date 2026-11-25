@@ -1,5 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SyncIndicator } from '../components/SyncIndicator';
 import { Btn, theme } from '../components/theme';
+import type { SyncApi } from '../useSync';
 
 interface Props {
   /** spaced-repetition puzzles due right now */
@@ -15,6 +17,8 @@ interface Props {
   onSpaced: () => void;
   onBrowse: () => void;
   onSettings: () => void;
+  /** Google Drive sync, to show whether the player is signed in */
+  sync?: SyncApi;
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -30,6 +34,7 @@ export function Home({
   onSpaced,
   onBrowse,
   onSettings,
+  sync,
 }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
@@ -40,6 +45,7 @@ export function Home({
           </Text>
           <Text style={styles.sub}>How do you want to study?</Text>
         </View>
+        <SyncIndicator sync={sync} onPress={onSettings} />
         <Btn label="Settings" kind="ghost" onPress={onSettings} />
       </View>
 

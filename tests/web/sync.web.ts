@@ -93,17 +93,27 @@ describe('syncing with Google Drive in the browser', { skip: skipWithoutChrome }
     await expectText(page, 'Sync with Google Drive');
   };
 
+  /** What the cloud icon on the home screen says (null when there is none). */
+  const indicator = (page: Page) =>
+    page.evaluate(
+      `(() => { const e = document.querySelector('[aria-label^="Google Drive:"]'); return e ? e.getAttribute('aria-label') : null; })()`,
+    ) as Promise<string | null>;
+
   let one: Page;
   let two: Page;
 
   it("offers sync in Settings, and uploads this device's puzzles after signing in", async () => {
     one = await device([PUZZLE]);
+    assert.equal(await indicator(one), 'Google Drive: not signed in', 'the home screen says so before signing in');
     await openSettings(one);
     await click(one, 'Sign in with Google');
     await expectText(one, /Last synced: (?!not yet)/);
     assert.ok(drive.text, 'a file was created in the fake Drive');
     assert.equal(drive.writes, 1);
     assert.ok(drive.text.includes(PUZZLE.id));
+    await one.goBack();
+    assert.equal(await indicator(one), 'Google Drive: signed in');
+    await openSettings(one);
   });
 
   it("a second device gets the first one's puzzles after signing in", async () => {
@@ -135,6 +145,8 @@ describe('syncing with Google Drive in the browser', { skip: skipWithoutChrome }
     await click(one, 'Sign out');
     await expectText(one, 'Sign in with Google');
     await expectNoText(one, 'Sync now');
+    await one.goBack();
+    assert.equal(await indicator(one), 'Google Drive: not signed in');
   });
 
   it('threw no errors', async () => {

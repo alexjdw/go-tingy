@@ -119,4 +119,20 @@ describe('spaced repetition sessions', () => {
     assert.deepEqual(pickSessionIds([]), []);
     assert.equal(pickSessionIds(due, seeded(3), 5).length, 5);
   });
+
+  it('puts priority puzzles before all the others, even when the session is full', () => {
+    const due = Array.from({ length: 55 }, (_, i) => `p${i}`);
+    const first = new Set(['p50', 'p7', 'p33']);
+    for (let seed = 1; seed < 10; seed++) {
+      const ids = pickSessionIds(due, seeded(seed), 20, first);
+      assert.deepEqual(new Set(ids.slice(0, 3)), first);
+      assert.equal(ids.length, 20);
+      assert.equal(new Set(ids).size, 20);
+    }
+    assert.deepEqual(
+      pickSessionIds(['a', 'b'], seeded(1), 20, new Set(['zzz'])).sort(),
+      ['a', 'b'],
+      'not due: ignored',
+    );
+  });
 });

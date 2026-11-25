@@ -1,9 +1,13 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MAX_BACKLOG_COUNT, MAX_BACKLOG_DAYS } from '../../progress/backlog';
 import type { Settings, Tri } from '../../storage/settings';
+import { NumberField } from '../components/NumberField';
 import { Btn, theme } from '../components/theme';
 import type { SyncApi } from '../useSync';
 
-const ROWS: { key: keyof Settings; title: string; desc: string }[] = [
+type TriKey = 'markChoices' | 'flipColors' | 'paper';
+
+const ROWS: { key: TriKey; title: string; desc: string }[] = [
   {
     key: 'markChoices',
     title: 'Mark the correct choices',
@@ -28,12 +32,15 @@ export function SettingsScreen({
   onChange,
   onBack,
   onAbout,
+  onPickBacklog,
   sync,
 }: {
   settings: Settings;
   onChange: (s: Settings) => void;
   onBack: () => void;
   onAbout?: () => void;
+  /** open the screen where the puzzles to work on first are chosen */
+  onPickBacklog?: () => void;
   sync?: SyncApi;
 }) {
   return (
@@ -58,6 +65,31 @@ export function SettingsScreen({
           </View>
         </View>
       ))}
+      <View style={styles.card}>
+        <Text style={styles.title}>Work through a backlog</Text>
+        <Text style={styles.desc}>
+          For spaced repetition and guided learning. Choose how many puzzles to focus on and for how many days, then
+          pick them: the ones you know least are listed first. Until the days are over they come first in the guided
+          learning list, and first whenever they are due in spaced repetition.
+        </Text>
+        <View style={styles.seg}>
+          <NumberField
+            label="Puzzles"
+            value={settings.backlogCount}
+            min={1}
+            max={MAX_BACKLOG_COUNT}
+            onChange={(n) => onChange({ ...settings, backlogCount: n })}
+          />
+          <NumberField
+            label="Days"
+            value={settings.backlogDays}
+            min={1}
+            max={MAX_BACKLOG_DAYS}
+            onChange={(n) => onChange({ ...settings, backlogDays: n })}
+          />
+        </View>
+        {onPickBacklog ? <Btn label="Choose puzzles" onPress={onPickBacklog} /> : null}
+      </View>
       {sync?.available ? <SyncCard sync={sync} /> : null}
       {onAbout ? <Btn label="About and licenses" kind="ghost" onPress={onAbout} /> : null}
     </ScrollView>

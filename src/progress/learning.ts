@@ -58,6 +58,8 @@ export interface LearningState {
   scores: Record<string, PuzzleLearning>;
   /** guided/timed attempts started per puzzle on a given local day */
   attempts: Record<string, { day: string; count: number }>;
+  /** puzzle id -> when its priority ends (epoch ms); see `src/progress/backlog.ts`. Absent until something is chosen. */
+  priority?: Record<string, number>;
 }
 
 export const emptyLearningState = (): LearningState => ({
@@ -202,7 +204,7 @@ export function learningProgress(s: LearningState, id: string, learnerMoves: num
   return { fill, color: barColor(fill) };
 }
 
-/** The five marks of the badge on a learning puzzle's tile: 🔴 🟡 🟢 ✨ 💎 */
+/** The five marks of the badge on a learning puzzle's tile: red, yellow, green, gold star, diamond */
 export type SkillMark = 'red' | 'yellow' | 'green' | 'sparkle' | 'diamond';
 
 /**
@@ -259,7 +261,12 @@ export function parseLearningState(raw: unknown): LearningState | null {
   const scores = map(raw.scores);
   const attempts = map(raw.attempts);
   if (!spaced || !learning || !scores || !attempts) return null;
-  return { version: 1, spaced, learning, scores, attempts } as unknown as LearningState;
+  const out = { version: 1, spaced, learning, scores, attempts } as unknown as LearningState;
+  if (isRecord(raw.priority)) {
+    const priority = Object.fromEntries(Object.entries(raw.priority).filter(([, t]) => typeof t === 'number'));
+    if (Object.keys(priority).length) out.priority = priority as Record<string, number>;
+  }
+  return out;
 }
 
 /** Add a backup, keeping only the most recent `keep` (oldest first in the list). */

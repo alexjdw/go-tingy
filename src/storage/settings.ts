@@ -9,9 +9,19 @@ export interface Settings {
   flipColors: Tri;
   /** Solving only: show the puzzle as a still diagram, solve it in your head, then rate how it went. */
   paper: Tri;
+  /** Backlog: how many puzzles to choose to work on first (see src/progress/backlog.ts). */
+  backlogCount: number;
+  /** Backlog: how many days those puzzles stay a priority. */
+  backlogDays: number;
 }
 
-export const DEFAULT_SETTINGS: Settings = { markChoices: 'off', flipColors: 'random', paper: 'off' };
+export const DEFAULT_SETTINGS: Settings = {
+  markChoices: 'off',
+  flipColors: 'random',
+  paper: 'off',
+  backlogCount: 5,
+  backlogDays: 7,
+};
 
 const KEY = 'settings.v1';
 

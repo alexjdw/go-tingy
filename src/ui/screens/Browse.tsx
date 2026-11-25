@@ -14,9 +14,10 @@ import { tileStats } from '../../progress/stats';
 import { LearningBadge } from '../components/LearningBadge';
 import { cachedLearnerDepth } from '../../study/lines';
 import { CollectionBar, useCollectionFilter } from '../components/CollectionBar';
+import { BulkMenu } from '../components/BulkMenu';
 import { PlusMenu } from '../components/PlusMenu';
 import { PuzzleGrid } from '../components/PuzzleGrid';
-import { captionOf } from '../../sgf/folders';
+import { captionOf, inFolder } from '../../sgf/folders';
 import { PuzzleTile } from '../components/PuzzleTile';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Btn } from '../components/theme';
@@ -71,6 +72,8 @@ export function Browse({
 }: Props) {
   const { collections, active, setSelected, folders, folder, setFolder, shown } = useCollectionFilter(problems);
   const [menu, setMenu] = useState<Problem | null>(null);
+  /** a collection or folder whose puzzles are added or removed together (long press or double tap on its chip) */
+  const [bulk, setBulk] = useState<{ title: string; ids: string[] } | null>(null);
   const added = addTo ? problems.filter((p) => inCategory(learning, addTo, p.id)).length : 0;
   // with a collection (or a folder of it) selected, one button adds or removes everything shown
   const missing = addTo ? shown.filter((p) => !inCategory(learning, addTo, p.id)) : [];
@@ -96,6 +99,12 @@ export function Browse({
         folder={folder}
         onFolder={setFolder}
         onRenameCollection={onRenameCollection}
+        onMenu={({ collection, folder: path }) =>
+          setBulk({
+            title: path ? `${collection} / ${path.split('/').join(' / ')}` : collection,
+            ids: problems.filter((p) => p.collection === collection && inFolder(p, path)).map((p) => p.id),
+          })
+        }
         deleteCount={collections.find(([c]) => c === active)?.[1] ?? 0}
         onDeleteCollection={(c) => onDeleteMany(problems.filter((p) => p.collection === c).map((p) => p.id))}
       />
@@ -185,6 +194,16 @@ export function Browse({
             />
           );
         }}
+      />
+      <BulkMenu
+        title={bulk?.title ?? null}
+        total={bulk?.ids.length ?? 0}
+        have={{
+          spaced: bulk ? bulk.ids.filter((id) => inCategory(learning, 'spaced', id)).length : 0,
+          learning: bulk ? bulk.ids.filter((id) => inCategory(learning, 'learning', id)).length : 0,
+        }}
+        onToggle={(category, on) => bulk && onToggleMany(bulk.ids, category, on)}
+        onClose={() => setBulk(null)}
       />
       <PlusMenu
         title={menu?.title ?? null}

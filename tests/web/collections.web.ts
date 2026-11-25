@@ -104,6 +104,42 @@ describe('collections', { skip: skipWithoutChrome }, () => {
     await expectText(page, '0 added so far');
   });
 
+  it('a double tap on a collection asks where to add or remove all of its puzzles, folders included', async () => {
+    await page.click('[aria-label="Tesuji (3)"]', { count: 2 });
+    await expectText(page, '3 puzzles, with everything in its folders.');
+    await expectText(page, '0 of 3 already in spaced repetition');
+    await click(page, 'Add all to spaced repetition');
+    await expectText(page, '3 of 3 already in spaced repetition');
+    await expectText(page, '0 of 3 already in guided learning');
+    await click(page, 'Close');
+    assert.doesNotMatch(await bodyText(page), /everything in its folders/);
+  });
+
+  it('a long press on a collection or a folder opens the same menu', async () => {
+    const press = async (label: string) => {
+      const sel = `[aria-label=${JSON.stringify(label)}]`;
+      await page.hover(sel);
+      await page.mouse.down();
+      await sleep(800);
+      await page.mouse.up();
+    };
+    await press('Renamed set (3)');
+    await expectText(page, 'Renamed set');
+    await click(page, 'Add all to guided learning');
+    await expectText(page, '3 of 3 already in guided learning');
+    await click(page, 'Remove all from guided learning');
+    await expectText(page, '0 of 3 already in guided learning');
+    await click(page, 'Close');
+    await click(page, 'Tesuji (3)');
+    await press('Part 1 (2)');
+    await expectText(page, 'Tesuji / Part 1');
+    await expectText(page, '2 puzzles, with everything in its folders.');
+    await expectText(page, '2 of 2 already in spaced repetition');
+    await click(page, 'Remove all from spaced repetition');
+    await expectText(page, '0 of 2 already in spaced repetition');
+    await click(page, 'Close');
+  });
+
   it('threw no errors', () => {
     assert.deepEqual(errors, []);
   });

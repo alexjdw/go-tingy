@@ -11,12 +11,15 @@ export const theme = {
 export function Btn({
   label,
   onPress,
+  onLongPress,
   kind = 'solid',
   disabled,
   accessibilityLabel,
 }: {
   label: string;
   onPress: () => void;
+  /** a long press does this instead of onPress */
+  onLongPress?: () => void;
   kind?: 'solid' | 'ghost';
   disabled?: boolean;
   /** what a screen reader says, when the visible label (like "+") isn't enough */
@@ -25,6 +28,8 @@ export function Btn({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={450}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}

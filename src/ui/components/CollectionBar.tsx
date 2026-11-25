@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { TextInput, View } from 'react-native';
 import type { Problem } from '../../data/samples';
 import { childFolders, collectionsOf, inFolder } from '../../sgf/folders';
@@ -45,7 +45,15 @@ interface Props {
   deleteCount?: number;
   /** shown for a selected collection: give it another name */
   onRenameCollection?: (collection: string, name: string) => void;
+  /**
+   * A long press or a double tap on a collection or folder chip: `folder` is the full path of the folder, or null for
+   * the whole collection. Everything inside it, folders included, is meant.
+   */
+  onMenu?: (target: { collection: string; folder: string | null }) => void;
 }
+
+/** A double tap is two taps on the same chip within this many milliseconds. */
+const DOUBLE_TAP_MS = 400;
 
 /** Chips to pick a collection, and the folders inside it. Renders nothing when there are no collections. */
 export function CollectionBar({
@@ -58,7 +66,23 @@ export function CollectionBar({
   onDeleteCollection,
   deleteCount = 0,
   onRenameCollection,
+  onMenu,
 }: Props) {
+  const lastTap = useRef<{ key: string; at: number } | null>(null);
+  /** The press handlers of a chip: the tap does `act`, a second quick tap or a long press opens the menu instead. */
+  const chip = (key: string, target: { collection: string; folder: string | null }, act: () => void) => ({
+    onPress: () => {
+      const now = Date.now();
+      if (onMenu && lastTap.current?.key === key && now - lastTap.current.at < DOUBLE_TAP_MS) {
+        lastTap.current = null;
+        onMenu(target);
+        return;
+      }
+      lastTap.current = { key, at: now };
+      act();
+    },
+    onLongPress: onMenu ? () => onMenu(target) : undefined,
+  });
   const [confirm, setConfirm] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   if (!collections.length) return null;
@@ -80,11 +104,11 @@ export function CollectionBar({
             key={c}
             label={`${c} (${n})`}
             kind={active === c ? 'solid' : 'ghost'}
-            onPress={() => {
+            {...chip(`c:${c}`, { collection: c, folder: null }, () => {
               onSelect(c);
               setConfirm(false);
               setRenaming(null);
-            }}
+            })}
           />
         ))}
       </ChipRow>
@@ -99,7 +123,14 @@ export function CollectionBar({
             />
           ) : null}
           {folders.map(([f, n]) => (
-            <Btn key={f} label={`${f} (${n})`} kind="ghost" onPress={() => onFolder(folder ? `${folder}/${f}` : f)} />
+            <Btn
+              key={f}
+              label={`${f} (${n})`}
+              kind="ghost"
+              {...chip(`f:${folder ?? ''}/${f}`, { collection: active, folder: folder ? `${folder}/${f}` : f }, () =>
+                onFolder(folder ? `${folder}/${f}` : f),
+              )}
+            />
           ))}
         </ChipRow>
       ) : null}
