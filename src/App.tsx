@@ -50,7 +50,6 @@ import { collectionsOf, renameCollection as renameCollectionIn } from './sgf/fol
 import { ImportScreen } from './ui/screens/ImportScreen';
 import { LearningHome } from './ui/screens/LearningHome';
 import { TimedScreen } from './ui/screens/TimedScreen';
-import { Picker } from './ui/screens/Picker';
 import { Prune } from './ui/screens/Prune';
 import { SessionScreen } from './ui/screens/SessionScreen';
 import { AboutScreen } from './ui/screens/AboutScreen';
@@ -59,10 +58,9 @@ import { Study } from './ui/screens/Study';
 
 type Screen =
   | { name: 'home' }
-  | { name: 'browse' }
+  | { name: 'browse'; addTo?: Category }
   | { name: 'learning' }
   | { name: 'session' }
-  | { name: 'picker'; category: Category }
   | { name: 'prune' }
   | { name: 'settings' }
   | { name: 'about' }
@@ -334,6 +332,8 @@ export default function App() {
 
       {screen.name === 'browse' && (
         <Browse
+          addTo={screen.addTo}
+          onToggleMany={(ids, category, on) => toggleCategoryMany(ids, category, on)}
           problems={problems}
           progress={progress}
           learning={learning}
@@ -360,7 +360,7 @@ export default function App() {
           joseki={joseki}
           onJosekiChange={setJosekiMode}
           onBack={back}
-          onAddPuzzles={() => go({ name: 'picker', category: 'learning' })}
+          onAddPuzzles={() => go({ name: 'browse', addTo: 'learning' })}
           onPlay={startRun}
           onToggleCategory={toggleCategory}
         />
@@ -376,20 +376,9 @@ export default function App() {
           joseki={joseki}
           onJosekiChange={setJosekiMode}
           // from the end screen, Add/Prune replace the session so that Back returns home, not to a new session
-          onAddPuzzles={() => swap({ name: 'picker', category: 'spaced' })}
+          onAddPuzzles={() => swap({ name: 'browse', addTo: 'spaced' })}
           onPrune={() => swap({ name: 'prune' })}
           onDone={back}
-        />
-      )}
-
-      {screen.name === 'picker' && (
-        <Picker
-          category={screen.category}
-          problems={problems}
-          learning={learning}
-          onToggle={(id, on) => toggleCategory(id, screen.category, on)}
-          onToggleMany={(ids, on) => toggleCategoryMany(ids, screen.category, on)}
-          onBack={back}
         />
       )}
 

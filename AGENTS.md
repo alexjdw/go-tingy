@@ -32,6 +32,9 @@ shows the last one; Back pops it, and the Android back button does the same (fro
 
 The app opens on **Home**, where the player picks one of three modes: **Spaced repetition** (a review session that starts at once; Add puzzles and Prune puzzles are on its
 end screen), **Guided Learning** (a list of tiles with Add puzzles at the top) or **Browse** (every puzzle as tiles with Play and +; New puzzle, New from game and Import SGF live here).
+**Add puzzles** (on the Guided Learning screen and the spaced-repetition end screen) opens that same Browse screen with `addTo`
+set to the study mode: the title reads "Add puzzles", each tile has an Add button instead of Play (the + menu is still there),
+and with a collection chosen one button adds the whole collection or folder. So a new player can also create or import there.
 
 ## Project layout
 
@@ -58,7 +61,7 @@ src/progress/stats.ts     the stats a tile shows on hover / long press, all mode
 src/progress/practice.ts  what Play does in learning mode; which puzzles look easy (pruning)      (pure TS)
 src/storage/              AsyncStorage persistence for library, progress, settings, learning (+15 backups)
 src/data/samples.ts       built-in demo problems and the Problem type
-src/ui/screens/           Home, Browse, LearningHome, SessionScreen, Picker, Prune, Study, TimedScreen (a learning
+src/ui/screens/           Home, Browse, LearningHome, SessionScreen, Prune, Study, TimedScreen (a learning
                           run), Editor, FromGame (New from game), ImportScreen, SettingsScreen
 src/ui/components/        Board (SVG), PuzzleTile/PuzzleGrid/PlusMenu/CollectionBar,
                           LearningBadge (GM, fills with the level), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
@@ -121,7 +124,7 @@ opened again gets a new draw. `tests/web/flip.web.ts` covers it.
 A collection is a named folder of puzzles: `Problem.collection` is its name and `Problem.folder` a path below it
 (`Part 1/Peep`). Importing two or more puzzles at once (a folder, a zip with folders, a file of several puzzles) first
 asks the player for the collection's name (`suggestName` offers one; "No collection" skips it). The folders of a zip or
-a picked folder (web: "Choose folder…") are kept. Browse and the Add puzzles picker show collection chips, then the
+a picked folder (web: "Choose folder…") are kept. Browse (also as Add puzzles) shows collection chips, then the
 folders inside the chosen one; Browse can rename and delete a collection. The logic is in `src/sgf/folders.ts`, tested
 in `tests/sgf/folders.test.ts` and `tests/web/collections.web.ts`.
 
