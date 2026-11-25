@@ -101,7 +101,9 @@ clicked through, then the player taps Done and rates it Easy / Medium / Tough / 
 `src/progress/skill.ts`). Spaced sessions record the rating on the `Attempt` (`self` replaces the speed score; too tough =
 failed, so the puzzle returns once). A guided run passes it to `recordGuidedResult`: too tough adds one step of free moves
 back; the rating of the run that clears the stage at 0 free moves sets `GuidedScore.quality`, which scales the guided half
-of the bar. Browse records nothing. A joseki counts the worse of its two sides. Tests: `tests/progress/paper.test.ts`.
+of the bar. Double tapping the diagram turns it over to the numbered main solution line (`solutionDiagram` in
+`src/study/diagram.ts`; setup stones unnumbered), and again turns it back; `tests/study/diagram.test.ts`, `tests/web/paper.web.ts`.
+Browse records nothing. A joseki counts the worse of its two sides. Tests: `tests/progress/paper.test.ts`.
 
 ## Explore mode and the tree
 

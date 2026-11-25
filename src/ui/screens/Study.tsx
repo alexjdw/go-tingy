@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { Problem } from '../../data/samples';
 import { StudyEngine, chooseFlip, hasSecondSide, rollTri, type Mode } from '../../study/engine';
 import { allPoints, boardDims, type Point, type SgfNode } from '../../sgf/parser';
 import { canSplitAt, splitAt } from '../../sgf/split';
 import { layoutTree } from '../../study/treeLayout';
+import { solutionDiagram } from '../../study/diagram';
 import type { Settings } from '../../storage/settings';
 import { BoardView } from '../components/Board';
 import { initialViewport } from '../../go/viewport';
@@ -117,6 +118,9 @@ export function Study({
   // Paper mode (solving only): a still diagram, solved in the head and then rated. Chosen once, like the flip.
   const [paper] = useState(() => mode === 'unguided' && rollTri(settings.paper));
   const [asking, setAsking] = useState(false);
+  /** Paper mode: the diagram is turned over to show the numbered solution (double tap). */
+  const [flipped, setFlipped] = useState(false);
+  const lastTap = useRef(0);
   const [rating, setRating] = useState<SelfRating | null>(null);
   const [carry, setCarry] = useState<{ mistakes: number; ms: number; parMs: number; self?: SelfRating } | null>(null);
   const activeSide = twoSided ? side : 'first';
@@ -303,10 +307,23 @@ export function Study({
   };
   const clearPaper = () => {
     stopped.current = false;
+    setFlipped(false);
     setAsking(false);
     setRating(null);
   };
   const onTap = (p: Point) => zoomedTap(zoom, p, handle);
+  const answer = useMemo(
+    () => (paper && flipped ? solutionDiagram(engine.root, engine.dims) : null),
+    [paper, flipped, engine],
+  );
+  /** Paper mode: two taps in quick succession turn the diagram over, and again turn it back. */
+  const diagramTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current < 400) {
+      lastTap.current = 0;
+      setFlipped((f) => !f);
+    } else lastTap.current = now;
+  };
 
   const submit = () => {
     if (engine.submitMarks() === 'wrong') shake();
@@ -358,7 +375,11 @@ export function Study({
       ? 'First side rated. Now the other side.'
       : 'First side solved! Now play it again from the other side.';
   else if (paper && rating) status = `You rated it: ${SELF_LABEL[rating]}`;
-  else if (looking) status = asking ? 'Done thinking?' : `Solve it in your head as ${me}, then tap Done`;
+  else if (answer) status = 'The solution, numbered in order. Double tap to turn it back.';
+  else if (looking)
+    status = asking
+      ? 'Done thinking?'
+      : `Solve it in your head as ${me}, then tap Done (double tap the diagram to see the answer)`;
   else if (s.status === 'solved')
     status =
       mode === 'unguided'
@@ -414,20 +435,29 @@ export function Study({
       ) : null}
 
       <View style={[styles.boardBox, flash === 'wrong' && styles.wrong, zoom.mode === 'armed' && styles.armed]}>
-        <BoardView
-          board={s.board}
-          view={zoom.view}
-          width={boardW}
-          last={s.last}
-          hints={hints}
-          marks={engine.marks}
-          markup={engine.markup()}
-          onPlay={onTap}
-          open={engine.open}
-          animKey={engine.placed}
-          disabled={phase === 'replay' || looking || (s.status === 'solved' && mode !== 'explore')}
-          paper={paper}
-        />
+        <Pressable
+          onPress={paper && phase === 'play' ? diagramTap : undefined}
+          accessibilityLabel={paper && phase === 'play' ? 'Diagram: double tap to turn it over' : undefined}
+        >
+          <BoardView
+            board={answer ? answer.board : s.board}
+            view={zoom.view}
+            width={boardW}
+            last={answer ? null : s.last}
+            hints={answer ? [] : hints}
+            marks={engine.marks}
+            markup={
+              answer
+                ? answer.numbers.map((m) => ({ kind: 'LB' as const, point: m.point, label: String(m.n) }))
+                : engine.markup()
+            }
+            onPlay={onTap}
+            open={engine.open}
+            animKey={engine.placed}
+            disabled={phase === 'replay' || looking || (s.status === 'solved' && mode !== 'explore')}
+            paper={paper}
+          />
+        </Pressable>
         {s.status === 'solved' && mode !== 'explore' ? <SolvedStamp /> : null}
       </View>
 
