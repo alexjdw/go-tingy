@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Settings, Tri } from '../../storage/settings';
 import { Btn, theme } from '../components/theme';
 import type { SyncApi } from '../useSync';
@@ -37,7 +37,7 @@ export function SettingsScreen({
   sync?: SyncApi;
 }) {
   return (
-    <View style={styles.wrap}>
+    <ScrollView contentContainerStyle={styles.wrap}>
       <View style={styles.top}>
         <Btn label="‹ Back" kind="ghost" onPress={onBack} />
         <Text style={styles.h1}>Settings</Text>
@@ -60,7 +60,7 @@ export function SettingsScreen({
       ))}
       {sync?.available ? <SyncCard sync={sync} /> : null}
       {onAbout ? <Btn label="About and licenses" kind="ghost" onPress={onAbout} /> : null}
-    </View>
+    </ScrollView>
   );
 }
 
