@@ -108,6 +108,14 @@ failure, else the first) and `jumpTo(node)`. The left/right arrow keys (`useArro
 its `layout` changes, so callers memoize the layout (`treeSignature` tells an in-place edited tree apart) and pass a
 stable `onSelect`. Tests: `tests/study/explore-walk.test.ts`, `tests/web/tree.web.ts`.
 
+## KataGo setup (desktop)
+
+`findEngine` (`desktop/katago.js`) looks for the engine in the environment, then `katago.json`, then the `katago` folder in
+the app's data folder. When it is missing, `status()` says what (`missing`) and where (`setup.folder`), and the Editor shows
+`KataGoSetup`: per-OS steps from `setupGuide` in `src/analysis/setup.ts` (pinned KataGo release and network, links checked
+to exist), Open the folder, Check again. Update the version and links there when moving to a newer release. The guide is
+tried on Windows only. Tests: `tests/analysis/setup.test.ts`, `tests/tooling/desktop-katago.test.ts`, `tests/web/engine.web.ts`.
+
 ## Splitting a puzzle (desktop only)
 
 In free exploration the desktop app (the page has `window.katago`, see `getBridge`) offers **Split off here**: the position

@@ -98,3 +98,63 @@ describe('the Editor without the desktop app', { skip: skipWithoutChrome }, () =
     assert.deepEqual(app.errors, []);
   });
 });
+
+const NOT_SET_UP = `
+window.ready = false;
+window.opened = 0;
+window.katago = {
+  status: async () => ({
+    ready: window.ready,
+    message: window.ready ? '' : 'KataGo is not set up yet (missing: program, network, config). It goes in C:/Users/me/katago.',
+    setup: { platform: 'win32', arch: 'x64', folder: 'C:/Users/me/katago' },
+  }),
+  openFolder: async () => { window.opened++; },
+  query: async () => JSON.stringify({ moveInfos: [] }),
+};
+`;
+
+describe('the Editor when KataGo is not set up', { skip: skipWithoutChrome }, () => {
+  let app: App;
+
+  before(async () => {
+    app = await startApp('engine-setup', {
+      viewport: { width: 700, height: 1300 },
+      library: [PUZZLE],
+      prepare: async (page) => {
+        await page.evaluateOnNewDocument(NOT_SET_UP);
+      },
+    });
+  });
+  after(async () => {
+    await app?.close();
+  });
+
+  it('shows the steps for this system and where the files go, and the helpers are off', async () => {
+    const { page } = app;
+    await openEditor(page);
+    await expectText(page, 'Set up KataGo to use this');
+    const text = await bodyText(page);
+    assert.match(text, /Steps for Windows/);
+    assert.match(text, /katago\.exe sits directly in it/);
+    assert.match(text, /C:\/Users\/me\/katago/);
+    assert.match(text, /Download KataGo \(OpenCL/);
+    assert.match(text, /kata1-b18c384nbt|Download the network/);
+    assert.match(text, /KataGo is not set up yet, so you build the tree by hand/);
+    assert.doesNotMatch(text, /Ask KataGo/);
+    // the toggle cannot be switched on, and saving is not held up by a check
+    await click(page, 'Open the folder');
+    assert.equal(await page.evaluate('window.opened'), 1);
+  });
+
+  it('Check again finds KataGo once it has been set up', async () => {
+    const { page } = app;
+    await click(page, 'Check again');
+    await sleep(300);
+    await expectText(page, 'Set up KataGo to use this'); // still not there
+    await page.evaluate('window.ready = true');
+    await click(page, 'Check again');
+    await expectText(page, 'Ask KataGo');
+    assert.doesNotMatch(await bodyText(page), /Set up KataGo to use this/);
+    assert.deepEqual(app.errors, []);
+  });
+});

@@ -9,13 +9,13 @@ const LEVEL_NAMES: Record<TimedLevel, string> = {
   diamond: 'diamond',
 };
 
-/** A small "GM" badge for a puzzle in learning: empty at first, filling with the level's color as the level rises. */
+/** A small badge for a puzzle in learning: empty at first, filling with the level's color as the level rises. */
 export function LearningBadge({ level }: { level: TimedLevel }) {
   const color = TIMED_COLORS[level];
   return (
     <View accessible accessibilityLabel={`Level: ${LEVEL_NAMES[level]}`} style={[styles.box, { borderColor: color }]}>
       <View style={[styles.fill, { height: `${levelFill(level) * 100}%`, backgroundColor: color }]} />
-      <Text style={styles.text}>GM</Text>
+      <Text style={styles.text}></Text>
     </View>
   );
 }

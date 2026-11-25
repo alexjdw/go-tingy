@@ -150,11 +150,14 @@ phone app.
   files as workflow artifacts only.
 - **KataGo second opinions (desktop only).** In the Editor's move tree, **Ask KataGo** shows the engine's favorite moves
   for the position on the board, numbered on the board and listed with win chance, score lead and its line of play.
-  The engine is not bundled: download a KataGo release (the OpenCL build runs on any GPU) and a network, then put a
-  `katago.json` with `exe`, `model` and `config` paths (use forward slashes) in the app's data folder
-  (`%APPDATA%\go-flashcards-desktop` when run from `desktop/`; the panel names the folder if the file is missing), or set
-  `KATAGO_EXE`, `KATAGO_MODEL` and `KATAGO_CONFIG`. The first question after installing takes a few minutes while
-  KataGo tunes itself for the GPU. `scripts/katago-review.ts` runs the same engine over SGF files from the command line.
+  The engine is not bundled. Until it is set up, the Editor shows step-by-step instructions for the player's system
+  (Windows, macOS or Linux: which KataGo download to get, which network, and the folder to put them in, with Open the
+  folder and Check again buttons): the app looks in a `katago` folder inside its data folder
+  (`%APPDATA%\go-flashcards-desktop\katago` when run from `desktop/`) for the program, a network (any `.bin.gz`) and
+  `analysis_example.cfg`. A `katago.json` with `exe`, `model` and `config` paths (forward slashes) in the data folder, or
+  `KATAGO_EXE`, `KATAGO_MODEL` and `KATAGO_CONFIG`, point at files elsewhere instead. The versions and links are in
+  `src/analysis/setup.ts`; macOS and Linux steps are untried. The first question after installing takes a few minutes
+  while KataGo tunes itself for the GPU. `scripts/katago-review.ts` runs the same engine over SGF files.
 - **Splitting a puzzle into easier ones (desktop).** In **Explore**, pick a move in the tree and press **Split off here**:
   the position at that move, and everything played after it, opens in the editor as a new puzzle ("... (split)").
   In the editor, **KataGo helps: on** makes KataGo answer each new move you play (about a second) with its best reply,

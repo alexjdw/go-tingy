@@ -11,28 +11,58 @@ const MAX_VISITS = 5000;
 const TIMEOUT_MS = 120000;
 
 /**
- * Where the engine is: KATAGO_EXE, KATAGO_MODEL and KATAGO_CONFIG in the environment, or `katago.json` with
- * { "exe": ..., "model": ..., "config": ... } in `dir`. Returns { paths } or { error } saying what to do.
+ * Where the engine is, looked for in this order:
+ *  1. KATAGO_EXE, KATAGO_MODEL and KATAGO_CONFIG in the environment;
+ *  2. a `katago.json` with { "exe": ..., "model": ..., "config": ... } in `dir`;
+ *  3. the folder `katago` inside `dir`, holding the program (katago or katago.exe, or on a Mac or Linux one installed
+ *     by a package manager), a network (any .bin.gz file) and `analysis_example.cfg` (it comes in KataGo's zip).
+ * Returns { paths } when all three are found, or { error, folder, missing } saying what is not, for the setup help.
  */
-function findEngine(dir, env = process.env) {
+function findEngine(dir, env = process.env, platform = process.platform) {
+  const folder = path.join(dir, 'katago');
   let paths = { exe: env.KATAGO_EXE, model: env.KATAGO_MODEL, config: env.KATAGO_CONFIG };
   const file = path.join(dir, 'katago.json');
   if (!paths.exe && fs.existsSync(file)) {
     try {
       paths = JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (e) {
-      return { error: `Could not read ${file}: ${e.message}` };
+      return { error: `Could not read ${file}: ${e.message}`, folder, missing: [] };
     }
+  } else if (!paths.exe) {
+    paths = inFolder(folder, platform);
   }
-  if (!paths.exe || !paths.model || !paths.config) {
+  const missing = [];
+  if (!paths.exe) missing.push('program');
+  if (!paths.model) missing.push('network');
+  if (!paths.config) missing.push('config');
+  if (missing.length) {
     return {
-      error: `KataGo is not set up. Put a katago.json with "exe", "model" and "config" paths in ${dir} (or set KATAGO_EXE, KATAGO_MODEL and KATAGO_CONFIG).`,
+      error: `KataGo is not set up yet (missing: ${missing.join(', ')}). It goes in ${folder}.`,
+      folder,
+      missing,
     };
   }
   for (const key of ['exe', 'model', 'config']) {
-    if (!fs.existsSync(paths[key])) return { error: `KataGo ${key} not found: ${paths[key]}` };
+    if (!fs.existsSync(paths[key])) return { error: `KataGo ${key} not found: ${paths[key]}`, folder, missing: [] };
   }
   return { paths };
+}
+
+/** What a `katago` folder holds: any of the three parts may be missing (undefined). */
+function inFolder(folder, platform) {
+  const names = fs.existsSync(folder) ? fs.readdirSync(folder).sort() : [];
+  const first = (candidates) => candidates.find((n) => names.includes(n));
+  const exeName = first(['katago.exe', 'katago']);
+  const installed =
+    platform === 'win32' ? [] : ['/opt/homebrew/bin/katago', '/usr/local/bin/katago', '/usr/bin/katago'];
+  const exe = exeName ? path.join(folder, exeName) : installed.find((f) => fs.existsSync(f));
+  const model = names.find((n) => n.endsWith('.bin.gz'));
+  const config = first(['analysis_example.cfg', 'analysis.cfg']);
+  return {
+    exe,
+    model: model && path.join(folder, model),
+    config: config && path.join(folder, config),
+  };
 }
 
 const engineArgs = (p) => [

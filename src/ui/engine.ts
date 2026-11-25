@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type KataGoBridge, bridgeAnalyzer, getBridge } from '../analysis/bridge';
+import { type KataGoBridge, type KataGoStatus, bridgeAnalyzer, getBridge } from '../analysis/bridge';
 import type { Suggestion } from '../analysis/suggest';
 
 export type EngineState =
@@ -20,10 +20,13 @@ const sameKeys = (a: unknown[], b: unknown[]) => a.length === b.length && a.ever
 export function useEngine(keys: unknown[]) {
   const bridge: KataGoBridge | null = useMemo(() => getBridge(), []);
   const analyzer = useMemo(() => (bridge ? bridgeAnalyzer(bridge) : null), [bridge]);
-  const [status, setStatus] = useState<{ ready: boolean; message: string } | null>(null);
+  const [status, setStatus] = useState<KataGoStatus | null>(null);
   const [held, setHeld] = useState<Held | null>(null);
   const latest = useRef(0);
 
+  // Asked again (`recheck`) after the player has set KataGo up.
+  const [checks, setChecks] = useState(0);
+  const recheck = useCallback(() => setChecks((n) => n + 1), []);
   useEffect(() => {
     let live = true;
     if (bridge) {
@@ -35,7 +38,7 @@ export function useEngine(keys: unknown[]) {
     return () => {
       live = false;
     };
-  }, [bridge]);
+  }, [bridge, checks]);
 
   const ask = useCallback(
     async (job: (analyze: ReturnType<typeof bridgeAnalyzer>) => Promise<Suggestion[]>) => {
@@ -53,5 +56,6 @@ export function useEngine(keys: unknown[]) {
   );
 
   const state: EngineState = held && sameKeys(held.keys, keys) ? held.state : { kind: 'idle' };
-  return { available: bridge !== null, status, state, ask, analyzer };
+  const openFolder = useCallback(() => void bridge?.openFolder?.(), [bridge]);
+  return { available: bridge !== null, status, state, ask, analyzer, recheck, openFolder };
 }

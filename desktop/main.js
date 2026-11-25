@@ -64,7 +64,19 @@ const trusted = (event) => {
 ipcMain.handle('katago:status', (event) => {
   if (!trusted(event)) return { ready: false, message: 'Not available here.' };
   const found = findEngine(app.getPath('userData'));
-  return found.error ? { ready: false, message: found.error } : { ready: true, message: '' };
+  const setup = {
+    platform: process.platform,
+    arch: process.arch,
+    folder: path.join(app.getPath('userData'), 'katago'),
+  };
+  return found.error ? { ready: false, message: found.error, setup } : { ready: true, message: '', setup };
+});
+// Opens (and first creates) the folder KataGo goes in, for the setup help.
+ipcMain.handle('katago:openFolder', async (event) => {
+  if (!trusted(event)) return;
+  const folder = path.join(app.getPath('userData'), 'katago');
+  fs.mkdirSync(folder, { recursive: true });
+  await shell.openPath(folder);
 });
 ipcMain.handle('katago:query', (event, request) => {
   if (!trusted(event)) throw new Error('Not available here.');

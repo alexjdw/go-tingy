@@ -6,9 +6,19 @@ import { fromResponse, toRequest } from './katago';
  * passes JSON lines to the engine and back; building the queries and reading the answers is done here, so this code is
  * the same wherever the engine runs.
  */
+export interface KataGoStatus {
+  /** is an engine configured? (Whether it starts is only known when it is asked something.) */
+  ready: boolean;
+  /** what is wrong, if not ready */
+  message: string;
+  /** where this app runs and where KataGo goes, for the setup help */
+  setup?: { platform: string; arch: string; folder: string };
+}
+
 export interface KataGoBridge {
-  /** is an engine configured and startable? `message` says what to do if not. */
-  status(): Promise<{ ready: boolean; message: string }>;
+  status(): Promise<KataGoStatus>;
+  /** open the folder KataGo goes in, creating it first */
+  openFolder?(): Promise<void>;
   /** send one analysis request (a JSON object) and get the answer (a JSON object), both as text */
   query(request: string): Promise<string>;
 }

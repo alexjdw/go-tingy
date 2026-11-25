@@ -534,12 +534,15 @@ export function Editor({ initial, onCancel, onSave }: Props) {
                 label={`KataGo helps: ${aiOn ? 'on' : 'off'}`}
                 kind={aiOn ? 'solid' : 'ghost'}
                 onPress={() => setAi((v) => !v)}
+                disabled={!engine.status?.ready}
                 accessibilityLabel={aiOn ? 'KataGo helps: on' : 'KataGo helps: off'}
               />
               <Text style={[styles.hint, { flex: 1 }]}>
-                {ai
-                  ? 'On: KataGo answers each new move you play and checks the puzzle before you save.'
-                  : 'Off: you build the tree by hand.'}
+                {engine.status && !engine.status.ready
+                  ? 'KataGo is not set up yet, so you build the tree by hand and nothing is checked (see below).'
+                  : ai
+                    ? 'On: KataGo answers each new move you play and checks the puzzle before you save.'
+                    : 'Off: you build the tree by hand.'}
               </Text>
             </View>
           ) : null}
@@ -552,6 +555,8 @@ export function Editor({ initial, onCancel, onSave }: Props) {
             toMove={nextColor}
             dims={dims}
             onAsk={askEngine}
+            onRecheck={engine.recheck}
+            onOpenFolder={engine.openFolder}
           />
 
           <TextInput

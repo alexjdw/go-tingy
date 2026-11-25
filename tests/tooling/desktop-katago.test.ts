@@ -11,7 +11,11 @@ interface Pipe {
 }
 const { KataGoPipe, findEngine, MAX_VISITS } = createRequire(import.meta.url)('../../desktop/katago.js') as {
   KataGoPipe: new (command: string, args: string[]) => Pipe;
-  findEngine: (dir: string, env?: Record<string, string>) => { paths?: Record<string, string>; error?: string };
+  findEngine: (
+    dir: string,
+    env?: Record<string, string>,
+    platform?: string,
+  ) => { paths?: Record<string, string>; error?: string; folder?: string; missing?: string[] };
   MAX_VISITS: number;
 };
 
@@ -54,6 +58,34 @@ test('when the engine stops, the query fails and the next one starts it again', 
 test('a program that is not there is reported, not thrown', async () => {
   const pipe = new KataGoPipe(path.join(os.tmpdir(), 'no-such-katago-program'), []);
   await assert.rejects(pipe.query('{}'), /Could not start/);
+});
+
+test('a katago folder with the program, a network and the config is enough; a missing part is named', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'katago-'));
+  try {
+    const folder = path.join(dir, 'katago');
+    const none = findEngine(dir, {}, 'win32');
+    assert.deepEqual(none.missing, ['program', 'network', 'config']);
+    assert.equal(none.folder, folder);
+    fs.mkdirSync(folder);
+    fs.writeFileSync(path.join(folder, 'katago.exe'), '');
+    fs.writeFileSync(path.join(folder, 'analysis_example.cfg'), '');
+    const partial = findEngine(dir, {}, 'win32');
+    assert.deepEqual(partial.missing, ['network']);
+    assert.match(partial.error ?? '', /missing: network/);
+    fs.writeFileSync(path.join(folder, 'kata1-b18c384nbt.bin.gz'), '');
+    const ok = findEngine(dir, {}, 'win32');
+    assert.equal(ok.paths?.exe, path.join(folder, 'katago.exe'));
+    assert.equal(ok.paths?.model, path.join(folder, 'kata1-b18c384nbt.bin.gz'));
+    assert.equal(ok.paths?.config, path.join(folder, 'analysis_example.cfg'));
+    // a katago.json wins over the folder
+    const exe = path.join(dir, 'k.exe');
+    fs.writeFileSync(exe, '');
+    fs.writeFileSync(path.join(dir, 'katago.json'), JSON.stringify({ exe, model: exe, config: exe }));
+    assert.equal(findEngine(dir, {}, 'win32').paths?.exe, exe);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('the engine is found from a katago.json or the environment, and a missing one says what to do', () => {
