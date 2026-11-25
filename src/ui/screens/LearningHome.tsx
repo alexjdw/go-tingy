@@ -7,7 +7,7 @@ import {
   inCategory,
   localDay,
   learningProgress,
-  puzzleTimedLevel,
+  skillMark,
 } from '../../progress/learning';
 import { type RunKind, learningAction } from '../../progress/practice';
 import { cachedLearnerDepth } from '../../study/lines';
@@ -82,7 +82,7 @@ export function LearningHome({
               problem={p}
               width={width}
               bar={learningProgress(learning, p.id, cachedLearnerDepth(p.sgf))}
-              badge={<LearningBadge level={puzzleTimedLevel(learning, p.id)} />}
+              badge={<LearningBadge mark={skillMark(learning, p.id, cachedLearnerDepth(p.sgf))} />}
               caption={a.caption}
               tags={joseki.includes(p.id) ? ['Joseki'] : []}
               stats={() =>

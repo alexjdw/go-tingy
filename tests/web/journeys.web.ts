@@ -97,9 +97,9 @@ describe('journeys', { skip: skipWithoutChrome }, () => {
     await click(page, 'Close');
     await expectText(page, 'Spaced repetition');
     assert.equal(
-      await count(page, `document.querySelectorAll('[aria-label="Level: not started"]').length`),
+      await count(page, `document.querySelectorAll('[aria-label="Level: just starting"]').length`),
       1,
-      'a GM badge on the learning puzzle, not the word Learning',
+      'a red badge on the learning puzzle, not the word Learning',
     );
     assert.ok(!(await bodyText(page)).includes('Spaced repetition · Learning'));
   });

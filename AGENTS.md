@@ -64,7 +64,7 @@ src/data/samples.ts       built-in demo problems and the Problem type
 src/ui/screens/           Home, Browse, LearningHome, SessionScreen, Prune, Study, TimedScreen (a learning
                           run), Editor, FromGame (New from game), ImportScreen, SettingsScreen
 src/ui/components/        Board (SVG), PuzzleTile/PuzzleGrid/PlusMenu/CollectionBar,
-                          LearningBadge (GM, fills with the level), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
+                          LearningBadge (🔴 🟡 🟢 ✨ 💎), SkillBar (no numbers), ChipRow, ScreenHeader, theme + Btn
 src/ui/batch.ts           tile batch rules: 10 at a time (pure TS, tested)
 src/ui/zoom.ts, sound.ts  zoom hook, stone sound
 tests/                    node:test suites, one folder per area like src/ (sgf, go, study, progress, storage, nav, ui, data),

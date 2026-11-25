@@ -7,7 +7,7 @@ import {
   inCategory,
   localDay,
   learningProgress,
-  puzzleTimedLevel,
+  skillMark,
 } from '../../progress/learning';
 import type { ProgressMap } from '../../progress/skill';
 import { tileStats } from '../../progress/stats';
@@ -149,7 +149,9 @@ export function Browse({
               width={width}
               bar={inLearning ? learningProgress(learning, p.id, cachedLearnerDepth(p.sgf)) : undefined}
               caption={captionOf(p)}
-              badge={inLearning ? <LearningBadge level={puzzleTimedLevel(learning, p.id)} /> : undefined}
+              badge={
+                inLearning ? <LearningBadge mark={skillMark(learning, p.id, cachedLearnerDepth(p.sgf))} /> : undefined
+              }
               stats={() =>
                 tileStats({
                   id: p.id,

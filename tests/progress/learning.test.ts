@@ -23,6 +23,7 @@ import {
   recordTimedResult,
   setCategory,
   setCategoryMany,
+  skillMark,
   visibleIds,
 } from '../../src/progress/learning';
 
@@ -272,10 +273,34 @@ describe('two attempts per day', () => {
   });
 });
 
-describe('learning badge fill', () => {
-  it('rises with the level, from empty to full', async () => {
-    const { levelFill } = await import('../../src/progress/learning');
-    const fills = (['none', 'green', 'gold', 'diamond'] as const).map(levelFill);
-    assert.deepEqual(fills, [0, 1 / 3, 2 / 3, 1]);
+describe('the badge: red, yellow, green, sparkle, diamond', () => {
+  const MOVES = 8; // a long enough puzzle to have several guided stages
+  const clean = (s: ReturnType<typeof emptyLearningState>) => recordGuidedResult(s, 'p', MOVES, true);
+  const cleared = () => {
+    let s = emptyLearningState();
+    while (!guidedStatus(s, 'p', MOVES).cleared) s = clean(s);
+    return s;
+  };
+
+  it('starts red and turns yellow half way through the guided stages', () => {
+    let s = emptyLearningState();
+    assert.equal(skillMark(s, 'p', MOVES), 'red');
+    const stages = guidedStages(MOVES).length;
+    for (let n = 0; n < Math.ceil(stages / 2); n++) s = clean(s);
+    assert.equal(skillMark(s, 'p', MOVES), 'yellow');
+    assert.equal(guidedStatus(s, 'p', MOVES).cleared, false);
+  });
+
+  it('is green once the guided stage is cleared, sparkle at a gold best and diamond at a diamond best', () => {
+    const s = cleared();
+    assert.equal(skillMark(s, 'p', MOVES), 'green');
+    assert.equal(skillMark(recordTimedResult(s, 'p', result({ score: 11, level: 'gold' })), 'p', MOVES), 'sparkle');
+    assert.equal(skillMark(recordTimedResult(s, 'p', result({ score: 16, level: 'diamond' })), 'p', MOVES), 'diamond');
+  });
+
+  it('never goes down: a worse run keeps the best level', () => {
+    let s = recordTimedResult(cleared(), 'p', result({ score: 16, level: 'diamond' }));
+    s = recordTimedResult(s, 'p', result({ score: 2, level: 'none' }));
+    assert.equal(skillMark(s, 'p', MOVES), 'diamond');
   });
 });

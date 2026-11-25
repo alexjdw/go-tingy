@@ -1,45 +1,33 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { type TimedLevel, levelFill } from '../../progress/learning';
-import { TIMED_COLORS, theme } from './theme';
+import type { SkillMark } from '../../progress/learning';
 
-const LEVEL_NAMES: Record<TimedLevel, string> = {
-  none: 'not started',
-  green: 'green',
-  gold: 'gold',
-  diamond: 'diamond',
+const MARKS: Record<SkillMark, { emoji: string; name: string }> = {
+  red: { emoji: '🔴', name: 'just starting' },
+  yellow: { emoji: '🟡', name: 'getting there' },
+  green: { emoji: '🟢', name: 'guided stage cleared' },
+  sparkle: { emoji: '✨', name: 'gold' },
+  diamond: { emoji: '💎', name: 'diamond' },
 };
 
-/** A small "GM" badge for a puzzle in learning: empty at first, filling with the level's color as the level rises. */
-export function LearningBadge({ level }: { level: TimedLevel }) {
-  const color = TIMED_COLORS[level];
+/** The badge on a puzzle in learning: 🔴 🟡 🟢 ✨ 💎 for its estimated skill level. */
+export function LearningBadge({ mark }: { mark: SkillMark }) {
+  const m = MARKS[mark];
   return (
-    <View accessible accessibilityLabel={`Level: ${LEVEL_NAMES[level]}`} style={[styles.box, { borderColor: color }]}>
-      <View style={[styles.fill, { height: `${levelFill(level) * 100}%`, backgroundColor: color }]} />
-      <Text style={styles.text}>GM</Text>
+    <View accessible accessibilityLabel={`Level: ${m.name}`} style={styles.box}>
+      <Text style={styles.text}>{m.emoji}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   box: {
-    width: 30,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
+    minWidth: 26,
+    height: 26,
+    paddingHorizontal: 3,
+    borderRadius: 13,
     alignItems: 'center',
-    backgroundColor: '#14161aE6',
+    justifyContent: 'center',
+    backgroundColor: '#14161aCC',
   },
-  fill: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  text: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: 3,
-    color: theme.text,
-    fontSize: 11,
-    fontWeight: '900',
-    textShadowColor: '#000',
-    textShadowRadius: 2,
-  },
+  text: { fontSize: 15, lineHeight: 20 },
 });
